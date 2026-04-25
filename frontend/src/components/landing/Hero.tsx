@@ -13,11 +13,11 @@ import {
 
 const fadeUp: Variants = {
   hidden: { opacity: 0, y: 24 },
-  show: (i: number = 0) => ({
+  show: ((i: number = 0) => ({
     opacity: 1,
     y: 0,
     transition: { delay: 0.05 * i, duration: 0.6, ease: "easeOut" as const },
-  }),
+  })) as any,
 };
 
 const Hero: React.FC = () => {
