@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowRight, Loader2, Eye, EyeOff, Check } from "lucide-react";
+import { ArrowRight, Loader2, Eye, EyeOff, Check, AlertCircle, MailCheck } from "lucide-react";
 import AuthLayout from "@/components/auth/AuthLayout";
 import { useAuth } from "@/context/AuthContext";
 import { ROLE_GROUPS, ROLE_LABELS, type Role } from "@/lib/roles";
@@ -16,6 +16,7 @@ const RegisterPage: React.FC = () => {
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [emailSent, setEmailSent] = useState(false);
 
   const passwordRules = [
     { label: "At least 8 characters", ok: password.length >= 8 },
@@ -36,14 +37,50 @@ const RegisterPage: React.FC = () => {
     }
     setLoading(true);
     try {
-      await register({ name, email, password, role, organization });
-      navigate("/app");
-    } catch {
-      setError("Sign up failed. Try again.");
+      const u = await register({ name, email, password, role, organization });
+      if (u) {
+        navigate("/app");
+      } else {
+        // Email confirmation required
+        setEmailSent(true);
+      }
+    } catch (err: any) {
+      setError(err?.message || "Sign up failed. Try again.");
     } finally {
       setLoading(false);
     }
   };
+
+  if (emailSent) {
+    return (
+      <AuthLayout
+        title="Check your inbox"
+        subtitle="We've sent a confirmation link to verify your email."
+        side="right"
+      >
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6">
+          <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-600 text-white">
+            <MailCheck className="h-5 w-5" />
+          </div>
+          <h3 className="mt-4 font-display text-lg font-bold text-slate-900">
+            Verify your email
+          </h3>
+          <p className="mt-1 text-sm text-slate-600">
+            We've emailed <strong>{email}</strong> a confirmation link. Click it
+            to activate your account, then sign in.
+          </p>
+        </div>
+        <p className="mt-8 text-sm text-slate-500 text-center">
+          <Link
+            to="/login"
+            className="font-semibold text-indigo-600 hover:text-indigo-700"
+          >
+            Back to sign in
+          </Link>
+        </p>
+      </AuthLayout>
+    );
+  }
 
   return (
     <AuthLayout
@@ -97,7 +134,7 @@ const RegisterPage: React.FC = () => {
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Choose a strong password"
               data-testid="register-password-input"
-              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 pr-11 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 pr-11 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
             <button
               type="button"
@@ -115,10 +152,7 @@ const RegisterPage: React.FC = () => {
                   r.ok ? "text-emerald-600" : "text-slate-400"
                 }`}
               >
-                <Check
-                  className={`h-3 w-3 ${r.ok ? "opacity-100" : "opacity-50"}`}
-                  strokeWidth={3}
-                />
+                <Check className="h-3 w-3" strokeWidth={3} />
                 {r.label}
               </li>
             ))}
@@ -134,7 +168,7 @@ const RegisterPage: React.FC = () => {
             value={role}
             onChange={(e) => setRole(e.target.value as Role)}
             data-testid="register-role-select"
-            className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
             {ROLE_GROUPS.map((g) => (
               <optgroup key={g.label} label={g.label}>
@@ -151,9 +185,10 @@ const RegisterPage: React.FC = () => {
         {error && (
           <div
             data-testid="register-error"
-            className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700"
+            className="flex items-start gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700"
           >
-            {error}
+            <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+            <span>{error}</span>
           </div>
         )}
 
@@ -219,7 +254,7 @@ const Field: React.FC<{
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
       data-testid={testId}
-      className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+      className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
     />
   </div>
 );

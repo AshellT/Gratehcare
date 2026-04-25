@@ -170,7 +170,9 @@ const Sidebar: React.FC<Props> = ({
                       </div>
                     </div>
                     <button
-                      onClick={logout}
+                      onClick={() => {
+                        void logout();
+                      }}
                       className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50"
                       title="Sign out"
                       data-testid="sidebar-logout-button"

@@ -104,7 +104,7 @@ const Topbar: React.FC<Props> = ({ onOpenMobile }) => {
                 className="absolute right-0 mt-2 w-72 rounded-2xl border border-slate-200 bg-white shadow-xl shadow-slate-900/5 p-2 z-50 max-h-[480px] overflow-y-auto"
               >
                 <div className="px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                  Switch role (demo)
+                  Preview as (UI only)
                 </div>
                 {ROLE_GROUPS.map((g) => (
                   <div key={g.label} className="px-1 mb-1">
@@ -272,8 +272,8 @@ const Topbar: React.FC<Props> = ({ onOpenMobile }) => {
                   <MenuItem
                     icon={<LogOut className="h-4 w-4" />}
                     label="Sign out"
-                    onClick={() => {
-                      logout();
+                    onClick={async () => {
+                      await logout();
                       navigate("/login");
                     }}
                     danger
