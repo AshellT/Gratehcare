@@ -1,0 +1,161 @@
+{
+  "theme": "light",
+  "archetype": "Archetype 4 (Swiss & High-Contrast) adapted for Healthcare (Clinical Clarity + Trust)",
+  "emotional_tone": "Authoritative, Trustworthy, Modern, and Approchable",
+  "typography": {
+    "font_family": {
+      "headings": "Outfit, sans-serif",
+      "body": "DM Sans, sans-serif"
+    },
+    "hierarchy": {
+      "h1": "text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-slate-900 leading-tight",
+      "h2": "text-3xl sm:text-4xl font-bold tracking-tight text-slate-900",
+      "h3": "text-2xl font-semibold tracking-tight text-slate-900",
+      "h4": "text-xl font-semibold text-slate-800",
+      "body": "text-base md:text-lg text-slate-600 leading-relaxed",
+      "small": "text-sm text-slate-500",
+      "overline": "text-xs font-bold uppercase tracking-[0.2em] text-indigo-600"
+    },
+    "guidelines": [
+      "Headings should strictly avoid generic sans-serifs like Inter.",
+      "Use Outfit for a modern SaaS tech-forward look.",
+      "Maintain tight tracking on headings (tracking-tight) to ensure professional typesetting.",
+      "Use high contrast colors for typography."
+    ]
+  },
+  "colors": {
+    "background": {
+      "primary": "#FFFFFF",
+      "secondary": "#F8FAFC",
+      "tertiary": "#F1F5F9"
+    },
+    "text": {
+      "primary": "#0F172A",
+      "secondary": "#475569",
+      "muted": "#64748B"
+    },
+    "brand": {
+      "primary": "#4F46E5",
+      "primary_hover": "#4338CA",
+      "secondary": "#0EA5E9",
+      "secondary_hover": "#0284C7",
+      "accent": "#F59E0B",
+      "success": "#10B981"
+    },
+    "surface": {
+      "card": "#FFFFFF",
+      "border": "#E2E8F0"
+    },
+    "guidelines": [
+      "Use primary Indigo (#4F46E5) for all primary actions and CTAs.",
+      "Secondary Sky Blue (#0EA5E9) for accents, abstract UI highlights, and secondary icons.",
+      "Background should alternate between pure white (#FFFFFF) and Slate 50 (#F8FAFC) to create visual separation between sections."
+    ]
+  },
+  "layout_and_spacing": {
+    "container": "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8",
+    "section_padding": "py-20 lg:py-32",
+    "gap": "gap-8 lg:gap-12",
+    "grid_bento": {
+      "base": "grid grid-cols-1 md:grid-cols-8 lg:grid-cols-12 gap-6",
+      "hero_card": "col-span-full md:col-span-8 row-span-2",
+      "square_card": "col-span-full md:col-span-4 row-span-1",
+      "tall_card": "col-span-full md:col-span-4 row-span-2"
+    },
+    "surfaces": {
+      "glassmorphism": "bg-white/70 backdrop-blur-xl border-b border-white/20 shadow-sm",
+      "card": "bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow duration-300"
+    }
+  },
+  "motion_and_interactions": {
+    "hover_states": "transform transition-all duration-300 hover:-translate-y-1 hover:shadow-lg",
+    "button_hover": "transition-colors duration-200",
+    "scroll_reveal": "Use Framer Motion to fade up elements on scroll (initial={opacity: 0, y: 20} whileInView={opacity: 1, y: 0})",
+    "guidelines": [
+      "Keep animations smooth and professional.",
+      "Add micro-interactions to feature cards and pricing tiers.",
+      "Use staggered entrances for lists and grids."
+    ]
+  },
+  "components": {
+    "header": {
+      "type": "Glassmorphism sticky header",
+      "behavior": "Sticky at top, z-50, backdrop-blur-xl",
+      "elements": "Logo, Navigation Links (Desktop), Mobile Hamburger, Primary CTA button"
+    },
+    "hero": {
+      "layout": "Two-column. Left: Typography + CTA. Right: Abstract UI Mockup + Lifestyle image overlapping.",
+      "mock_ui": "Build a custom HTML/Tailwind mockup of a care scheduling dashboard with floating widgets showing 'Upcoming Shifts', 'Claim Status', and 'Patient Vitals'."
+    },
+    "problem_solution": {
+      "layout": "Side-by-side or stacked comparative cards.",
+      "visuals": "Red/Orange tint for Problem (Old Way), Green/Indigo tint for Solution (Lumina Way)."
+    },
+    "features_bento": {
+      "layout": "Bento Grid layout. 5 items: Smart Scheduling, Billing & Claims, Compliance & Audit, Care Management, AI Insights.",
+      "styling": "Card surfaces with slight hover lift. Include bullet points and small abstract graphics/icons for each."
+    },
+    "how_it_works": {
+      "layout": "3-column grid or vertical timeline.",
+      "elements": "Step 1, Step 2, Step 3 with connecting dashed lines or progressive numbered circles."
+    },
+    "role_based_audience": {
+      "layout": "Grid (md:grid-cols-2 lg:grid-cols-4) with 8 minimal cards.",
+      "items": "Owners, Admins, Coordinators, Support Workers, Billing, Compliance, Families, Practitioners."
+    },
+    "social_proof": {
+      "layout": "Marquee or Swiper carousel of testimonial cards.",
+      "styling": "White cards, quote text, avatar image, name, and role."
+    },
+    "pricing": {
+      "layout": "3-column grid (Starter, Growth, Enterprise).",
+      "styling": "Highlight the middle 'Growth' tier with Indigo borders, subtle scale (transform scale-105 on lg screens), and a 'Most Popular' badge."
+    }
+  },
+  "media": {
+    "hero_lifestyle": {
+      "url": "https://images.pexels.com/photos/18459702/pexels-photo-18459702.jpeg",
+      "description": "Caregiver interacting warmly with an elderly patient. Use in hero section with a floating UI card over it."
+    },
+    "abstract_tech_dashboard": {
+      "url": "https://images.pexels.com/photos/48604/pexels-photo-48604.jpeg",
+      "description": "Clean medical/tech background for abstract UI accents or Feature Section backgrounds."
+    },
+    "data_analytics": {
+      "url": "https://images.pexels.com/photos/27141307/pexels-photo-27141307.jpeg",
+      "description": "Sleek futuristic interface. Use this inside the 'AI Insights' or 'Billing & Claims' feature card as a decorative image."
+    },
+    "testimonials": [
+      {
+        "url": "https://images.unsplash.com/photo-1770058428154-9eee8a6a1fbb",
+        "description": "Testimonial Avatar 1 - Clinic Owner"
+      },
+      {
+        "url": "https://images.pexels.com/photos/36551042/pexels-photo-36551042.jpeg",
+        "description": "Testimonial Avatar 2 - Care Coordinator"
+      },
+      {
+        "url": "https://images.pexels.com/photos/3831569/pexels-photo-3831569.jpeg",
+        "description": "Testimonial Avatar 3 - Practice Admin"
+      }
+    ]
+  },
+  "icons": {
+    "library": "lucide-react",
+    "usage": "Use clear, outline icons. Stroke width 1.5 or 2. Primary brand color for accents."
+  },
+  "accessibility": {
+    "contrast": "Ensure all text meets at least 4.5:1 ratio on backgrounds. Avoid white text on light indigo; use Slate-900.",
+    "testing": "All interactive elements MUST have data-testid attributes (e.g., data-testid='hero-cta-button').",
+    "focus": "Implement focus-visible styles for keyboard navigation (focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2)."
+  },
+  "instructions_to_main_agent": [
+    "Strictly adhere to the color palette. No neon or cyberpunk colors.",
+    "Build the dashboard mockup in the hero section using pure Tailwind HTML. It should look like a floating SaaS calendar and metric card.",
+    "Do NOT use 'Inter' for headings. Ensure 'Outfit' is imported via Google Fonts in index.css.",
+    "Make the 'Growth' pricing tier visually dominant.",
+    "Use Framer Motion for section entry animations (fade in and slide up).",
+    "In the Role-Based section, keep the design clean and icon-driven rather than photo-heavy to maintain SaaS feel.",
+    "Never use placeholder image URLs like via.placeholder.com. Use the provided Unsplash/Pexels URLs."
+  ]
+}
