@@ -5,7 +5,7 @@ import Badge from "@/components/dashboard/Badge";
 
 const events = [
   { time: "10:42", who: "Maria Lopez", what: "Updated care plan for Eleanor Rivers", tenant: "Meridian", tone: "indigo" },
-  { time: "10:38", who: "system", what: "Auto-filled 3 night shifts via Lumina AI", tenant: "Meridian", tone: "violet" },
+  { time: "10:38", who: "system", what: "Auto-filled 3 night shifts via GRATEHCARE AI", tenant: "Meridian", tone: "violet" },
   { time: "10:21", who: "Priya Raman", what: "Logged care note for Eleanor Rivers", tenant: "Meridian", tone: "indigo" },
   { time: "10:14", who: "Daniel Wu", what: "Submitted claim CL-2189 ($1,420)", tenant: "Meridian", tone: "emerald" },
   { time: "09:58", who: "system", what: "Reminder sent: First aid expiring (James M.)", tenant: "Meridian", tone: "amber" },

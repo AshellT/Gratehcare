@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Sparkles, Menu, X } from "lucide-react";
+import { HeartPulse, Menu, X } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const navLinks = [
   { label: "Features", href: "#features" },
@@ -32,14 +33,14 @@ const Header: React.FC = () => {
       }`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-        <a href="#" data-testid="logo-link" className="flex items-center gap-2 group">
+        <Link to="/" data-testid="logo-link" className="flex items-center gap-2 group">
           <span className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-600 to-sky-500 text-white shadow-md shadow-indigo-500/20">
-            <Sparkles className="h-5 w-5" strokeWidth={2.2} />
+            <HeartPulse className="h-5 w-5" strokeWidth={2.2} />
           </span>
           <span className="font-display text-xl font-bold tracking-tight text-slate-900">
-            Lumina
+            GRATEHCARE
           </span>
-        </a>
+        </Link>
 
         <nav className="hidden md:flex items-center gap-8">
           {navLinks.map((l) => (
@@ -55,20 +56,20 @@ const Header: React.FC = () => {
         </nav>
 
         <div className="hidden md:flex items-center gap-3">
-          <a
-            href="#"
+          <Link
+            to="/login"
             data-testid="header-signin-link"
             className="text-sm font-medium text-slate-700 hover:text-slate-900 transition-colors"
           >
             Sign in
-          </a>
-          <a
-            href="#pricing"
+          </Link>
+          <Link
+            to="/register"
             data-testid="header-cta-button"
             className="inline-flex items-center gap-1.5 rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 transition-colors shadow-sm"
           >
             Start free trial
-          </a>
+          </Link>
         </div>
 
         <button
@@ -98,13 +99,14 @@ const Header: React.FC = () => {
                 {l.label}
               </a>
             ))}
-            <a
-              href="#pricing"
+            <Link
+              to="/register"
               data-testid="mobile-cta-button"
+              onClick={() => setOpen(false)}
               className="mt-2 inline-flex justify-center rounded-full bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white"
             >
               Start free trial
-            </a>
+            </Link>
           </div>
         </motion.div>
       )}

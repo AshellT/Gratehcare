@@ -21,7 +21,7 @@ const steps = [
     n: "03",
     icon: <TrendingUp className="h-6 w-6" />,
     title: "Grow with insight",
-    desc: "Use Lumina AI to forecast demand, plug claim leaks and unlock new services — confidently scaling without adding admin headcount.",
+    desc: "Use GRATEHCARE AI to forecast demand, plug claim leaks and unlock new services — confidently scaling without adding admin headcount.",
     accent: "from-emerald-500 to-teal-500",
   },
 ];

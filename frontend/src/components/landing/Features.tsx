@@ -127,7 +127,7 @@ const CareVisual = () => (
 const AIVisual = () => (
   <div className="rounded-xl border border-slate-200 bg-gradient-to-br from-indigo-50 to-sky-50 p-3 shadow-sm">
     <div className="text-[9px] font-bold uppercase tracking-widest text-indigo-700">
-      Lumina AI
+      GRATEHCARE AI
     </div>
     <div className="mt-1 text-[10px] font-semibold text-slate-800 leading-snug">
       "3 unfilled night shifts next week. Suggest swap with Priya & Daniel?"
@@ -240,7 +240,7 @@ const Features: React.FC = () => {
             transition={{ duration: 0.6, delay: 0.1 }}
             className="text-lg text-slate-600"
           >
-            From rostering to reconciliation, Lumina replaces a stack of fragile
+            From rostering to reconciliation, GRATEHCARE replaces a stack of fragile
             tools with one beautifully integrated system — built for the way
             modern care providers actually work.
           </motion.p>

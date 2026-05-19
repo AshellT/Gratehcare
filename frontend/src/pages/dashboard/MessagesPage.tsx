@@ -1,35 +1,56 @@
-import React, { useState } from "react";
-import { Send, Search, Phone, Video } from "lucide-react";
-import PageHeader from "@/components/dashboard/PageHeader";
 import Card from "@/components/dashboard/Card";
+import PageHeader from "@/components/dashboard/PageHeader";
+import { useConversations, useMessages } from "@/hooks/useMessages";
+import { Phone, Search, Send, Video } from "lucide-react";
+import React, { useState } from "react";
 
-const conversations = [
-  { name: "Priya Raman", last: "I'll cover Eleanor's evening shift, no worries.", time: "3m", unread: 2, color: "from-indigo-500 to-sky-500" },
-  { name: "Daniel Wu", last: "Care notes uploaded for today.", time: "1h", unread: 0, color: "from-rose-500 to-pink-500" },
-  { name: "Family · Eleanor R.", last: "Thank you for the update yesterday.", time: "3h", unread: 0, color: "from-fuchsia-500 to-purple-500" },
-  { name: "Dr. Raj Patel", last: "Physio review scheduled for Friday.", time: "1d", unread: 0, color: "from-teal-500 to-emerald-500" },
-  { name: "Operations team", last: "Weekly roster published.", time: "2d", unread: 0, color: "from-slate-600 to-slate-800" },
+const AVATAR_COLORS = [
+  "from-indigo-500 to-sky-500",
+  "from-rose-500 to-pink-500",
+  "from-fuchsia-500 to-purple-500",
+  "from-teal-500 to-emerald-500",
+  "from-slate-600 to-slate-800",
 ];
 
-const messages = [
-  { from: "Priya Raman", time: "10:14", text: "Hi! Quick question — am I covering Eleanor's evening shift today?", me: false },
-  { from: "Me", time: "10:16", text: "Hi Priya — yes please, 19:00 onwards. Thanks for stepping in!", me: true },
-  { from: "Priya Raman", time: "10:18", text: "All good. Will swing by the office to grab the keys.", me: false },
-  { from: "Priya Raman", time: "10:18", text: "I'll cover Eleanor's evening shift, no worries.", me: false },
-  { from: "Me", time: "10:21", text: "Perfect. Have a great day 💛", me: true },
-];
+const timeAgo = (iso: string) => {
+  const diff = (Date.now() - new Date(iso).getTime()) / 1000;
+  if (diff < 60) return `${Math.round(diff)}s`;
+  if (diff < 3600) return `${Math.round(diff / 60)}m`;
+  if (diff < 86400) return `${Math.round(diff / 3600)}h`;
+  return `${Math.round(diff / 86400)}d`;
+};
 
 const MessagesPage: React.FC = () => {
-  const [active, setActive] = useState(0);
+  const [activeIdx, setActiveIdx] = useState(0);
   const [draft, setDraft] = useState("");
+  const [notification, setNotification] = useState<string | null>(null);
+  const notify = (text: string) => {
+    setNotification(text);
+    window.setTimeout(() => setNotification(null), 2400);
+  };
+
+  const { data: convData } = useConversations();
+  const conversations = convData?.data ?? [];
+  const activeConv = conversations[activeIdx] ?? null;
+
+  const { data: msgData, send: sendMessage } = useMessages(
+    activeConv?.id ?? null,
+  );
+  const messages = msgData?.data ?? [];
 
   return (
     <div className="space-y-8">
       <PageHeader
         eyebrow="Workspace"
         title="Messages"
-        description="Coordinate with staff, families and practitioners — without leaving Lumina."
+        description="Coordinate with staff, families and practitioners — without leaving GRATEHCARE."
       />
+
+      {notification && (
+        <div className="rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm font-semibold text-indigo-800">
+          {notification}
+        </div>
+      )}
 
       <Card className="overflow-hidden">
         <div className="grid lg:grid-cols-[320px_1fr] gap-0 -m-5 min-h-[600px]">
@@ -46,30 +67,38 @@ const MessagesPage: React.FC = () => {
             </div>
             <ul>
               {conversations.map((c, i) => (
-                <li key={c.name}>
+                <li key={c.id}>
                   <button
-                    onClick={() => setActive(i)}
+                    onClick={() => setActiveIdx(i)}
                     className={`w-full text-left px-4 py-3 flex items-start gap-3 border-b border-slate-100 transition-colors ${
-                      active === i ? "bg-indigo-50/60" : "hover:bg-slate-50"
+                      activeIdx === i ? "bg-indigo-50/60" : "hover:bg-slate-50"
                     }`}
                   >
-                    <div className={`h-10 w-10 rounded-full bg-gradient-to-br ${c.color} text-white text-xs font-bold flex items-center justify-center flex-shrink-0`}>
-                      {c.name
+                    <div
+                      className={`h-10 w-10 rounded-full bg-gradient-to-br ${AVATAR_COLORS[i % AVATAR_COLORS.length]} text-white text-xs font-bold flex items-center justify-center flex-shrink-0`}
+                    >
+                      {(c.participantNames[0] ?? "?")
                         .split(" ")
-                        .map((p) => p[0])
+                        .map((p: string) => p[0])
                         .slice(0, 2)
                         .join("")}
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-2">
-                        <div className="text-sm font-semibold text-slate-900 truncate">{c.name}</div>
-                        <div className="text-[10px] text-slate-500 flex-shrink-0">{c.time}</div>
+                        <div className="text-sm font-semibold text-slate-900 truncate">
+                          {c.participantNames[0]}
+                        </div>
+                        <div className="text-[10px] text-slate-500 flex-shrink-0">
+                          {timeAgo(c.lastMessageAt)}
+                        </div>
                       </div>
-                      <div className="text-xs text-slate-500 truncate mt-0.5">{c.last}</div>
+                      <div className="text-xs text-slate-500 truncate mt-0.5">
+                        {c.lastMessage}
+                      </div>
                     </div>
-                    {c.unread > 0 && (
+                    {(c.unreadCount ?? 0) > 0 && (
                       <span className="ml-2 inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-indigo-600 text-white text-[10px] font-bold px-1.5">
-                        {c.unread}
+                        {c.unreadCount}
                       </span>
                     )}
                   </button>
@@ -80,50 +109,77 @@ const MessagesPage: React.FC = () => {
 
           {/* Conversation */}
           <div className="flex flex-col">
-            <div className="px-5 py-3 border-b border-slate-200 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className={`h-10 w-10 rounded-full bg-gradient-to-br ${conversations[active].color} text-white text-xs font-bold flex items-center justify-center`}>
-                  {conversations[active].name
-                    .split(" ")
-                    .map((p) => p[0])
-                    .slice(0, 2)
-                    .join("")}
+            {activeConv && (
+              <div className="px-5 py-3 border-b border-slate-200 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div
+                    className={`h-10 w-10 rounded-full bg-gradient-to-br ${AVATAR_COLORS[activeIdx % AVATAR_COLORS.length]} text-white text-xs font-bold flex items-center justify-center`}
+                  >
+                    {(activeConv.participantNames[0] ?? "?")
+                      .split(" ")
+                      .map((p: string) => p[0])
+                      .slice(0, 2)
+                      .join("")}
+                  </div>
+                  <div>
+                    <div className="text-sm font-semibold text-slate-900">
+                      {activeConv.participantNames[0]}
+                    </div>
+                    <div className="text-[10px] text-emerald-600 font-semibold">
+                      ● Online
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <div className="text-sm font-semibold text-slate-900">{conversations[active].name}</div>
-                  <div className="text-[10px] text-emerald-600 font-semibold">● Online</div>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() =>
+                      notify(
+                        `Calling ${activeConv.participantNames[0]} in demo mode.`,
+                      )
+                    }
+                    aria-label={`Call ${activeConv.participantNames[0]}`}
+                    className="h-8 w-8 inline-flex items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100"
+                  >
+                    <Phone className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() =>
+                      notify(
+                        `Video meeting with ${activeConv.participantNames[0]} opened in demo mode.`,
+                      )
+                    }
+                    aria-label={`Video call ${activeConv.participantNames[0]}`}
+                    className="h-8 w-8 inline-flex items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100"
+                  >
+                    <Video className="h-4 w-4" />
+                  </button>
                 </div>
               </div>
-              <div className="flex items-center gap-1">
-                <button className="h-8 w-8 inline-flex items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100">
-                  <Phone className="h-4 w-4" />
-                </button>
-                <button className="h-8 w-8 inline-flex items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100">
-                  <Video className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
+            )}
 
             <div className="flex-1 p-5 space-y-3 overflow-y-auto bg-slate-50/40">
-              {messages.map((m, i) => (
+              {messages.map((m) => (
                 <div
-                  key={i}
-                  className={`flex ${m.me ? "justify-end" : "justify-start"}`}
+                  key={m.id}
+                  className={`flex ${m.isOwn ? "justify-end" : "justify-start"}`}
                 >
                   <div
                     className={`max-w-[70%] rounded-2xl px-4 py-2.5 text-sm ${
-                      m.me
+                      m.isOwn
                         ? "bg-indigo-600 text-white rounded-br-sm"
                         : "bg-white border border-slate-200 text-slate-800 rounded-bl-sm"
                     }`}
                   >
-                    {m.text}
+                    {m.content}
                     <div
                       className={`mt-1 text-[10px] ${
-                        m.me ? "text-indigo-200" : "text-slate-400"
+                        m.isOwn ? "text-indigo-200" : "text-slate-400"
                       }`}
                     >
-                      {m.time}
+                      {new Date(m.sentAt).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
                     </div>
                   </div>
                 </div>
@@ -131,8 +187,12 @@ const MessagesPage: React.FC = () => {
             </div>
 
             <form
-              onSubmit={(e) => {
+              onSubmit={async (e) => {
                 e.preventDefault();
+                if (draft.trim()) {
+                  await sendMessage(draft.trim());
+                  notify("Message sent.");
+                }
                 setDraft("");
               }}
               className="p-4 border-t border-slate-200 flex items-center gap-2"

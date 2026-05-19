@@ -15,7 +15,7 @@ const RevenuePage: React.FC = () => {
       <PageHeader
         eyebrow="Platform"
         title="Revenue"
-        description="MRR, ARR, expansion and churn — across the entire Lumina network."
+        description="MRR, ARR, expansion and churn — across the entire GRATEHCARE network."
         actions={[{ label: "Export", icon: <Download className="h-4 w-4" /> }]}
       />
 

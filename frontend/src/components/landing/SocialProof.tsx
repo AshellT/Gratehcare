@@ -5,7 +5,7 @@ import { Star, Quote } from "lucide-react";
 const testimonials = [
   {
     quote:
-      "We replaced four tools with Lumina in a week. Our coordinators got their evenings back, and our claims are paid 11 days faster on average.",
+      "We replaced four tools with GRATEHCARE in a week. Our coordinators got their evenings back, and our claims are paid 11 days faster on average.",
     name: "Sarah Mitchell",
     role: "CEO, Meridian Home Care",
     avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&q=80",
@@ -21,7 +21,7 @@ const testimonials = [
   },
   {
     quote:
-      "Lumina AI predicted three shift gaps before they happened. Our families noticed the difference within a month.",
+      "GRATEHCARE AI predicted three shift gaps before they happened. Our families noticed the difference within a month.",
     name: "Priya Raman",
     role: "Operations Director, Northwind",
     avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=200&q=80",
@@ -54,7 +54,7 @@ const SocialProof: React.FC = () => {
             Loved by care leaders
           </span>
           <h2 className="mt-3 font-display text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-slate-900">
-            Care teams sleep better with Lumina.
+            Care teams sleep better with GRATEHCARE.
           </h2>
         </motion.div>
 

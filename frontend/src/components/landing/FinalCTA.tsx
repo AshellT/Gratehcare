@@ -1,6 +1,7 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { ArrowRight } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const FinalCTA: React.FC = () => {
   return (
@@ -42,22 +43,22 @@ const FinalCTA: React.FC = () => {
                 Ready to transform how you manage care?
               </h2>
               <p className="mt-5 text-lg text-slate-300 max-w-2xl">
-                Join thousands of care providers using Lumina to deliver better
+                Join thousands of care providers using GRATEHCARE to deliver better
                 outcomes — for clients, families and the teams behind them.
               </p>
             </div>
 
             <div className="lg:col-span-4 flex flex-col gap-3">
-              <a
-                href="#"
+              <Link
+                to="/register"
                 data-testid="final-cta-primary"
                 className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-6 py-4 text-sm font-bold text-slate-900 hover:bg-slate-100 transition-all hover:-translate-y-0.5 shadow-xl"
               >
                 Start your free trial
                 <ArrowRight className="h-4 w-4" />
-              </a>
+              </Link>
               <a
-                href="#"
+                href="mailto:sales@gratehcare.care?subject=Book%20a%20GRATEHCARE%20demo"
                 data-testid="final-cta-secondary"
                 className="inline-flex items-center justify-center gap-2 rounded-full border border-white/20 bg-white/5 px-6 py-4 text-sm font-semibold text-white hover:bg-white/10 transition-all"
               >

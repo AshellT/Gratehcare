@@ -1,92 +1,340 @@
 import "@/App.css";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { AuthProvider } from "@/context/AuthContext";
-import LandingPage from "@/pages/LandingPage";
-import LoginPage from "@/pages/auth/LoginPage";
-import RegisterPage from "@/pages/auth/RegisterPage";
-import ForgotPasswordPage from "@/pages/auth/ForgotPasswordPage";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import AppShell from "@/components/dashboard/AppShell";
-import DashboardHome from "@/pages/dashboard/DashboardHome";
-import SchedulePage from "@/pages/dashboard/SchedulePage";
-import ClientsPage from "@/pages/dashboard/ClientsPage";
-import CarePage from "@/pages/dashboard/CarePage";
-import MessagesPage from "@/pages/dashboard/MessagesPage";
+import { AuthProvider } from "@/context/AuthContext";
+import { ToastProvider } from "@/context/ToastContext";
+import ForbiddenPage from "@/pages/ForbiddenPage";
+import LandingPage from "@/pages/LandingPage";
+import NotFoundPage from "@/pages/NotFoundPage";
+import PricingPage from "@/pages/PricingPage";
+import ForgotPasswordPage from "@/pages/auth/ForgotPasswordPage";
+import LoginPage from "@/pages/auth/LoginPage";
+import RegisterPage from "@/pages/auth/RegisterPage";
 import BillingPage from "@/pages/dashboard/BillingPage";
 import ClaimsPage from "@/pages/dashboard/ClaimsPage";
-import ReportsPage from "@/pages/dashboard/ReportsPage";
-import CompliancePage from "@/pages/dashboard/CompliancePage";
-import IncidentsPage from "@/pages/dashboard/IncidentsPage";
-import AuditsPage from "@/pages/dashboard/AuditsPage";
-import SettingsPage from "@/pages/dashboard/SettingsPage";
-import TenantsPage from "@/pages/dashboard/TenantsPage";
-import UsersPage from "@/pages/dashboard/UsersPage";
-import TicketsPage from "@/pages/dashboard/TicketsPage";
-import ActivityPage from "@/pages/dashboard/ActivityPage";
+import DashboardHome from "@/pages/dashboard/DashboardHome";
+import DocumentsPage from "@/pages/dashboard/DocumentsPage";
+import MessagesPage from "@/pages/dashboard/MessagesPage";
 import NetworkPage from "@/pages/dashboard/NetworkPage";
-import RevenuePage from "@/pages/dashboard/RevenuePage";
 import PlaceholderPage from "@/pages/dashboard/PlaceholderPage";
+import ReportsPage from "@/pages/dashboard/ReportsPage";
+import RevenuePage from "@/pages/dashboard/RevenuePage";
+import SchedulePage from "@/pages/dashboard/SchedulePage";
+import SettingsPage from "@/pages/dashboard/SettingsPage";
+import SubscriptionPage from "@/pages/dashboard/SubscriptionPage";
+import TenantsPage from "@/pages/dashboard/TenantsPage";
+import TicketsPage from "@/pages/dashboard/TicketsPage";
+import UsersPage from "@/pages/dashboard/UsersPage";
+import {
+  AuditLogsPage,
+  ComplianceEventsPage,
+  ComplianceOverviewPage,
+  CorrectiveActionsPage,
+  ExpiryTrackingPage,
+  IncidentRegisterPage,
+  InvestigationsPage,
+  PolicyTrackingPage,
+  RiskAlertsPage,
+  StaffCredentialsPage,
+  TrainingRecordsPage,
+} from "@/pages/dashboard/compliance/ComplianceSystemPages";
+import {
+  BillingDashboardPage,
+  ClaimTrackingPage,
+  ClientFundingPage,
+  FamilyBillingPage,
+  FinanceClaimsPage,
+  FinancialOverviewPage,
+  InvoiceBuilderPage,
+  InvoicesPage,
+  OutstandingBalancesPage,
+  PaymentsPage,
+  ReconciliationPage,
+  RevenueReportsPage,
+} from "@/pages/dashboard/finance/FinancePages";
+import {
+  AlertsPage,
+  AttendancePage,
+  CareNotesPage,
+  CarePlansPage,
+  LiveActivityPage,
+  MedicationPage,
+  OpenShiftsPage,
+  OperationalClientsPage,
+  RosteringPage,
+  ShiftConflictsPage,
+  StaffPage,
+  TimesheetsPage,
+} from "@/pages/dashboard/operations/OperationsPages";
+import {
+  FamilyInvoicesPage,
+  FamilyMessagesPage,
+  FamilyOverviewPage,
+  FamilyPaymentsPage,
+  FamilySharedCareNotesPage,
+  FamilySharedDocumentsPage,
+  FamilyUpcomingVisitsPage,
+  FamilyVisitHistoryPage,
+  PractitionerAssignedClientsPage,
+  PractitionerCarePlansPage,
+  PractitionerClinicalNotesPage,
+  PractitionerEvaluationsPage,
+  PractitionerMessagesPage,
+  PractitionerOverviewPage,
+  PractitionerReportsPage,
+} from "@/pages/dashboard/portals/PortalPages";
+import { BrowserRouter, Route, Routes } from "react-router-dom";
 
 function App() {
   return (
     <div className="App bg-white text-slate-900">
-      <AuthProvider>
-        <BrowserRouter>
-          <Routes>
-            {/* Public */}
-            <Route path="/" element={<LandingPage />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/register" element={<RegisterPage />} />
-            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <ToastProvider>
+        <AuthProvider>
+          <BrowserRouter>
+            <Routes>
+              {/* Public */}
+              <Route path="/" element={<LandingPage />} />
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/register" element={<RegisterPage />} />
+              <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+              <Route path="/pricing" element={<PricingPage />} />
+              <Route path="/403" element={<ForbiddenPage />} />
+              <Route path="/404" element={<NotFoundPage />} />
 
-            {/* Protected app */}
-            <Route
-              path="/app"
-              element={
-                <ProtectedRoute>
-                  <AppShell />
-                </ProtectedRoute>
-              }
-            >
-              <Route index element={<DashboardHome />} />
-              <Route path="schedule" element={<SchedulePage />} />
-              <Route path="clients" element={<ClientsPage />} />
-              <Route path="care" element={<CarePage />} />
-              <Route path="messages" element={<MessagesPage />} />
-              <Route path="billing" element={<BillingPage />} />
-              <Route path="claims" element={<ClaimsPage />} />
-              <Route path="reports" element={<ReportsPage />} />
-              <Route path="compliance" element={<CompliancePage />} />
-              <Route path="incidents" element={<IncidentsPage />} />
-              <Route path="audits" element={<AuditsPage />} />
-              <Route path="settings" element={<SettingsPage />} />
-              <Route path="tenants" element={<TenantsPage />} />
-              <Route path="users" element={<UsersPage />} />
-              <Route path="tickets" element={<TicketsPage />} />
-              <Route path="activity" element={<ActivityPage />} />
-              <Route path="network" element={<NetworkPage />} />
-              <Route path="revenue" element={<RevenuePage />} />
+              {/* Protected app */}
+              <Route
+                path="/app"
+                element={
+                  <ProtectedRoute>
+                    <AppShell />
+                  </ProtectedRoute>
+                }
+              >
+                <Route index element={<DashboardHome />} />
+                <Route path="schedule" element={<SchedulePage />} />
+                <Route path="staff" element={<StaffPage />} />
+                <Route path="clients" element={<OperationalClientsPage />} />
+                <Route path="rostering" element={<RosteringPage />} />
+                <Route path="open-shifts" element={<OpenShiftsPage />} />
+                <Route
+                  path="shift-conflicts"
+                  element={<ShiftConflictsPage />}
+                />
+                <Route path="timesheets" element={<TimesheetsPage />} />
+                <Route path="attendance" element={<AttendancePage />} />
+                <Route path="care" element={<CarePlansPage />} />
+                <Route path="care-plans" element={<CarePlansPage />} />
+                <Route path="care-notes" element={<CareNotesPage />} />
+                <Route path="medication" element={<MedicationPage />} />
+                <Route path="live-activity" element={<LiveActivityPage />} />
+                <Route path="alerts" element={<AlertsPage />} />
+                <Route path="messages" element={<MessagesPage />} />
+                <Route path="billing" element={<BillingPage />} />
+                <Route path="claims" element={<ClaimsPage />} />
+                <Route path="reports" element={<ReportsPage />} />
+                <Route
+                  path="financial-overview"
+                  element={<FinancialOverviewPage />}
+                />
+                <Route
+                  path="billing-dashboard"
+                  element={<BillingDashboardPage />}
+                />
+                <Route path="invoices" element={<InvoicesPage />} />
+                <Route
+                  path="invoice-builder"
+                  element={<InvoiceBuilderPage />}
+                />
+                <Route path="finance-claims" element={<FinanceClaimsPage />} />
+                <Route path="claim-tracking" element={<ClaimTrackingPage />} />
+                <Route path="payments" element={<PaymentsPage />} />
+                <Route path="reconciliation" element={<ReconciliationPage />} />
+                <Route path="client-funding" element={<ClientFundingPage />} />
+                <Route
+                  path="revenue-reports"
+                  element={<RevenueReportsPage />}
+                />
+                <Route
+                  path="outstanding-balances"
+                  element={<OutstandingBalancesPage />}
+                />
+                <Route path="compliance" element={<ComplianceOverviewPage />} />
+                <Route
+                  path="compliance-events"
+                  element={<ComplianceEventsPage />}
+                />
+                <Route path="risk-alerts" element={<RiskAlertsPage />} />
+                <Route
+                  path="staff-credentials"
+                  element={<StaffCredentialsPage />}
+                />
+                <Route
+                  path="training-records"
+                  element={<TrainingRecordsPage />}
+                />
+                <Route
+                  path="expiry-tracking"
+                  element={<ExpiryTrackingPage />}
+                />
+                <Route path="incidents" element={<IncidentRegisterPage />} />
+                <Route
+                  path="incident-register"
+                  element={<IncidentRegisterPage />}
+                />
+                <Route path="investigations" element={<InvestigationsPage />} />
+                <Route path="audits" element={<AuditLogsPage />} />
+                <Route path="audit-logs" element={<AuditLogsPage />} />
+                <Route
+                  path="policy-tracking"
+                  element={<PolicyTrackingPage />}
+                />
+                <Route
+                  path="corrective-actions"
+                  element={<CorrectiveActionsPage />}
+                />
+                <Route path="settings" element={<SettingsPage />} />
+                <Route path="profile" element={<SettingsPage />} />
+                <Route path="tenants" element={<TenantsPage />} />
+                <Route path="users" element={<UsersPage />} />
+                <Route path="tickets" element={<TicketsPage />} />
+                <Route path="activity" element={<LiveActivityPage />} />
+                <Route path="network" element={<NetworkPage />} />
+                <Route path="revenue" element={<RevenuePage />} />
+                <Route
+                  path="family-overview"
+                  element={<FamilyOverviewPage />}
+                />
+                <Route
+                  path="family-visit-history"
+                  element={<FamilyVisitHistoryPage />}
+                />
+                <Route
+                  path="family-care-notes"
+                  element={<FamilySharedCareNotesPage />}
+                />
+                <Route
+                  path="family-upcoming-visits"
+                  element={<FamilyUpcomingVisitsPage />}
+                />
+                <Route
+                  path="family-documents"
+                  element={<FamilySharedDocumentsPage />}
+                />
+                <Route
+                  path="family-invoices"
+                  element={<FamilyInvoicesPage />}
+                />
+                <Route
+                  path="family-payments"
+                  element={<FamilyPaymentsPage />}
+                />
+                <Route
+                  path="family-messages"
+                  element={<FamilyMessagesPage />}
+                />
+                <Route
+                  path="practitioner-overview"
+                  element={<PractitionerOverviewPage />}
+                />
+                <Route
+                  path="practitioner-clients"
+                  element={<PractitionerAssignedClientsPage />}
+                />
+                <Route
+                  path="practitioner-care-plans"
+                  element={<PractitionerCarePlansPage />}
+                />
+                <Route
+                  path="practitioner-clinical-notes"
+                  element={<PractitionerClinicalNotesPage />}
+                />
+                <Route
+                  path="practitioner-reports"
+                  element={<PractitionerReportsPage />}
+                />
+                <Route
+                  path="practitioner-evaluations"
+                  element={<PractitionerEvaluationsPage />}
+                />
+                <Route
+                  path="practitioner-messages"
+                  element={<PractitionerMessagesPage />}
+                />
 
-              {/* Placeholder routes for new sidebar items */}
-              <Route path="plans" element={<PlaceholderPage eyebrow="Platform" title="Plans & pricing" description="Manage Lumina subscription tiers and feature gating." />} />
-              <Route path="integrations" element={<PlaceholderPage eyebrow="Platform" title="Integrations" description="Stripe, NDIS, single sign-on and more." />} />
-              <Route path="permissions" element={<PlaceholderPage eyebrow="System" title="Roles & permissions" description="Configure granular access for every role and tenant." />} />
-              <Route path="system" element={<PlaceholderPage eyebrow="System" title="System health" description="Live status across infrastructure and services." />} />
-              <Route path="knowledge" element={<PlaceholderPage eyebrow="Support" title="Knowledge base" description="Macros, articles and runbooks for support agents." />} />
-              <Route path="team" element={<PlaceholderPage eyebrow="Workspace" title="Team" description="Staff directory, roles, availability and onboarding." />} />
-              <Route path="timesheets" element={<PlaceholderPage eyebrow="Today" title="Timesheets" description="Submit hours, kilometres and expenses for payroll." />} />
-              <Route path="payouts" element={<PlaceholderPage eyebrow="Finance" title="Payouts" description="Insurer & client payouts, reconciliation and remittance." />} />
-              <Route path="policies" element={<PlaceholderPage eyebrow="Compliance" title="Policies" description="Living policy library with version history and acknowledgements." />} />
-              <Route path="training" element={<PlaceholderPage eyebrow="Compliance" title="Training" description="Assign, track and verify mandatory staff training." />} />
-              <Route path="documents" element={<PlaceholderPage eyebrow="Family portal" title="Documents" description="Service agreements, invoices and care reports." />} />
-              <Route path="family-billing" element={<PlaceholderPage eyebrow="Family portal" title="Billing" description="Your invoices, payments and statements." />} />
-              <Route path="outcomes" element={<PlaceholderPage eyebrow="Clinical" title="Outcomes" description="Track goals, outcome measures and evidence." />} />
-            </Route>
+                {/* Subscription management */}
+                <Route path="plans" element={<SubscriptionPage />} />
+                <Route
+                  path="integrations"
+                  element={
+                    <PlaceholderPage
+                      eyebrow="Platform"
+                      title="Integrations"
+                      description="Stripe, NDIS, single sign-on and more."
+                    />
+                  }
+                />
+                <Route
+                  path="permissions"
+                  element={
+                    <PlaceholderPage
+                      eyebrow="System"
+                      title="Roles & permissions"
+                      description="Configure granular access for every role and tenant."
+                    />
+                  }
+                />
+                <Route
+                  path="system"
+                  element={
+                    <PlaceholderPage
+                      eyebrow="System"
+                      title="System health"
+                      description="Live status across infrastructure and services."
+                    />
+                  }
+                />
+                <Route
+                  path="knowledge"
+                  element={
+                    <PlaceholderPage
+                      eyebrow="Support"
+                      title="Knowledge base"
+                      description="Macros, articles and runbooks for support agents."
+                    />
+                  }
+                />
+                <Route path="team" element={<StaffPage />} />
+                <Route
+                  path="payouts"
+                  element={
+                    <PlaceholderPage
+                      eyebrow="Finance"
+                      title="Payouts"
+                      description="Insurer & client payouts, reconciliation and remittance."
+                    />
+                  }
+                />
+                <Route path="policies" element={<PolicyTrackingPage />} />
+                <Route path="training" element={<TrainingRecordsPage />} />
+                <Route path="documents" element={<DocumentsPage />} />
+                <Route path="family-billing" element={<FamilyBillingPage />} />
+                <Route
+                  path="outcomes"
+                  element={
+                    <PlaceholderPage
+                      eyebrow="Clinical"
+                      title="Outcomes"
+                      description="Track goals, outcome measures and evidence."
+                    />
+                  }
+                />
+              </Route>
 
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </BrowserRouter>
-      </AuthProvider>
+              <Route path="*" element={<NotFoundPage />} />
+            </Routes>
+          </BrowserRouter>
+        </AuthProvider>
+      </ToastProvider>
     </div>
   );
 }

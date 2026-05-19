@@ -1,10 +1,11 @@
+import { useAuth } from "@/context/AuthContext";
+import { NAV_BY_ROLE } from "@/lib/nav";
+import { canAccessPath } from "@/lib/permissions";
+import { ROLE_LABELS } from "@/lib/roles";
+import { motion } from "framer-motion";
+import { ChevronsLeft, HeartPulse, LogOut, Settings } from "lucide-react";
 import React, { useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
-import { motion } from "framer-motion";
-import { Sparkles, ChevronsLeft, LogOut } from "lucide-react";
-import { NAV_BY_ROLE } from "@/lib/nav";
-import { ROLE_LABELS } from "@/lib/roles";
-import { useAuth } from "@/context/AuthContext";
 
 type Props = {
   collapsed: boolean;
@@ -22,7 +23,16 @@ const Sidebar: React.FC<Props> = ({
   const { user, logout } = useAuth();
   const location = useLocation();
   const [hovering, setHovering] = useState(false);
-  const sections = user ? NAV_BY_ROLE[user.role] : [];
+  const sections = user
+    ? NAV_BY_ROLE[user.role]
+        .map((section) => ({
+          ...section,
+          items: section.items.filter((item) =>
+            canAccessPath(user.role, item.to),
+          ),
+        }))
+        .filter((section) => section.items.length > 0)
+    : [];
 
   // When collapsed but hovering, expand visually
   const visuallyCollapsed = collapsed && !hovering;
@@ -42,9 +52,7 @@ const Sidebar: React.FC<Props> = ({
         onMouseEnter={() => setHovering(true)}
         onMouseLeave={() => setHovering(false)}
         className={`fixed lg:sticky top-0 left-0 z-50 lg:z-30 h-screen flex-shrink-0 border-r border-slate-200 bg-white transition-all duration-300 ${
-          mobileOpen
-            ? "translate-x-0"
-            : "-translate-x-full lg:translate-x-0"
+          mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         } ${visuallyCollapsed ? "lg:w-[76px]" : "lg:w-[260px]"} w-[260px]`}
       >
         <div className="h-full flex flex-col">
@@ -52,11 +60,11 @@ const Sidebar: React.FC<Props> = ({
           <div className="h-16 flex items-center justify-between px-4 border-b border-slate-100">
             <NavLink to="/app" className="flex items-center gap-2">
               <span className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-600 to-sky-500 text-white shadow-md shadow-indigo-500/20 flex-shrink-0">
-                <Sparkles className="h-5 w-5" strokeWidth={2.2} />
+                <HeartPulse className="h-5 w-5" strokeWidth={2.2} />
               </span>
               {!visuallyCollapsed && (
                 <span className="font-display text-lg font-bold tracking-tight text-slate-900">
-                  Lumina
+                  GRATEHCARE
                 </span>
               )}
             </NavLink>
@@ -101,7 +109,10 @@ const Sidebar: React.FC<Props> = ({
           )}
 
           {/* Nav */}
-          <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-6">
+          <nav
+            aria-label="Main navigation"
+            className="flex-1 overflow-y-auto py-4 px-3 space-y-6"
+          >
             {sections.map((section) => (
               <div key={section.label}>
                 {!visuallyCollapsed && (
@@ -114,7 +125,8 @@ const Sidebar: React.FC<Props> = ({
                     const Icon = item.icon;
                     const active =
                       location.pathname === item.to ||
-                      (item.to !== "/app" && location.pathname.startsWith(item.to));
+                      (item.to !== "/app" &&
+                        location.pathname.startsWith(item.to));
                     return (
                       <li key={item.to}>
                         <NavLink
@@ -135,7 +147,9 @@ const Sidebar: React.FC<Props> = ({
                             />
                           )}
                           <Icon className="h-4.5 w-4.5 h-[18px] w-[18px] flex-shrink-0" />
-                          {!visuallyCollapsed && <span className="truncate">{item.label}</span>}
+                          {!visuallyCollapsed && (
+                            <span className="truncate">{item.label}</span>
+                          )}
                         </NavLink>
                       </li>
                     );
@@ -144,6 +158,25 @@ const Sidebar: React.FC<Props> = ({
               </div>
             ))}
           </nav>
+
+          {/* Settings shortcut */}
+          <div className="px-3 pb-2">
+            <NavLink
+              to="/app/settings"
+              onClick={onCloseMobile}
+              data-testid="sidebar-nav-settings"
+              className={({ isActive }) =>
+                `relative flex items-center gap-3 rounded-xl px-2.5 py-2 text-sm font-medium transition-colors ${
+                  isActive
+                    ? "bg-indigo-50 text-indigo-700"
+                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+                }`
+              }
+            >
+              <Settings className="h-[18px] w-[18px] flex-shrink-0" />
+              {!visuallyCollapsed && <span className="truncate">Settings</span>}
+            </NavLink>
+          </div>
 
           {/* User footer */}
           {user && (

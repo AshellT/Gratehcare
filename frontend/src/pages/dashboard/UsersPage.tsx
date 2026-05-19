@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Plus, Search, MoreHorizontal } from "lucide-react";
 import PageHeader from "@/components/dashboard/PageHeader";
 import Card from "@/components/dashboard/Card";
@@ -16,14 +16,66 @@ const users: { name: string; email: string; role: Role; tenant: string; status: 
 ];
 
 const UsersPage: React.FC = () => {
+  const [message, setMessage] = useState<string | null>(null);
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const notify = (text: string) => {
+    setMessage(text);
+    window.setTimeout(() => setMessage(null), 2400);
+  };
+
   return (
     <div className="space-y-8">
       <PageHeader
         eyebrow="Platform"
         title="Users"
-        description="Every user across every tenant on Lumina."
-        actions={[{ label: "Invite user", icon: <Plus className="h-4 w-4" /> }]}
+        description="Every user across every tenant on GRATEHCARE."
+        actions={[
+          {
+            label: "Invite user",
+            icon: <Plus className="h-4 w-4" />,
+            onClick: () => {
+              setInviteOpen(true);
+              notify("Invite user workflow opened.");
+            },
+          },
+        ]}
       />
+
+      {message && (
+        <div className="rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm font-semibold text-indigo-800">
+          {message}
+        </div>
+      )}
+
+      {inviteOpen && (
+        <Card title="Invite user" description="Create an invitation for a platform or tenant user.">
+          <div className="grid gap-3 md:grid-cols-[1fr_1fr_180px_auto]">
+            <input
+              placeholder="Full name"
+              className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+            <input
+              placeholder="Email address"
+              className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+            <select className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm">
+              <option>Super Admin</option>
+              <option>Platform Support</option>
+              <option>Organization Owner</option>
+              <option>Operations Admin</option>
+            </select>
+            <button
+              onClick={() => {
+                setInviteOpen(false);
+                notify("User invitation queued.");
+              }}
+              className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+            >
+              Send invite
+            </button>
+          </div>
+        </Card>
+      )}
 
       <Card>
         <div className="flex items-center justify-between mb-5">
@@ -80,7 +132,11 @@ const UsersPage: React.FC = () => {
                   </td>
                   <td className="px-5 py-3.5 text-sm text-slate-500">{u.lastActive}</td>
                   <td className="px-5 py-3.5">
-                    <button className="inline-flex items-center justify-center h-8 w-8 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100">
+                    <button
+                      onClick={() => notify(`${u.name} user actions opened in demo mode.`)}
+                      aria-label={`Open actions for ${u.name}`}
+                      className="inline-flex items-center justify-center h-8 w-8 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100"
+                    >
                       <MoreHorizontal className="h-4 w-4" />
                     </button>
                   </td>

@@ -55,7 +55,100 @@ const accentForRole: Record<Role, string> = {
   practitioner: "#14b8a6",
 };
 
-const PREVIEW_ROLE_KEY = "lumina.preview.role";
+const PREVIEW_ROLE_KEY = "gratehcare.preview.role";
+const DEMO_USER_KEY = "gratehcare.demo.user";
+
+const demoUsers: Record<string, Omit<AuthUser, "id" | "email">> = {
+  "platform.owner@gratehcare.test": {
+    name: "Platform Owner",
+    role: "platform_owner",
+    organization: "GRATEHCARE Demo Organization",
+    organization_id: null,
+    avatarColor: "#7c3aed",
+  },
+  "super.admin@gratehcare.test": {
+    name: "Super Admin",
+    role: "super_admin",
+    organization: "GRATEHCARE Demo Organization",
+    organization_id: null,
+    avatarColor: "#0f172a",
+  },
+  "platform.support@gratehcare.test": {
+    name: "Platform Support",
+    role: "platform_support",
+    organization: "GRATEHCARE Demo Organization",
+    organization_id: null,
+    avatarColor: "#f97316",
+  },
+  "org.owner@gratehcare.test": {
+    name: "Organization Owner",
+    role: "org_owner",
+    organization: "GRATEHCARE Demo Organization",
+    organization_id: null,
+    avatarColor: "#4f46e5",
+  },
+  "operations.admin@gratehcare.test": {
+    name: "Operations Admin",
+    role: "operations_admin",
+    organization: "GRATEHCARE Demo Organization",
+    organization_id: null,
+    avatarColor: "#0ea5e9",
+  },
+  "care.coordinator@gratehcare.test": {
+    name: "Care Coordinator",
+    role: "care_coordinator",
+    organization: "GRATEHCARE Demo Organization",
+    organization_id: null,
+    avatarColor: "#6366f1",
+  },
+  "support.worker@gratehcare.test": {
+    name: "Support Worker",
+    role: "support_worker",
+    organization: "GRATEHCARE Demo Organization",
+    organization_id: null,
+    avatarColor: "#e11d48",
+  },
+  "billing.officer@gratehcare.test": {
+    name: "Billing Officer",
+    role: "billing_officer",
+    organization: "GRATEHCARE Demo Organization",
+    organization_id: null,
+    avatarColor: "#10b981",
+  },
+  "compliance.officer@gratehcare.test": {
+    name: "Compliance Officer",
+    role: "compliance_officer",
+    organization: "GRATEHCARE Demo Organization",
+    organization_id: null,
+    avatarColor: "#d97706",
+  },
+  "family@gratehcare.test": {
+    name: "Family Member",
+    role: "family",
+    organization: "GRATEHCARE Demo Organization",
+    organization_id: null,
+    avatarColor: "#d946ef",
+  },
+  "practitioner@gratehcare.test": {
+    name: "Practitioner",
+    role: "practitioner",
+    organization: "GRATEHCARE Demo Organization",
+    organization_id: null,
+    avatarColor: "#14b8a6",
+  },
+};
+
+const getDemoUser = (email: string, password: string): AuthUser | null => {
+  const normalizedEmail = email.trim().toLowerCase();
+  const demo = demoUsers[normalizedEmail];
+  if (!demo || password !== "0778007350") return null;
+
+  return {
+    id: `demo-${demo.role}`,
+    email: normalizedEmail,
+    ...demo,
+  };
+};
 
 const profileToAuthUser = (
   profile: Profile,
@@ -73,6 +166,29 @@ const profileToAuthUser = (
   };
 };
 
+const authErrorMessage = (data: any, fallback: string) => {
+  const code = data?.error_code || data?.code;
+  const message = data?.msg || data?.error_description || data?.error;
+
+  if (code === "invalid_credentials") {
+    return "Invalid email or password. Create an account first, or check that the email has been confirmed.";
+  }
+
+  if (code === "email_not_confirmed") {
+    return "Please confirm your email address before signing in.";
+  }
+
+  if (code === "signup_disabled") {
+    return "Sign ups are currently disabled for this Supabase project.";
+  }
+
+  if (code === "weak_password") {
+    return message || "Please choose a stronger password.";
+  }
+
+  return message || fallback;
+};
+
 /**
  * Direct REST calls to Supabase via XMLHttpRequest to fully bypass any
  * fetch interceptors that cause body-stream-already-read errors in the
@@ -85,6 +201,7 @@ const xhrJson = (url: string, body: any): Promise<{ ok: boolean; status: number;
     xhr.open("POST", url);
     xhr.setRequestHeader("Content-Type", "application/json");
     xhr.setRequestHeader("apikey", SUPABASE_ANON_KEY);
+    xhr.setRequestHeader("Authorization", `Bearer ${SUPABASE_ANON_KEY}`);
     xhr.onload = () => {
       let parsed: any = null;
       try {
@@ -102,9 +219,7 @@ const authRest = {
   signUp: async (email: string, password: string, data: Record<string, any>) => {
     const r = await xhrJson(`${SUPABASE_URL}/auth/v1/signup`, { email, password, data });
     if (!r.ok) {
-      throw new Error(
-        r.data?.msg || r.data?.error_description || r.data?.error || "Sign up failed",
-      );
+      throw new Error(authErrorMessage(r.data, "Sign up failed"));
     }
     return r.data;
   },
@@ -114,14 +229,12 @@ const authRest = {
       { email, password },
     );
     if (!r.ok) {
-      throw new Error(
-        r.data?.msg || r.data?.error_description || r.data?.error || "Invalid credentials",
-      );
+      throw new Error(authErrorMessage(r.data, "Invalid credentials"));
     }
     return r.data as {
       access_token: string;
       refresh_token: string;
-      user: { id: string; email: string };
+      user: { id: string; email: string; user_metadata?: Record<string, any> };
     };
   },
 };
@@ -167,7 +280,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           id: userId,
           name:
             (meta.full_name as string) ||
-            (fallback?.email ? fallback.email.split("@")[0] : "Lumina User"),
+            (fallback?.email ? fallback.email.split("@")[0] : "GRATEHCARE User"),
           email: fallback?.email || "",
           role: previewRole || role,
           organization: (meta.organization_name as string) || "My Organization",
@@ -188,6 +301,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
     (async () => {
       try {
+        const storedDemoUser = localStorage.getItem(DEMO_USER_KEY);
+        if (storedDemoUser) {
+          setUser(JSON.parse(storedDemoUser) as AuthUser);
+          return;
+        }
+
         const { data } = await supabase.auth.getSession();
         const session = data.session;
         if (mounted && session?.user) {
@@ -236,13 +355,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const login: AuthContextValue["login"] = async ({ email, password }) => {
     setError(null);
     try {
+      const demoUser = getDemoUser(email, password);
+      if (demoUser) {
+        localStorage.setItem(DEMO_USER_KEY, JSON.stringify(demoUser));
+        setUser(demoUser);
+        return demoUser;
+      }
+
       const result = await authRest.signIn(email, password);
       // Hand the session to supabase-js so it persists & refreshes it
       await supabase.auth.setSession({
         access_token: result.access_token,
         refresh_token: result.refresh_token,
       });
-      const u = await loadProfile(result.user.id, { email: result.user.email });
+      const u = await loadProfile(result.user.id, {
+        email: result.user.email,
+        meta: result.user.user_metadata || {},
+      });
       if (u) setUser(u);
       return u as AuthUser;
     } catch (e: any) {
@@ -299,6 +428,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
     try {
       localStorage.removeItem(PREVIEW_ROLE_KEY);
+      localStorage.removeItem(DEMO_USER_KEY);
     } catch {
       // ignore
     }

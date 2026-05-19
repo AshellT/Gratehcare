@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Plus, Search, MoreHorizontal } from "lucide-react";
 import PageHeader from "@/components/dashboard/PageHeader";
 import Card from "@/components/dashboard/Card";
@@ -16,14 +16,26 @@ const tenants = [
 ];
 
 const TenantsPage: React.FC = () => {
+  const [message, setMessage] = useState<string | null>(null);
+  const notify = (text: string) => {
+    setMessage(text);
+    window.setTimeout(() => setMessage(null), 2400);
+  };
+
   return (
     <div className="space-y-8">
       <PageHeader
         eyebrow="Platform"
         title="Tenants"
-        description="Every organisation running on Lumina."
+        description="Every organisation running on GRATEHCARE."
         actions={[{ label: "Add tenant", icon: <Plus className="h-4 w-4" /> }]}
       />
+
+      {message && (
+        <div className="rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm font-semibold text-indigo-800">
+          {message}
+        </div>
+      )}
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard label="Total tenants" value="1,284" tone="indigo" icon={<Building2 className="h-5 w-5" />} delta={{ value: "+42", direction: "up" }} index={0} />
@@ -88,7 +100,11 @@ const TenantsPage: React.FC = () => {
                     </Badge>
                   </td>
                   <td className="px-5 py-3.5">
-                    <button className="inline-flex items-center justify-center h-8 w-8 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100">
+                    <button
+                      onClick={() => notify(`${t.name} tenant actions opened in demo mode.`)}
+                      aria-label={`Open actions for ${t.name}`}
+                      className="inline-flex items-center justify-center h-8 w-8 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100"
+                    >
                       <MoreHorizontal className="h-4 w-4" />
                     </button>
                   </td>

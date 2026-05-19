@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   CalendarCheck,
   Activity,
@@ -17,7 +17,14 @@ import ActivityFeed from "@/components/dashboard/widgets/ActivityFeed";
 import WorkQueue from "@/components/dashboard/widgets/WorkQueue";
 import Card from "@/components/dashboard/Card";
 
-const FamilyHome: React.FC = () => (
+const FamilyHome: React.FC = () => {
+  const [message, setMessage] = useState<string | null>(null);
+  const notify = (text: string) => {
+    setMessage(text);
+    window.setTimeout(() => setMessage(null), 2400);
+  };
+
+  return (
   <div className="space-y-8">
     <RoleGreeting
       actions={[
@@ -25,6 +32,12 @@ const FamilyHome: React.FC = () => (
         { label: "Message care team", icon: <MessageSquare className="h-4 w-4" /> },
       ]}
     />
+
+    {message && (
+      <div className="rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm font-semibold text-indigo-800">
+        {message}
+      </div>
+    )}
 
     <KpiGrid
       items={[
@@ -59,7 +72,10 @@ const FamilyHome: React.FC = () => (
             physiotherapy exercises and enjoyed a walk in the garden. She ate
             well at lunch and seemed delighted with the flowers you sent.&rdquo;
           </p>
-          <button className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-indigo-600">
+          <button
+            onClick={() => notify("Reply composer opened in demo mode.")}
+            className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-indigo-600"
+          >
             Reply
           </button>
         </div>
@@ -97,10 +113,11 @@ const FamilyHome: React.FC = () => (
         { id: "fa-a1", who: "Priya R.", what: "logged a care note · 'great spirits today'", when: "12m ago", tag: { label: "Care", tone: "indigo" } },
         { id: "fa-a2", who: "Dr. Raj", what: "scheduled physiotherapy review", when: "Yesterday", tag: { label: "Clinical", tone: "violet" } },
         { id: "fa-a3", who: "Daniel W.", what: "completed morning visit", when: "Yesterday", tag: { label: "Visit", tone: "emerald" } },
-        { id: "fa-a4", who: "Lumina", what: "wellbeing score updated to 8.4", when: "2d ago", tag: { label: "Insight", tone: "sky" } },
+        { id: "fa-a4", who: "GRATEHCARE", what: "wellbeing score updated to 8.4", when: "2d ago", tag: { label: "Insight", tone: "sky" } },
       ]}
     />
   </div>
-);
+  );
+};
 
 export default FamilyHome;

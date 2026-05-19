@@ -1,5 +1,6 @@
 import React from "react";
 import { motion, Variants } from "framer-motion";
+import { Link } from "react-router-dom";
 import {
   ArrowRight,
   PlayCircle,
@@ -72,7 +73,7 @@ const Hero: React.FC = () => {
                   />
                 </svg>
               </span>{" "}
-              with Lumina
+              with GRATEHCARE
             </motion.h1>
 
             <motion.p
@@ -94,16 +95,16 @@ const Hero: React.FC = () => {
               custom={3}
               className="mt-8 flex flex-col sm:flex-row gap-3"
             >
-              <a
-                href="#pricing"
+              <Link
+                to="/register"
                 data-testid="hero-primary-cta"
                 className="inline-flex items-center justify-center gap-2 rounded-full bg-slate-900 px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-slate-900/10 hover:bg-slate-800 transition-all hover:-translate-y-0.5"
               >
                 Start Free Trial
                 <ArrowRight className="h-4 w-4" />
-              </a>
+              </Link>
               <a
-                href="#how"
+                href="mailto:sales@gratehcare.care?subject=Book%20a%20GRATEHCARE%20demo"
                 data-testid="hero-secondary-cta"
                 className="inline-flex items-center justify-center gap-2 rounded-full border border-slate-300 bg-white px-6 py-3.5 text-sm font-semibold text-slate-800 hover:border-slate-400 hover:bg-slate-50 transition-all"
               >
@@ -166,7 +167,7 @@ const DashboardMock: React.FC = () => {
             <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
           </div>
           <div className="text-xs font-medium text-slate-500">
-            lumina.app / dashboard
+            gratehcare.app / dashboard
           </div>
           <div className="h-5 w-5 rounded-full bg-gradient-to-br from-indigo-500 to-sky-400" />
         </div>

@@ -84,7 +84,7 @@ const RoleBased: React.FC = () => {
             One platform. Eight roles. Zero friction.
           </h2>
           <p className="mt-4 text-lg text-slate-600">
-            Lumina adapts to who you are — owner, coordinator, support worker or
+            GRATEHCARE adapts to who you are — owner, coordinator, support worker or
             family member — with focused workspaces and the right level of
             access.
           </p>

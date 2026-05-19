@@ -208,12 +208,18 @@ const RegisterPage: React.FC = () => {
           )}
         </button>
         <p className="text-[11px] text-slate-500 text-center leading-relaxed">
-          By creating an account you agree to Lumina&apos;s{" "}
-          <a className="underline hover:text-slate-700" href="#">
+          By creating an account you agree to GRATEHCARE&apos;s{" "}
+          <a
+            className="underline hover:text-slate-700"
+            href="mailto:legal@gratehcare.care?subject=GRATEHCARE%20Terms"
+          >
             Terms
           </a>{" "}
           and{" "}
-          <a className="underline hover:text-slate-700" href="#">
+          <a
+            className="underline hover:text-slate-700"
+            href="mailto:legal@gratehcare.care?subject=GRATEHCARE%20Privacy%20Policy"
+          >
             Privacy Policy
           </a>
           .
@@ -221,7 +227,7 @@ const RegisterPage: React.FC = () => {
       </form>
 
       <p className="mt-8 text-sm text-slate-500 text-center">
-        Already on Lumina?{" "}
+        Already on GRATEHCARE?{" "}
         <Link
           to="/login"
           className="font-semibold text-indigo-600 hover:text-indigo-700"

@@ -34,7 +34,7 @@ const LoginPage: React.FC = () => {
   return (
     <AuthLayout
       title="Welcome back"
-      subtitle="Sign in to your Lumina workspace to continue."
+      subtitle="Sign in to your GRATEHCARE workspace to continue."
     >
       <form
         onSubmit={onSubmit}
@@ -118,7 +118,7 @@ const LoginPage: React.FC = () => {
       </form>
 
       <p className="mt-8 text-sm text-slate-500 text-center">
-        New to Lumina?{" "}
+        New to GRATEHCARE?{" "}
         <Link
           to="/register"
           className="font-semibold text-indigo-600 hover:text-indigo-700"

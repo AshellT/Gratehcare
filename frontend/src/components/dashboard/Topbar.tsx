@@ -1,36 +1,93 @@
+import { useAuth } from "@/context/AuthContext";
+import {
+  useNotifications,
+  type NotificationSeverity,
+} from "@/hooks/useNotifications";
+import { canAccessPath, canUseActionForPath } from "@/lib/permissions";
+import { ROLE_GROUPS, ROLE_LABELS, type Role } from "@/lib/roles";
+import { AnimatePresence, motion } from "framer-motion";
+import {
+  Bell,
+  ChevronDown,
+  Command,
+  LogOut,
+  Menu,
+  Plus,
+  RotateCcw,
+  Search,
+  Settings,
+  Sparkles,
+  User,
+  Wifi,
+  WifiOff,
+} from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
-import {
-  Search,
-  Bell,
-  Menu,
-  ChevronDown,
-  LogOut,
-  Settings,
-  User,
-  Sparkles,
-  Plus,
-  Command,
-} from "lucide-react";
-import { useAuth } from "@/context/AuthContext";
-import { ROLE_LABELS, ROLE_GROUPS, type Role } from "@/lib/roles";
 
 type Props = { onOpenMobile: () => void };
 
+const SEVERITY_DOT: Record<NotificationSeverity, string> = {
+  critical: "bg-rose-500",
+  warning: "bg-amber-500",
+  info: "bg-indigo-500",
+  success: "bg-emerald-500",
+};
+
+function timeAgo(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  if (diff < 60_000) return "just now";
+  if (diff < 3600_000) return `${Math.floor(diff / 60_000)}m ago`;
+  if (diff < 86_400_000) return `${Math.floor(diff / 3600_000)}h ago`;
+  return `${Math.floor(diff / 86_400_000)}d ago`;
+}
+
 const Topbar: React.FC<Props> = ({ onOpenMobile }) => {
   const { user, logout, switchRole } = useAuth();
+  const { notifications, unreadCount, connected, markAllRead, markRead } =
+    useNotifications();
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [roleSwitcherOpen, setRoleSwitcherOpen] = useState(false);
+  const [search, setSearch] = useState("");
   const userMenuRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
   const roleRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  // Cmd+K / Ctrl+K focuses search bar
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        searchRef.current?.focus();
+        searchRef.current?.select();
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, []);
+
+  const resetDemo = () => {
+    // Clear all demo-related localStorage keys and reload
+    Object.keys(localStorage)
+      .filter(
+        (k) =>
+          k.startsWith("gratehcare.") ||
+          k.startsWith("gratehcare_") ||
+          k.startsWith("lumina_"),
+      )
+      .forEach((k) => localStorage.removeItem(k));
+    setMenuOpen(false);
+    window.location.href = "/app";
+  };
 
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
-      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node))
+      if (
+        userMenuRef.current &&
+        !userMenuRef.current.contains(e.target as Node)
+      )
         setMenuOpen(false);
       if (notifRef.current && !notifRef.current.contains(e.target as Node))
         setNotifOpen(false);
@@ -42,6 +99,60 @@ const Topbar: React.FC<Props> = ({ onOpenMobile }) => {
   }, []);
 
   if (!user) return null;
+
+  const routeByRole: Partial<Record<Role, string>> = {
+    billing_officer: "/app/invoice-builder",
+    org_owner: "/app/clients",
+    operations_admin: "/app/rostering",
+    care_coordinator: "/app/care-notes",
+    compliance_officer: "/app/compliance-events",
+    platform_owner: "/app/tenants",
+    super_admin: "/app/users",
+    platform_support: "/app/tickets",
+    support_worker: "/app/care-notes",
+    family: "/app/family-messages",
+    practitioner: "/app/practitioner-clinical-notes",
+  };
+
+  const handleCreate = () => {
+    const target = routeByRole[user.role] || "/app";
+    if (canAccessPath(user.role, target)) {
+      navigate(target);
+    }
+  };
+
+  const runSearch = () => {
+    const q = search.trim().toLowerCase();
+    if (!q) return;
+    if (q.includes("claim")) navigate("/app/claim-tracking");
+    else if (q.includes("invoice") || q.includes("billing"))
+      navigate("/app/invoices");
+    else if (q.includes("client") || q.includes("patient"))
+      navigate("/app/clients");
+    else if (q.includes("open shift")) navigate("/app/open-shifts");
+    else if (q.includes("conflict")) navigate("/app/shift-conflicts");
+    else if (
+      q.includes("shift") ||
+      q.includes("schedule") ||
+      q.includes("roster")
+    )
+      navigate("/app/rostering");
+    else if (q.includes("note")) navigate("/app/care-notes");
+    else if (q.includes("risk")) navigate("/app/risk-alerts");
+    else if (q.includes("credential")) navigate("/app/staff-credentials");
+    else if (q.includes("training")) navigate("/app/training-records");
+    else if (q.includes("expiry")) navigate("/app/expiry-tracking");
+    else if (q.includes("audit")) navigate("/app/audit-logs");
+    else if (q.includes("policy")) navigate("/app/policy-tracking");
+    else if (q.includes("corrective")) navigate("/app/corrective-actions");
+    else if (q.includes("alert")) navigate("/app/risk-alerts");
+    else if (q.includes("family")) navigate("/app/family-overview");
+    else if (q.includes("clinical"))
+      navigate("/app/practitioner-clinical-notes");
+    else if (q.includes("evaluation"))
+      navigate("/app/practitioner-evaluations");
+    else navigate("/app/live-activity");
+  };
 
   return (
     <header
@@ -58,32 +169,46 @@ const Topbar: React.FC<Props> = ({ onOpenMobile }) => {
           <Menu className="h-5 w-5" />
         </button>
 
-        {/* Search */}
         <div className="flex-1 max-w-xl">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <input
+              ref={searchRef}
               type="text"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              aria-label="Search"
+              onKeyDown={(event) => {
+                if (event.key === "Enter") runSearch();
+              }}
               placeholder="Search clients, shifts, claims..."
               data-testid="topbar-search"
               className="w-full rounded-full border border-slate-200 bg-slate-50 pl-9 pr-12 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100 transition"
             />
-            <span className="hidden sm:inline-flex absolute right-2 top-1/2 -translate-y-1/2 items-center gap-1 rounded-md border border-slate-200 bg-white px-1.5 py-0.5 text-[10px] font-semibold text-slate-500">
+            <button
+              onClick={runSearch}
+              className="hidden sm:inline-flex absolute right-2 top-1/2 -translate-y-1/2 items-center gap-1 rounded-md border border-slate-200 bg-white px-1.5 py-0.5 text-[10px] font-semibold text-slate-500 hover:bg-slate-50"
+            >
               <Command className="h-2.5 w-2.5" />K
-            </span>
+            </button>
           </div>
         </div>
 
-        {/* Quick create */}
-        <button
-          className="hidden md:inline-flex items-center gap-1.5 rounded-full bg-slate-900 px-3.5 py-2 text-xs font-semibold text-white hover:bg-slate-800 transition-colors"
-          data-testid="topbar-create-button"
-        >
-          <Plus className="h-3.5 w-3.5" />
-          Create
-        </button>
+        {canUseActionForPath(
+          user.role,
+          routeByRole[user.role] || "/app",
+          "Create",
+        ) && (
+          <button
+            onClick={handleCreate}
+            className="hidden md:inline-flex items-center gap-1.5 rounded-full bg-slate-900 px-3.5 py-2 text-xs font-semibold text-white hover:bg-slate-800 transition-colors"
+            data-testid="topbar-create-button"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Create
+          </button>
+        )}
 
-        {/* Demo role switcher */}
         <div ref={roleRef} className="relative">
           <button
             onClick={() => setRoleSwitcherOpen((v) => !v)}
@@ -121,7 +246,9 @@ const Topbar: React.FC<Props> = ({ onOpenMobile }) => {
                         }}
                         data-testid={`role-switch-${r}`}
                         className={`w-full text-left px-2 py-1.5 rounded-lg text-xs font-medium hover:bg-slate-50 transition-colors flex items-center justify-between ${
-                          user.role === r ? "text-indigo-700 bg-indigo-50" : "text-slate-700"
+                          user.role === r
+                            ? "text-indigo-700 bg-indigo-50"
+                            : "text-slate-700"
                         }`}
                       >
                         {ROLE_LABELS[r as Role]}
@@ -139,7 +266,6 @@ const Topbar: React.FC<Props> = ({ onOpenMobile }) => {
           </AnimatePresence>
         </div>
 
-        {/* Notifications */}
         <div ref={notifRef} className="relative">
           <button
             onClick={() => setNotifOpen((v) => !v)}
@@ -147,8 +273,12 @@ const Topbar: React.FC<Props> = ({ onOpenMobile }) => {
             className="relative inline-flex items-center justify-center h-9 w-9 rounded-full text-slate-600 hover:bg-slate-100"
             aria-label="Notifications"
           >
-            <Bell className="h-4.5 w-4.5 h-[18px] w-[18px]" />
-            <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-rose-500 ring-2 ring-white" />
+            <Bell className="h-[18px] w-[18px]" />
+            {unreadCount > 0 && (
+              <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 ring-2 ring-white text-[9px] font-bold text-white">
+                {unreadCount > 9 ? "9+" : unreadCount}
+              </span>
+            )}
           </button>
           <AnimatePresence>
             {notifOpen && (
@@ -156,63 +286,69 @@ const Topbar: React.FC<Props> = ({ onOpenMobile }) => {
                 initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 6 }}
-                className="absolute right-0 mt-2 w-80 rounded-2xl border border-slate-200 bg-white shadow-xl shadow-slate-900/5 z-50 overflow-hidden"
+                className="absolute right-0 mt-2 w-96 rounded-2xl border border-slate-200 bg-white shadow-xl shadow-slate-900/5 z-50 overflow-hidden"
               >
                 <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
-                  <div className="font-display text-sm font-bold text-slate-900">
-                    Notifications
+                  <div className="flex items-center gap-2">
+                    <span className="font-display text-sm font-bold text-slate-900">
+                      Notifications
+                    </span>
+                    {connected ? (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-600">
+                        <Wifi className="h-3 w-3" /> Live
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-400">
+                        <WifiOff className="h-3 w-3" /> Offline
+                      </span>
+                    )}
                   </div>
-                  <button className="text-[11px] font-semibold text-indigo-600">
-                    Mark all read
-                  </button>
+                  {unreadCount > 0 && (
+                    <button
+                      onClick={markAllRead}
+                      className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-700"
+                    >
+                      Mark all read
+                    </button>
+                  )}
                 </div>
-                <ul className="max-h-80 overflow-y-auto">
-                  {[
-                    {
-                      title: "3 shifts at risk for tomorrow",
-                      time: "5m ago",
-                      tone: "amber",
-                    },
-                    {
-                      title: "Claim CL-2189 approved · $1,420",
-                      time: "1h ago",
-                      tone: "emerald",
-                    },
-                    {
-                      title: "Police check expires in 7 days for James M.",
-                      time: "3h ago",
-                      tone: "rose",
-                    },
-                    {
-                      title: "Care plan updated for Eleanor R.",
-                      time: "Yesterday",
-                      tone: "indigo",
-                    },
-                  ].map((n) => (
+                <ul className="max-h-96 overflow-y-auto divide-y divide-slate-50">
+                  {notifications.length === 0 && (
+                    <li className="px-4 py-8 text-center text-xs font-medium text-slate-500">
+                      All caught up – no notifications.
+                    </li>
+                  )}
+                  {notifications.map((n) => (
                     <li
-                      key={n.title}
-                      className="px-4 py-3 hover:bg-slate-50 border-b border-slate-50 last:border-0 cursor-pointer"
+                      key={n.id}
+                      onClick={() => {
+                        markRead(n.id);
+                        setNotifOpen(false);
+                      }}
+                      className={`px-4 py-3 hover:bg-slate-50 cursor-pointer transition-colors ${!n.read ? "bg-indigo-50/40" : ""}`}
                     >
                       <div className="flex items-start gap-3">
                         <span
-                          className={`mt-1 h-2 w-2 rounded-full flex-shrink-0 ${
-                            n.tone === "amber"
-                              ? "bg-amber-500"
-                              : n.tone === "emerald"
-                                ? "bg-emerald-500"
-                                : n.tone === "rose"
-                                  ? "bg-rose-500"
-                                  : "bg-indigo-500"
-                          }`}
+                          className={`mt-1.5 h-2 w-2 rounded-full flex-shrink-0 ${SEVERITY_DOT[n.severity]}`}
                         />
-                        <div>
-                          <div className="text-xs font-semibold text-slate-800">
+                        <div className="flex-1 min-w-0">
+                          <div
+                            className={`text-xs leading-snug ${!n.read ? "font-semibold text-slate-900" : "font-medium text-slate-700"}`}
+                          >
                             {n.title}
                           </div>
-                          <div className="text-[10px] text-slate-500 mt-0.5">
-                            {n.time}
+                          {n.body && (
+                            <div className="text-[11px] text-slate-500 mt-0.5 truncate">
+                              {n.body}
+                            </div>
+                          )}
+                          <div className="text-[10px] text-slate-400 mt-0.5">
+                            {timeAgo(n.createdAt)}
                           </div>
                         </div>
+                        {!n.read && (
+                          <span className="mt-1 h-1.5 w-1.5 rounded-full bg-indigo-600 flex-shrink-0" />
+                        )}
                       </div>
                     </li>
                   ))}
@@ -222,7 +358,6 @@ const Topbar: React.FC<Props> = ({ onOpenMobile }) => {
           </AnimatePresence>
         </div>
 
-        {/* User menu */}
         <div ref={userMenuRef} className="relative">
           <button
             onClick={() => setMenuOpen((v) => !v)}
@@ -253,7 +388,9 @@ const Topbar: React.FC<Props> = ({ onOpenMobile }) => {
                   <div className="font-semibold text-sm text-slate-900">
                     {user.name}
                   </div>
-                  <div className="text-xs text-slate-500 truncate">{user.email}</div>
+                  <div className="text-xs text-slate-500 truncate">
+                    {user.email}
+                  </div>
                   <div className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-indigo-50 text-indigo-700 px-2 py-0.5 text-[10px] font-bold">
                     {ROLE_LABELS[user.role]}
                   </div>
@@ -262,13 +399,19 @@ const Topbar: React.FC<Props> = ({ onOpenMobile }) => {
                   <MenuItem
                     icon={<User className="h-4 w-4" />}
                     label="Profile"
-                    onClick={() => navigate("/app/settings")}
+                    onClick={() => navigate("/app/profile")}
                   />
                   <MenuItem
                     icon={<Settings className="h-4 w-4" />}
                     label="Settings"
                     onClick={() => navigate("/app/settings")}
                   />
+                  <MenuItem
+                    icon={<RotateCcw className="h-4 w-4" />}
+                    label="Reset demo data"
+                    onClick={resetDemo}
+                  />
+                  <div className="my-1 h-px bg-slate-100" />
                   <MenuItem
                     icon={<LogOut className="h-4 w-4" />}
                     label="Sign out"

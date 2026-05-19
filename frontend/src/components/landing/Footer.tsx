@@ -1,5 +1,6 @@
 import React from "react";
-import { Sparkles, Twitter, Linkedin, Github } from "lucide-react";
+import { HeartPulse, Twitter, Linkedin, Github } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const columns = [
   {
@@ -40,6 +41,28 @@ const columns = [
   },
 ];
 
+const footerHref = (label: string) => {
+  const sectionLinks: Record<string, string> = {
+    Scheduling: "#features",
+    "Billing & Claims": "#features",
+    Compliance: "#features",
+    "Care Management": "#features",
+    "AI Insights": "#features",
+    "Family portal": "#roles",
+    "Home care": "#roles",
+    "Disability support": "#roles",
+    "Aged care": "#roles",
+    "Allied health": "#roles",
+    "Multi-site providers": "#roles",
+  };
+
+  if (sectionLinks[label]) return sectionLinks[label];
+
+  return `mailto:hello@gratehcare.care?subject=${encodeURIComponent(`GRATEHCARE ${label}`)}`;
+};
+
+const legalLinks = ["Privacy", "Terms", "Security", "HIPAA", "Cookies"];
+
 const Footer: React.FC = () => {
   return (
     <footer
@@ -49,21 +72,21 @@ const Footer: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 lg:py-20">
         <div className="grid lg:grid-cols-12 gap-10">
           <div className="lg:col-span-4">
-            <a href="#" className="flex items-center gap-2">
+            <Link to="/" className="flex items-center gap-2">
               <span className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-600 to-sky-500 text-white shadow-md shadow-indigo-500/20">
-                <Sparkles className="h-5 w-5" strokeWidth={2.2} />
+                <HeartPulse className="h-5 w-5" strokeWidth={2.2} />
               </span>
               <span className="font-display text-xl font-bold tracking-tight text-slate-900">
-                Lumina
+                GRATEHCARE
               </span>
-            </a>
+            </Link>
             <p className="mt-4 text-sm text-slate-600 max-w-sm leading-relaxed">
               The all-in-one care management platform for modern providers.
               Smarter scheduling, faster billing, calmer compliance.
             </p>
             <div className="mt-6 flex items-center gap-3">
               <a
-                href="#"
+                href="https://twitter.com/"
                 aria-label="Twitter"
                 className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 hover:text-indigo-600 hover:border-indigo-200 transition-colors"
                 data-testid="footer-twitter"
@@ -71,7 +94,7 @@ const Footer: React.FC = () => {
                 <Twitter className="h-4 w-4" />
               </a>
               <a
-                href="#"
+                href="https://www.linkedin.com/"
                 aria-label="LinkedIn"
                 className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 hover:text-indigo-600 hover:border-indigo-200 transition-colors"
                 data-testid="footer-linkedin"
@@ -79,7 +102,7 @@ const Footer: React.FC = () => {
                 <Linkedin className="h-4 w-4" />
               </a>
               <a
-                href="#"
+                href="https://github.com/"
                 aria-label="GitHub"
                 className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 hover:text-indigo-600 hover:border-indigo-200 transition-colors"
                 data-testid="footer-github"
@@ -99,7 +122,7 @@ const Footer: React.FC = () => {
                   {c.links.map((l) => (
                     <li key={l}>
                       <a
-                        href="#"
+                        href={footerHref(l)}
                         className="text-sm text-slate-600 hover:text-indigo-600 transition-colors"
                       >
                         {l}
@@ -114,24 +137,18 @@ const Footer: React.FC = () => {
 
         <div className="mt-14 pt-8 border-t border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="text-xs text-slate-500">
-            © {new Date().getFullYear()} Lumina Care, Inc. All rights reserved.
+            © {new Date().getFullYear()} GRATEHCARE Care, Inc. All rights reserved.
           </div>
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-slate-500">
-            <a href="#" className="hover:text-indigo-600 transition-colors">
-              Privacy
-            </a>
-            <a href="#" className="hover:text-indigo-600 transition-colors">
-              Terms
-            </a>
-            <a href="#" className="hover:text-indigo-600 transition-colors">
-              Security
-            </a>
-            <a href="#" className="hover:text-indigo-600 transition-colors">
-              HIPAA
-            </a>
-            <a href="#" className="hover:text-indigo-600 transition-colors">
-              Cookies
-            </a>
+            {legalLinks.map((label) => (
+              <a
+                key={label}
+                href={`mailto:legal@gratehcare.care?subject=${encodeURIComponent(`GRATEHCARE ${label}`)}`}
+                className="hover:text-indigo-600 transition-colors"
+              >
+                {label}
+              </a>
+            ))}
           </div>
         </div>
       </div>

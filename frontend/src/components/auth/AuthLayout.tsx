@@ -1,7 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Sparkles, ShieldCheck, ArrowLeft } from "lucide-react";
+import { HeartPulse, ShieldCheck, ArrowLeft } from "lucide-react";
 
 type Props = {
   children: React.ReactNode;
@@ -31,10 +31,10 @@ const AuthLayout: React.FC<Props> = ({
             data-testid="auth-logo-link"
           >
             <span className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-600 to-sky-500 text-white shadow-md shadow-indigo-500/20">
-              <Sparkles className="h-5 w-5" strokeWidth={2.2} />
+              <HeartPulse className="h-5 w-5" strokeWidth={2.2} />
             </span>
             <span className="font-display text-xl font-bold tracking-tight text-slate-900">
-              Lumina
+              GRATEHCARE
             </span>
           </Link>
           <Link
@@ -63,7 +63,7 @@ const AuthLayout: React.FC<Props> = ({
         </motion.div>
 
         <div className="text-xs text-slate-400">
-          © {new Date().getFullYear()} Lumina Care, Inc. · HIPAA-ready · SOC 2 in
+          © {new Date().getFullYear()} GRATEHCARE Care, Inc. · HIPAA-ready · SOC 2 in
           progress
         </div>
       </div>

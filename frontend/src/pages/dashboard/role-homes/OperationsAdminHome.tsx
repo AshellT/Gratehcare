@@ -54,7 +54,7 @@ const OperationsAdminHome: React.FC = () => (
         alerts={[
           { id: "oa1", severity: "critical", title: "Marcus T. shift uncovered in 30m", description: "Original worker called in sick.", cta: "Find replacement", meta: "30m" },
           { id: "oa2", severity: "warning", title: "Daniel W. approaching overtime cap", description: "8h over weekly limit.", cta: "Approve / reassign", meta: "1h" },
-          { id: "oa3", severity: "info", title: "Lumina AI: 5 swaps suggested", description: "Improves coverage by 8%.", cta: "Review", meta: "AI" },
+          { id: "oa3", severity: "info", title: "GRATEHCARE AI: 5 swaps suggested", description: "Improves coverage by 8%.", cta: "Review", meta: "AI" },
         ]}
       />
     </div>
@@ -77,7 +77,7 @@ const OperationsAdminHome: React.FC = () => (
         title="Activity stream"
         items={[
           { id: "oa-a1", who: "Priya R.", what: "covered Marcus T.'s morning visit", when: "8m ago", tag: { label: "Schedule", tone: "indigo" } },
-          { id: "oa-a2", who: "Lumina AI", what: "auto-filled 3 night shifts", when: "1h ago", tag: { label: "AI", tone: "violet" } },
+          { id: "oa-a2", who: "GRATEHCARE AI", what: "auto-filled 3 night shifts", when: "1h ago", tag: { label: "AI", tone: "violet" } },
           { id: "oa-a3", who: "Daniel W.", what: "logged 4 care notes", when: "2h ago", tag: { label: "Care", tone: "indigo" } },
           { id: "oa-a4", who: "Sara H.", what: "approved 6 timesheets", when: "Yesterday", tag: { label: "Payroll", tone: "emerald" } },
         ]}

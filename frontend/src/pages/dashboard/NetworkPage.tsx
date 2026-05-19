@@ -16,7 +16,7 @@ const NetworkPage: React.FC = () => {
       <PageHeader
         eyebrow="Platform"
         title="Network"
-        description="Where Lumina is delivering care today."
+        description="Where GRATEHCARE is delivering care today."
       />
 
       <Card>
@@ -52,7 +52,7 @@ const NetworkPage: React.FC = () => {
             </div>
             <div className="absolute bottom-4 left-4 text-white">
               <div className="text-xs font-bold uppercase tracking-widest text-indigo-200">
-                Lumina network
+                GRATEHCARE network
               </div>
               <div className="font-display text-2xl font-bold">1,284 tenants</div>
               <div className="text-xs text-slate-300">across 12 countries</div>

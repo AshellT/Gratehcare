@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Plus, Download } from "lucide-react";
 import PageHeader from "@/components/dashboard/PageHeader";
 import Card from "@/components/dashboard/Card";
@@ -20,6 +20,12 @@ const tone = (s: string) =>
   s === "critical" ? "rose" : s === "soon" ? "amber" : "emerald";
 
 const CompliancePage: React.FC = () => {
+  const [message, setMessage] = useState<string | null>(null);
+  const notify = (text: string) => {
+    setMessage(text);
+    window.setTimeout(() => setMessage(null), 2400);
+  };
+
   return (
     <div className="space-y-8">
       <PageHeader
@@ -31,6 +37,12 @@ const CompliancePage: React.FC = () => {
           { label: "Add credential", icon: <Plus className="h-4 w-4" /> },
         ]}
       />
+
+      {message && (
+        <div className="rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm font-semibold text-indigo-800">
+          {message}
+        </div>
+      )}
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard label="Compliance score" value="96%" tone="emerald" icon={<ShieldCheck className="h-5 w-5" />} index={0} />
@@ -74,7 +86,10 @@ const CompliancePage: React.FC = () => {
                     </Badge>
                   </td>
                   <td className="px-5 py-3.5">
-                    <button className="text-xs font-semibold text-indigo-600 hover:text-indigo-700">
+                    <button
+                      onClick={() => notify(`Reminder queued for ${c.staff}.`)}
+                      className="text-xs font-semibold text-indigo-600 hover:text-indigo-700"
+                    >
                       Send reminder
                     </button>
                   </td>

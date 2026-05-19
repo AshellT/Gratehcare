@@ -1,9 +1,9 @@
 -- =====================================================================
--- Lumina · Supabase schema (run this in your Supabase SQL editor)
+-- GRATEHCARE · Supabase schema (run this in your Supabase SQL editor)
 -- =====================================================================
 -- This script is idempotent and safe to re-run.
 -- It creates:
---   * lumina_role enum
+--   * gratehcare_role enum
 --   * organizations table
 --   * profiles table (1:1 with auth.users)
 --   * clients table
@@ -19,7 +19,7 @@ create extension if not exists "pgcrypto";
 
 -- ---------- Enums ----------
 do $$ begin
-  create type lumina_role as enum (
+  create type gratehcare_role as enum (
     'platform_owner',
     'super_admin',
     'platform_support',
@@ -58,7 +58,7 @@ create table if not exists public.profiles (
   id              uuid primary key references auth.users(id) on delete cascade,
   email           text not null,
   full_name       text not null default '',
-  role            lumina_role not null default 'org_owner',
+  role            gratehcare_role not null default 'org_owner',
   organization_id uuid references public.organizations(id) on delete set null,
   avatar_color    text,
   created_at      timestamptz not null default now(),
@@ -109,12 +109,12 @@ as $$
 declare
   v_org_id uuid;
   v_org_name text;
-  v_role lumina_role;
+  v_role gratehcare_role;
   v_full_name text;
   v_avatar_color text;
 begin
   v_org_name := coalesce(new.raw_user_meta_data->>'organization_name', 'My Organization');
-  v_role := coalesce((new.raw_user_meta_data->>'role')::lumina_role, 'org_owner');
+  v_role := coalesce((new.raw_user_meta_data->>'role')::gratehcare_role, 'org_owner');
   v_full_name := coalesce(new.raw_user_meta_data->>'full_name', split_part(new.email, '@', 1));
   v_avatar_color := coalesce(new.raw_user_meta_data->>'avatar_color', '#4f46e5');
 
@@ -149,6 +149,59 @@ create or replace view public.profiles_with_org as
   left join public.organizations o on o.id = p.organization_id;
 
 grant select on public.profiles_with_org to authenticated, anon;
+
+-- ---------- Demo users/profile backfill ----------
+-- Auth users are created through the Supabase Admin API / prisma seed with password:
+--   0778007350
+-- Re-running this block safely creates/updates the app profiles for them.
+with demo_org as (
+  insert into public.organizations(name, region)
+  select 'GRATEHCARE Demo Organization', 'Demo'
+  where not exists (
+    select 1 from public.organizations where name = 'GRATEHCARE Demo Organization'
+  )
+  returning id
+),
+selected_org as (
+  select id from demo_org
+  union all
+  select id from public.organizations
+  where name = 'GRATEHCARE Demo Organization'
+  order by id
+  limit 1
+),
+demo_users(email, full_name, role, avatar_color) as (
+  values
+    ('platform.owner@gratehcare.test', 'Platform Owner', 'platform_owner'::gratehcare_role, '#7c3aed'),
+    ('super.admin@gratehcare.test', 'Super Admin', 'super_admin'::gratehcare_role, '#0f172a'),
+    ('platform.support@gratehcare.test', 'Platform Support', 'platform_support'::gratehcare_role, '#f97316'),
+    ('org.owner@gratehcare.test', 'Organization Owner', 'org_owner'::gratehcare_role, '#4f46e5'),
+    ('operations.admin@gratehcare.test', 'Operations Admin', 'operations_admin'::gratehcare_role, '#0ea5e9'),
+    ('care.coordinator@gratehcare.test', 'Care Coordinator', 'care_coordinator'::gratehcare_role, '#6366f1'),
+    ('support.worker@gratehcare.test', 'Support Worker', 'support_worker'::gratehcare_role, '#e11d48'),
+    ('billing.officer@gratehcare.test', 'Billing Officer', 'billing_officer'::gratehcare_role, '#10b981'),
+    ('compliance.officer@gratehcare.test', 'Compliance Officer', 'compliance_officer'::gratehcare_role, '#d97706'),
+    ('family@gratehcare.test', 'Family Member', 'family'::gratehcare_role, '#d946ef'),
+    ('practitioner@gratehcare.test', 'Practitioner', 'practitioner'::gratehcare_role, '#14b8a6')
+)
+insert into public.profiles(id, email, full_name, role, organization_id, avatar_color)
+select
+  au.id,
+  du.email,
+  du.full_name,
+  du.role,
+  so.id,
+  du.avatar_color
+from demo_users du
+join auth.users au on lower(au.email) = du.email
+cross join selected_org so
+on conflict (id) do update set
+  email = excluded.email,
+  full_name = excluded.full_name,
+  role = excluded.role,
+  organization_id = excluded.organization_id,
+  avatar_color = excluded.avatar_color,
+  updated_at = now();
 
 -- =====================================================================
 -- Row Level Security

@@ -89,7 +89,7 @@ const PlatformOwnerHome: React.FC = () => (
       description="What changed across the platform today"
       items={[
         { id: "a1", who: "Sales", what: "closed Brightpath upgrade ($1.9k → $2.4k MRR)", when: "12m ago", tag: { label: "Revenue", tone: "emerald" } },
-        { id: "a2", who: "Lumina AI", what: "auto-resolved 18 staffing risks across 6 tenants", when: "1h ago", tag: { label: "AI", tone: "violet" } },
+        { id: "a2", who: "GRATEHCARE AI", what: "auto-resolved 18 staffing risks across 6 tenants", when: "1h ago", tag: { label: "AI", tone: "violet" } },
         { id: "a3", who: "Compliance", what: "exported Q4 SOC 2 evidence pack", when: "3h ago", tag: { label: "Trust", tone: "indigo" } },
         { id: "a4", who: "System", what: "scaled background workers to 12 instances", when: "Yesterday", tag: { label: "Infra", tone: "slate" } },
       ]}

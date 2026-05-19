@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { ArrowRight } from "lucide-react";
 import Card from "@/components/dashboard/Card";
 import Badge from "@/components/dashboard/Badge";
@@ -18,21 +18,51 @@ const WorkQueue: React.FC<{
   emptyMessage?: string;
   ctaLabel?: string;
   className?: string;
-}> = ({ title, description, items, emptyMessage = "Nothing to action.", ctaLabel = "View all", className }) => {
+  onViewAll?: () => void;
+  onItemClick?: (item: WorkQueueItem) => void;
+}> = ({
+  title,
+  description,
+  items,
+  emptyMessage = "Nothing to action.",
+  ctaLabel = "View all",
+  className,
+  onViewAll,
+  onItemClick,
+}) => {
+  const [message, setMessage] = useState<string | null>(null);
+  const notify = (text: string) => {
+    setMessage(text);
+    window.setTimeout(() => setMessage(null), 2400);
+  };
+
   return (
     <Card
       title={title}
       description={description}
       className={className}
       action={
-        items.length > 0 && (
-          <button
-            className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-700"
-            data-testid={`workqueue-view-all-${title.toLowerCase().replace(/\s+/g, "-")}`}
-          >
-            {ctaLabel}
-            <ArrowRight className="h-3 w-3" />
-          </button>
+        message ? (
+          <span className="rounded-full bg-indigo-50 px-3 py-1 text-[11px] font-semibold text-indigo-700">
+            {message}
+          </span>
+        ) : (
+          items.length > 0 && (
+            <button
+              onClick={() => {
+                if (onViewAll) {
+                  onViewAll();
+                  return;
+                }
+                notify(`${ctaLabel} opened in demo mode.`);
+              }}
+              className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-700"
+              data-testid={`workqueue-view-all-${title.toLowerCase().replace(/\s+/g, "-")}`}
+            >
+              {ctaLabel}
+              <ArrowRight className="h-3 w-3" />
+            </button>
+          )
         )
       }
     >
@@ -43,6 +73,13 @@ const WorkQueue: React.FC<{
           {items.map((it) => (
             <li
               key={it.id}
+              onClick={() => {
+                if (onItemClick) {
+                  onItemClick(it);
+                  return;
+                }
+                notify(`${it.primary} opened in demo mode.`);
+              }}
               data-testid={`workqueue-item-${it.id}`}
               className="group flex items-center gap-4 py-3 first:pt-0 last:pb-0 cursor-pointer"
             >

@@ -40,7 +40,7 @@ const ProblemSolution: React.FC = () => {
             Care teams deserve better tools.
           </h2>
           <p className="mt-4 text-lg text-slate-600">
-            You went into care to help people — not to wrestle paperwork. Lumina
+            You went into care to help people — not to wrestle paperwork. GRATEHCARE
             replaces the chaos with one calm, connected system.
           </p>
         </motion.div>
@@ -64,7 +64,7 @@ const ProblemSolution: React.FC = () => {
                   The Old Way
                 </div>
                 <h3 className="font-display text-xl font-bold text-slate-900">
-                  Without Lumina
+                  Without GRATEHCARE
                 </h3>
               </div>
             </div>
@@ -90,7 +90,7 @@ const ProblemSolution: React.FC = () => {
             data-testid="solution-card"
           >
             <div className="absolute top-5 right-5 rounded-full bg-indigo-600 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-white">
-              The Lumina Way
+              The GRATEHCARE Way
             </div>
             <div className="flex items-center gap-3">
               <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-md shadow-indigo-500/30">
@@ -98,7 +98,7 @@ const ProblemSolution: React.FC = () => {
               </span>
               <div>
                 <div className="text-xs font-bold uppercase tracking-widest text-indigo-700">
-                  With Lumina
+                  With GRATEHCARE
                 </div>
                 <h3 className="font-display text-xl font-bold text-slate-900">
                   Calm, connected, audit-ready

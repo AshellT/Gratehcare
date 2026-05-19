@@ -1,4 +1,4 @@
-# Lumina — Care Management SaaS
+# GRATEHCARE — Care Management SaaS
 
 ## Original Problem Statement
 Build a multi-tenant care management SaaS platform with a marketing landing page + full app shell, role-based dashboards, auth flow and reusable components. React + TypeScript + Tailwind + Framer Motion.

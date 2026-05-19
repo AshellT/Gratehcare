@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Plus, Download, Filter } from "lucide-react";
 import PageHeader from "@/components/dashboard/PageHeader";
 import Card from "@/components/dashboard/Card";
@@ -38,6 +38,12 @@ const stages: { key: ClaimStage; label: string; count: number; value: string }[]
 ];
 
 const ClaimsPage: React.FC = () => {
+  const [message, setMessage] = useState<string | null>(null);
+  const notify = (text: string) => {
+    setMessage(text);
+    window.setTimeout(() => setMessage(null), 2400);
+  };
+
   return (
     <div className="space-y-8">
       <PageHeader
@@ -49,6 +55,12 @@ const ClaimsPage: React.FC = () => {
           { label: "New claim", icon: <Plus className="h-4 w-4" /> },
         ]}
       />
+
+      {message && (
+        <div className="rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm font-semibold text-indigo-800">
+          {message}
+        </div>
+      )}
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {stages.map((s) => (
@@ -81,7 +93,10 @@ const ClaimsPage: React.FC = () => {
             <span className="text-slate-400 mx-2">·</span>
             <span className="text-slate-500">Last 14 days</span>
           </div>
-          <button className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">
+          <button
+            onClick={() => notify("Claim filters opened in demo mode.")}
+            className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+          >
             <Filter className="h-3.5 w-3.5" /> Filters
           </button>
         </div>

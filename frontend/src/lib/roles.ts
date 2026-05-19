@@ -48,7 +48,7 @@ export const ROLE_GROUPS: { label: string; roles: Role[] }[] = [
 ];
 
 export const ROLE_DESCRIPTIONS: Record<Role, string> = {
-  platform_owner: "Full control of the Lumina platform, tenants and billing.",
+  platform_owner: "Full control of the GRATEHCARE platform, tenants and billing.",
   super_admin: "System-wide configuration and tenant management.",
   platform_support: "Tenant support, impersonation and incident triage.",
   org_owner: "Strategic view of the entire organisation.",

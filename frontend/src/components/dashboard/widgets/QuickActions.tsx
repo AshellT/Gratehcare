@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { motion } from "framer-motion";
 import Card from "@/components/dashboard/Card";
 
@@ -24,10 +24,31 @@ const QuickActions: React.FC<{
   actions: QuickAction[];
   columns?: 2 | 3 | 4;
 }> = ({ title = "Quick actions", actions, columns = 2 }) => {
+  const [message, setMessage] = useState<string | null>(null);
   const colClass =
     columns === 4 ? "grid-cols-4" : columns === 3 ? "grid-cols-3" : "grid-cols-2";
+
+  const runAction = (action: QuickAction) => {
+    if (action.onClick) {
+      action.onClick();
+      return;
+    }
+
+    setMessage(`${action.label} opened in demo mode.`);
+    window.setTimeout(() => setMessage(null), 2400);
+  };
+
   return (
-    <Card title={title}>
+    <Card
+      title={title}
+      action={
+        message ? (
+          <span className="rounded-full bg-indigo-50 px-3 py-1 text-[11px] font-semibold text-indigo-700">
+            {message}
+          </span>
+        ) : null
+      }
+    >
       <div className={`grid ${colClass} gap-2.5`}>
         {actions.map((a, i) => (
           <motion.button
@@ -35,7 +56,7 @@ const QuickActions: React.FC<{
             initial={{ opacity: 0, scale: 0.96 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: i * 0.04 }}
-            onClick={a.onClick}
+            onClick={() => runAction(a)}
             data-testid={`quick-action-${a.label.toLowerCase().replace(/\s+/g, "-")}`}
             className={`group flex flex-col items-start gap-2 rounded-xl p-3.5 text-left transition-all ring-1 ${
               tones[a.tone || "indigo"]

@@ -4,9 +4,12 @@ const supabaseUrl = process.env.REACT_APP_SUPABASE_URL as string;
 const supabaseAnonKey = process.env.REACT_APP_SUPABASE_ANON_KEY as string;
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  // eslint-disable-next-line no-console
-  console.warn(
-    "[Supabase] Missing REACT_APP_SUPABASE_URL or REACT_APP_SUPABASE_ANON_KEY in .env",
+  throw new Error(
+    [
+      "Missing Supabase frontend configuration.",
+      "Create frontend/.env with REACT_APP_SUPABASE_URL and REACT_APP_SUPABASE_ANON_KEY.",
+      "Then restart the frontend dev server.",
+    ].join(" "),
   );
 }
 
@@ -18,9 +21,9 @@ if (!supabaseUrl || !supabaseAnonKey) {
  * Response from a fully-buffered body so downstream consumers can safely read
  * it. All other fetches pass through untouched.
  */
-if (typeof window !== "undefined" && supabaseUrl && !(window as any).__luminaSupabaseFetchPatched) {
+if (typeof window !== "undefined" && supabaseUrl && !(window as any).__gratehcareSupabaseFetchPatched) {
   const originalFetch = window.fetch.bind(window);
-  (window as any).__luminaSupabaseFetchPatched = true;
+  (window as any).__gratehcareSupabaseFetchPatched = true;
 
   window.fetch = (async (input: any, init?: any) => {
     const url =
@@ -56,7 +59,7 @@ export const supabase: SupabaseClient = createClient(
       persistSession: true,
       autoRefreshToken: true,
       detectSessionInUrl: true,
-      storageKey: "lumina.supabase.auth",
+      storageKey: "gratehcare.supabase.auth",
     },
   },
 );

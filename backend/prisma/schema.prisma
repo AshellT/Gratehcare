@@ -1,0 +1,446 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  PLATFORM_OWNER
+  SUPER_ADMIN
+  PLATFORM_SUPPORT
+  ORGANIZATION_OWNER
+  OPERATIONS_ADMIN
+  CARE_COORDINATOR
+  SUPPORT_WORKER
+  BILLING_OFFICER
+  COMPLIANCE_OFFICER
+  FAMILY_USER
+  PRACTITIONER
+}
+
+enum RecordStatus {
+  DRAFT
+  ACTIVE
+  PENDING
+  REVIEW
+  APPROVED
+  COMPLETED
+  ARCHIVED
+  CANCELLED
+}
+
+enum ShiftStatus {
+  OPEN
+  OFFERED
+  FILLED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  CONFLICT
+}
+
+enum Severity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum BillingStatus {
+  DRAFT
+  SENT
+  PAID
+  OVERDUE
+  DISPUTED
+  VOID
+}
+
+enum MessageStatus {
+  SENT
+  DELIVERED
+  READ
+  ARCHIVED
+}
+
+model Tenant {
+  id             String          @id @default(uuid()) @db.Uuid
+  name           String
+  slug           String          @unique
+  region         String?
+  status         RecordStatus    @default(ACTIVE)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  users          User[]
+  roles          RoleAssignment[]
+  staff          Staff[]
+  clients        Client[]
+  shifts         Shift[]
+  timesheets     Timesheet[]
+  carePlans      CarePlan[]
+  careNotes      CareNote[]
+  medications    Medication[]
+  incidents      Incident[]
+  invoices       Invoice[]
+  compliance     ComplianceEvent[]
+  documents      Document[]
+  messages       Message[]
+  notifications  Notification[]
+  reports        Report[]
+  auditLogs      AuditLog[]
+}
+
+model User {
+  id              String          @id @default(uuid()) @db.Uuid
+  supabaseId      String?         @unique @map("supabase_id") @db.Uuid
+  tenantId        String?         @map("tenant_id") @db.Uuid
+  email           String          @unique
+  passwordHash    String?         @map("password_hash")
+  fullName        String
+  avatarColor     String?         @map("avatar_color")
+  isTestAccount   Boolean         @default(false) @map("is_test_account")
+  isActive        Boolean         @default(true)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  tenant          Tenant?         @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  roles           RoleAssignment[]
+  staffProfile    Staff?
+  familyLinks     ClientFamily[]
+  practitionerLinks ClientPractitioner[]
+  messagesSent    Message[]       @relation("messagesSent")
+  notifications   Notification[]
+  auditLogs        AuditLog[]
+
+  @@index([tenantId])
+  @@map("users")
+}
+
+model RoleAssignment {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String?  @map("tenant_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  role      Role
+  createdAt DateTime @default(now())
+  tenant    Tenant?  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, userId, role])
+  @@index([tenantId])
+  @@map("role_assignments")
+}
+
+model Staff {
+  id          String       @id @default(uuid()) @db.Uuid
+  tenantId    String       @map("tenant_id") @db.Uuid
+  userId      String?      @unique @map("user_id") @db.Uuid
+  staffCode   String?      @map("staff_code")
+  title       String?
+  status      RecordStatus @default(ACTIVE)
+  skills      String[]     @default([])
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user        User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  shifts      Shift[]
+  timesheets  Timesheet[]
+  credentials StaffCredential[]
+  training    TrainingRecord[]
+  careNotes   CareNote[]
+
+  @@index([tenantId])
+  @@map("staff")
+}
+
+model Client {
+  id            String       @id @default(uuid()) @db.Uuid
+  tenantId      String       @map("tenant_id") @db.Uuid
+  fullName      String       @map("full_name")
+  status        RecordStatus @default(ACTIVE)
+  funding       String?
+  riskLevel     Severity?    @map("risk_level")
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  tenant        Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  shifts        Shift[]
+  carePlans     CarePlan[]
+  careNotes     CareNote[]
+  medications   Medication[]
+  incidents     Incident[]
+  invoices      Invoice[]
+  documents     Document[]
+  familyLinks   ClientFamily[]
+  practitionerLinks ClientPractitioner[]
+
+  @@index([tenantId])
+  @@map("clients")
+}
+
+model ClientFamily {
+  id        String @id @default(uuid()) @db.Uuid
+  tenantId  String @map("tenant_id") @db.Uuid
+  clientId  String @map("client_id") @db.Uuid
+  userId    String @map("user_id") @db.Uuid
+  client    Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([clientId, userId])
+  @@index([tenantId])
+  @@map("client_families")
+}
+
+model ClientPractitioner {
+  id        String @id @default(uuid()) @db.Uuid
+  tenantId  String @map("tenant_id") @db.Uuid
+  clientId  String @map("client_id") @db.Uuid
+  userId    String @map("user_id") @db.Uuid
+  client    Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([clientId, userId])
+  @@index([tenantId])
+  @@map("client_practitioners")
+}
+
+model Shift {
+  id        String      @id @default(uuid()) @db.Uuid
+  tenantId  String      @map("tenant_id") @db.Uuid
+  clientId  String?     @map("client_id") @db.Uuid
+  staffId   String?     @map("staff_id") @db.Uuid
+  startsAt  DateTime    @map("starts_at")
+  endsAt    DateTime    @map("ends_at")
+  status    ShiftStatus @default(OPEN)
+  service   String?
+  notes     String?
+  tenant    Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  client    Client?     @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  staff     Staff?      @relation(fields: [staffId], references: [id], onDelete: SetNull)
+  timesheets Timesheet[]
+
+  @@index([tenantId])
+  @@index([startsAt])
+  @@map("shifts")
+}
+
+model Timesheet {
+  id        String       @id @default(uuid()) @db.Uuid
+  tenantId  String       @map("tenant_id") @db.Uuid
+  staffId   String       @map("staff_id") @db.Uuid
+  shiftId   String?      @map("shift_id") @db.Uuid
+  hours     Decimal      @db.Decimal(8, 2)
+  mileage   Decimal?     @db.Decimal(8, 2)
+  status    RecordStatus @default(PENDING)
+  submittedAt DateTime?  @map("submitted_at")
+  tenant    Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  staff     Staff        @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  shift     Shift?       @relation(fields: [shiftId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@map("timesheets")
+}
+
+model CarePlan {
+  id        String       @id @default(uuid()) @db.Uuid
+  tenantId  String       @map("tenant_id") @db.Uuid
+  clientId  String       @map("client_id") @db.Uuid
+  title     String
+  goals     Json         @default("[]")
+  risks     Json         @default("[]")
+  status    RecordStatus @default(DRAFT)
+  reviewDue DateTime?    @map("review_due")
+  tenant    Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  client    Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("care_plans")
+}
+
+model CareNote {
+  id        String       @id @default(uuid()) @db.Uuid
+  tenantId  String       @map("tenant_id") @db.Uuid
+  clientId  String       @map("client_id") @db.Uuid
+  staffId   String?      @map("staff_id") @db.Uuid
+  title     String
+  body      String
+  sharedWithFamily Boolean @default(false) @map("shared_with_family")
+  status    RecordStatus @default(ACTIVE)
+  createdAt DateTime     @default(now())
+  tenant    Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  client    Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  staff     Staff?       @relation(fields: [staffId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@map("care_notes")
+}
+
+model Medication {
+  id        String       @id @default(uuid()) @db.Uuid
+  tenantId  String       @map("tenant_id") @db.Uuid
+  clientId  String       @map("client_id") @db.Uuid
+  name      String
+  dosage    String?
+  schedule  String?
+  status    RecordStatus @default(ACTIVE)
+  tenant    Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  client    Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("medications")
+}
+
+model Incident {
+  id        String       @id @default(uuid()) @db.Uuid
+  tenantId  String       @map("tenant_id") @db.Uuid
+  clientId  String?      @map("client_id") @db.Uuid
+  title     String
+  severity  Severity     @default(MEDIUM)
+  status    RecordStatus @default(PENDING)
+  details   String?
+  occurredAt DateTime?   @map("occurred_at")
+  tenant    Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  client    Client?      @relation(fields: [clientId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@map("incidents")
+}
+
+model Invoice {
+  id        String        @id @default(uuid()) @db.Uuid
+  tenantId  String        @map("tenant_id") @db.Uuid
+  clientId  String?       @map("client_id") @db.Uuid
+  number    String
+  amount    Decimal       @db.Decimal(12, 2)
+  status    BillingStatus @default(DRAFT)
+  issuedAt  DateTime?     @map("issued_at")
+  dueAt     DateTime?     @map("due_at")
+  tenant    Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  client    Client?       @relation(fields: [clientId], references: [id], onDelete: SetNull)
+
+  @@unique([tenantId, number])
+  @@index([tenantId])
+  @@map("invoices")
+}
+
+model ComplianceEvent {
+  id        String       @id @default(uuid()) @db.Uuid
+  tenantId  String       @map("tenant_id") @db.Uuid
+  title     String
+  category  String
+  severity  Severity     @default(MEDIUM)
+  status    RecordStatus @default(PENDING)
+  dueAt     DateTime?    @map("due_at")
+  evidence  Json         @default("[]")
+  tenant    Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("compliance_events")
+}
+
+model StaffCredential {
+  id        String       @id @default(uuid()) @db.Uuid
+  tenantId  String       @map("tenant_id") @db.Uuid
+  staffId   String       @map("staff_id") @db.Uuid
+  type      String
+  expiresAt DateTime?    @map("expires_at")
+  status    RecordStatus @default(ACTIVE)
+  staff     Staff        @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("staff_credentials")
+}
+
+model TrainingRecord {
+  id        String       @id @default(uuid()) @db.Uuid
+  tenantId  String       @map("tenant_id") @db.Uuid
+  staffId   String       @map("staff_id") @db.Uuid
+  course    String
+  completedAt DateTime?  @map("completed_at")
+  expiresAt DateTime?    @map("expires_at")
+  status    RecordStatus @default(PENDING)
+  staff     Staff        @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("training_records")
+}
+
+model Document {
+  id        String       @id @default(uuid()) @db.Uuid
+  tenantId  String       @map("tenant_id") @db.Uuid
+  clientId  String?      @map("client_id") @db.Uuid
+  title     String
+  type      String
+  storageKey String      @map("storage_key")
+  mimeType  String?      @map("mime_type")
+  sizeBytes Int?         @map("size_bytes")
+  sharedWithFamily Boolean @default(false) @map("shared_with_family")
+  status    RecordStatus @default(ACTIVE)
+  tenant    Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  client    Client?      @relation(fields: [clientId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@map("documents")
+}
+
+model Message {
+  id        String        @id @default(uuid()) @db.Uuid
+  tenantId  String        @map("tenant_id") @db.Uuid
+  senderId  String?       @map("sender_id") @db.Uuid
+  threadId  String        @map("thread_id")
+  subject   String?
+  body      String
+  status    MessageStatus @default(SENT)
+  createdAt DateTime      @default(now())
+  tenant    Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  sender    User?         @relation("messagesSent", fields: [senderId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([threadId])
+  @@map("messages")
+}
+
+model Notification {
+  id        String       @id @default(uuid()) @db.Uuid
+  tenantId  String       @map("tenant_id") @db.Uuid
+  userId    String?      @map("user_id") @db.Uuid
+  title     String
+  body      String?
+  readAt    DateTime?    @map("read_at")
+  createdAt DateTime     @default(now())
+  tenant    Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user      User?        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("notifications")
+}
+
+model Report {
+  id        String       @id @default(uuid()) @db.Uuid
+  tenantId  String       @map("tenant_id") @db.Uuid
+  title     String
+  type      String
+  payload   Json         @default("{}")
+  status    RecordStatus @default(ACTIVE)
+  createdAt DateTime     @default(now())
+  tenant    Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("reports")
+}
+
+model AuditLog {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String?  @map("tenant_id") @db.Uuid
+  actorId   String?  @map("actor_id") @db.Uuid
+  action    String
+  resource  String
+  resourceId String? @map("resource_id")
+  metadata  Json     @default("{}")
+  createdAt DateTime @default(now())
+  tenant    Tenant?  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  actor     User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([resource, resourceId])
+  @@map("audit_logs")
+}
