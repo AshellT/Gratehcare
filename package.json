@@ -1,0 +1,9 @@
+{
+  "name": "gratehcare",
+  "private": true,
+  "scripts": {
+    "build": "npm run build --prefix frontend",
+    "start:frontend": "npm start --prefix frontend",
+    "start:backend": "npm run start:dev --prefix backend"
+  }
+}

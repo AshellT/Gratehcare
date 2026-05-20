@@ -18,11 +18,20 @@ git push origin main
 ## 2) Deploy frontend to Vercel
 
 1. In Vercel, click **Add New Project** and import this GitHub repo.
-2. Set **Root Directory** to `frontend`.
-3. Build settings:
+2. Use **one** of these setups (important — wrong root causes `404 NOT_FOUND`):
+
+   **Option A (repo root — recommended, uses root `vercel.json`):**
+   - Root Directory: leave as **`.`** (repository root)
+   - Framework Preset: **Other**
+   - Build Command: `npm run build --prefix frontend` (or leave empty; root `vercel.json` sets this)
+   - Output Directory: `frontend/build`
+
+   **Option B (frontend subfolder):**
+   - Root Directory: `frontend`
    - Build Command: `npm run build`
    - Output Directory: `build`
-4. Add environment variables in Vercel Project Settings:
+
+3. Add environment variables in Vercel Project Settings:
    - `REACT_APP_SUPABASE_URL`
    - `REACT_APP_SUPABASE_ANON_KEY`
    - `REACT_APP_API_URL` (your deployed backend URL, e.g. `https://api-yourapp.onrender.com`)
