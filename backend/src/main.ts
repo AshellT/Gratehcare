@@ -1,8 +1,13 @@
+import { config as loadEnv } from "dotenv";
+import { resolve } from "node:path";
 import { ValidationPipe } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { NestFactory } from "@nestjs/core";
 import helmet from "helmet";
 import { AppModule } from "./app.module";
+
+// Load .env before PrismaClient reads DATABASE_URL (must run before Nest bootstraps).
+loadEnv({ path: resolve(__dirname, "..", ".env") });
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);

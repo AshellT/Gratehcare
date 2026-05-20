@@ -1,6 +1,6 @@
 // craco.config.js
 const path = require("path");
-require("dotenv").config();
+require("dotenv").config({ path: require("path").resolve(__dirname, ".env") });
 
 // Check if we're in development/preview mode (not production build)
 // Craco sets NODE_ENV=development for start, NODE_ENV=production for build
@@ -90,6 +90,19 @@ webpackConfig.devServer = (devServerConfig) => {
     : devServerConfig;
 
   nextConfig.historyApiFallback = true;
+
+  const apiTarget =
+    process.env.REACT_APP_API_URL?.replace(/\/api\/v1\/?$/, "") ||
+    "http://localhost:4000";
+
+  nextConfig.proxy = [
+    {
+      context: ["/api"],
+      target: apiTarget,
+      changeOrigin: true,
+    },
+  ];
+
   return nextConfig;
 };
 

@@ -13,6 +13,20 @@ const MOCK_TENANT: Tenant = {
 };
 
 export const tenantsApi = {
+  list: () =>
+    withFallback(
+      () => apiClient.get<PaginatedResponse<Tenant>>("/organizations"),
+      {
+        data: [MOCK_TENANT],
+        total: 1,
+        page: 1,
+        limit: 20,
+      } as PaginatedResponse<Tenant>,
+    ),
+
+  create: (data: { name: string; slug: string; region?: string }) =>
+    apiClient.post<Tenant>("/organizations", data as any),
+
   getCurrent: () =>
     withFallback(
       () => apiClient.get<Tenant>("/organizations/current"),

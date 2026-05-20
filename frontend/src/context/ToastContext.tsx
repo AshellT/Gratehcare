@@ -68,14 +68,15 @@ const TONE_STYLES: Record<
 
 // ─── Single toast item ────────────────────────────────────────────────────────
 
-const ToastItem: React.FC<{
-  toast: Toast;
-  onDismiss: (id: string) => void;
-}> = ({ toast, onDismiss }) => {
+const ToastItem = React.forwardRef<
+  HTMLDivElement,
+  { toast: Toast; onDismiss: (id: string) => void }
+>(({ toast, onDismiss }, ref) => {
   const { bg, border, icon, titleColor } = TONE_STYLES[toast.tone];
 
   return (
     <motion.div
+      ref={ref}
       layout
       initial={{ opacity: 0, x: 40, scale: 0.95 }}
       animate={{ opacity: 1, x: 0, scale: 1 }}
@@ -103,7 +104,8 @@ const ToastItem: React.FC<{
       </button>
     </motion.div>
   );
-};
+});
+ToastItem.displayName = "ToastItem";
 
 // ─── Provider ─────────────────────────────────────────────────────────────────
 

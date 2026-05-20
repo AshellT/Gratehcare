@@ -3,6 +3,7 @@ import Card from "@/components/dashboard/Card";
 import PageHeader from "@/components/dashboard/PageHeader";
 import StatCard from "@/components/dashboard/StatCard";
 import { useAuth } from "@/context/AuthContext";
+import { useActionQuery } from "@/hooks/useActionQuery";
 import { useCareNotes, useCarePlans } from "@/hooks/useCare";
 import { useClients } from "@/hooks/useClients";
 import { useIncidents } from "@/hooks/useIncidents";
@@ -1192,6 +1193,9 @@ const OperationModulePage: React.FC<{ moduleKey: ModuleKey }> = ({
     setMessage(text);
     window.setTimeout(() => setMessage(null), 2600);
   };
+
+  useActionQuery("create", () => setShowCreate(true));
+  useActionQuery("autofill", () => notify("Auto-fill suggestions applied to open shifts."));
 
   const filtered = useMemo(() => {
     return records.filter((record) => {

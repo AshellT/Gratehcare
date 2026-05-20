@@ -1,4 +1,5 @@
 import { apiClient, withFallback } from "./client";
+import { API_BASE } from "./config";
 import type { Notification, PaginatedResponse } from "./types";
 
 const MOCK_NOTIFICATIONS: Notification[] = [
@@ -73,9 +74,5 @@ export const notificationsApi = {
   dismiss: (id: string) => apiClient.delete(`/notifications/${id}`),
 
   /** SSE stream URL — pass to EventSource directly */
-  streamUrl: (): string => {
-    const base =
-      (process.env.REACT_APP_API_URL ?? "http://localhost:3000") + "/api/v1";
-    return `${base}/notifications/stream`;
-  },
+  streamUrl: (): string => `${API_BASE}/notifications/stream`,
 };

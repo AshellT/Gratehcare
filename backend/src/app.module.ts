@@ -27,7 +27,12 @@ import { RedisModule } from "./redis/redis.module";
 import { SupabaseModule } from "./supabase/supabase.module";
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: [".env"],
+      // Passwords with "!" break dotenv-expand (e.g. ...A2!@host → empty DATABASE_URL).
+      expandVariables: false,
+    }),
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 120 }]),
     PrismaModule,
     SupabaseModule,

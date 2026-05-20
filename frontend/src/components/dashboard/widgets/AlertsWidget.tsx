@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React from "react";
 import { motion } from "framer-motion";
 import { AlertTriangle, AlertCircle, Info, CheckCircle2, ArrowRight } from "lucide-react";
 import Card from "@/components/dashboard/Card";
+import { useAppAction } from "@/hooks/useAppAction";
 
 export type Alert = {
   id: string;
@@ -53,25 +54,10 @@ const AlertsWidget: React.FC<{
   className?: string;
   onAction?: (alert: Alert) => void;
 }> = ({ title = "Needs your attention", description, alerts, className, onAction }) => {
-  const [message, setMessage] = useState<string | null>(null);
-  const notify = (text: string) => {
-    setMessage(text);
-    window.setTimeout(() => setMessage(null), 2400);
-  };
+  const { runAction } = useAppAction();
 
   return (
-    <Card
-      title={title}
-      description={description}
-      className={className}
-      action={
-        message ? (
-          <span className="rounded-full bg-indigo-50 px-3 py-1 text-[11px] font-semibold text-indigo-700">
-            {message}
-          </span>
-        ) : null
-      }
-    >
+    <Card title={title} description={description} className={className}>
       {alerts.length === 0 ? (
         <div className="text-sm text-slate-500 text-center py-6">
           You're all clear ✨
@@ -118,7 +104,7 @@ const AlertsWidget: React.FC<{
                           onAction(a);
                           return;
                         }
-                        notify(`${a.cta} opened in demo mode.`);
+                        if (a.cta) runAction(a.cta);
                       }}
                       className="mt-1.5 inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-700"
                     >

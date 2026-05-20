@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { API_BASE } from "@/lib/api/config";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -84,8 +85,9 @@ const MOCK_NOTIFICATIONS: LiveNotification[] = [
 
 // ─── SSE URL ─────────────────────────────────────────────────────────────────
 
-const SSE_URL = "/api/v1/notifications/stream";
+const SSE_URL = `${API_BASE}/notifications/stream`;
 const RECONNECT_DELAY_MS = 5_000;
+const MAX_RECONNECT_ATTEMPTS = 3;
 
 // ─── Hook ────────────────────────────────────────────────────────────────────
 
@@ -112,17 +114,38 @@ export function useNotifications(): UseNotificationsResult {
   const [connected, setConnected] = useState(false);
   const esRef = useRef<EventSource | null>(null);
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reconnectAttempts = useRef(0);
 
   const connect = useCallback(() => {
     // Clean up any existing connection
     esRef.current?.close();
     if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
 
+    // EventSource cannot send Authorization headers; skip until a session exists.
+    let hasToken = false;
+    try {
+      hasToken = Boolean(sessionStorage.getItem("gratehcare.api.access_token"));
+    } catch {
+      hasToken = false;
+    }
+    if (!hasToken) {
+      setConnected(false);
+      return;
+    }
+
+    if (reconnectAttempts.current >= MAX_RECONNECT_ATTEMPTS) {
+      setConnected(false);
+      return;
+    }
+
     try {
       const es = new EventSource(SSE_URL, { withCredentials: true });
       esRef.current = es;
 
-      es.onopen = () => setConnected(true);
+      es.onopen = () => {
+        reconnectAttempts.current = 0;
+        setConnected(true);
+      };
 
       es.onmessage = (event: MessageEvent) => {
         try {
@@ -142,8 +165,10 @@ export function useNotifications(): UseNotificationsResult {
         setConnected(false);
         es.close();
         esRef.current = null;
-        // Auto-reconnect after delay
-        reconnectTimer.current = setTimeout(connect, RECONNECT_DELAY_MS);
+        reconnectAttempts.current += 1;
+        if (reconnectAttempts.current < MAX_RECONNECT_ATTEMPTS) {
+          reconnectTimer.current = setTimeout(connect, RECONNECT_DELAY_MS);
+        }
       };
     } catch {
       // EventSource not supported or blocked – stay with mock data
