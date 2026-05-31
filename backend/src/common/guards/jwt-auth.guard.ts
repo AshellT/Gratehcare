@@ -1,9 +1,13 @@
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from "@nestjs/common";
 import { AuthService } from "@/modules/auth/auth.service";
+import { SubscriptionGuard } from "./subscription.guard";
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
-  constructor(private readonly auth: AuthService) {}
+  constructor(
+    private readonly auth: AuthService,
+    private readonly subscriptionGuard: SubscriptionGuard,
+  ) {}
 
   async canActivate(context: ExecutionContext) {
     const request = context.switchToHttp().getRequest();
@@ -17,9 +21,10 @@ export class JwtAuthGuard implements CanActivate {
 
     try {
       request.user = await this.auth.resolveAuthUser(token);
-      return true;
     } catch {
       throw new UnauthorizedException("Invalid bearer token");
     }
+
+    return this.subscriptionGuard.canActivate(context);
   }
 }

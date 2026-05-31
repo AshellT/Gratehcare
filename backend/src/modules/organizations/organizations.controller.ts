@@ -6,6 +6,7 @@ import { JwtAuthGuard } from "@/common/guards/jwt-auth.guard";
 import { PermissionsGuard } from "@/common/guards/permissions.guard";
 import { AuthUser } from "@/common/types/auth-user.type";
 import { CreateTenantDto } from "./dto/create-tenant.dto";
+import { UpgradeRequestDto } from "./dto/upgrade-request.dto";
 import { OrganizationsService } from "./organizations.service";
 
 @Controller("organizations")
@@ -23,6 +24,12 @@ export class OrganizationsController {
   @UseGuards(JwtAuthGuard)
   getCurrent(@CurrentUser() user: AuthUser) {
     return this.service.getCurrent(user);
+  }
+
+  @Post("current/subscription/upgrade-request")
+  @UseGuards(JwtAuthGuard)
+  requestUpgrade(@CurrentUser() user: AuthUser, @Body() dto: UpgradeRequestDto) {
+    return this.service.requestUpgrade(user, dto);
   }
 
   @Get(":id")

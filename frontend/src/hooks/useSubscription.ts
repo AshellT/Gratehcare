@@ -5,11 +5,15 @@ import {
 } from "@/lib/plans";
 import { usePlanCatalog } from "@/hooks/usePlanCatalog";
 import { useAuth } from "@/context/AuthContext";
-import { tenantsApi } from "@/lib/api/tenants";
+import { tenantsApi, type OrganizationCurrent } from "@/lib/api/tenants";
 import { readSignupPlan } from "@/lib/signupPlan";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
-type SubscriptionState = typeof DEMO_SUBSCRIPTION;
+type SubscriptionState = typeof DEMO_SUBSCRIPTION & {
+  isTrialActive: boolean;
+  isTrialExpired: boolean;
+  isReadOnly: boolean;
+};
 
 const parseLimit = (value: number | "unlimited" | undefined, fallback: number) => {
   if (value === "unlimited") return fallback;
@@ -17,43 +21,61 @@ const parseLimit = (value: number | "unlimited" | undefined, fallback: number) =
   return fallback;
 };
 
-const tenantToSubscription = (
-  tenant: Record<string, unknown>,
+const buildFallbackState = (planId: PlanId): SubscriptionState => ({
+  ...DEMO_SUBSCRIPTION,
+  planId,
+  status: "trial",
+  trialEndsAt: new Date(Date.now() + 14 * 86_400_000).toISOString(),
+  isTrialActive: true,
+  isTrialExpired: false,
+  isReadOnly: false,
+});
+
+const mapOrganizationToState = (
+  org: OrganizationCurrent,
   fallbackPlanId: PlanId,
 ): SubscriptionState => {
-  const planId = (tenant.planId || tenant.plan_id || fallbackPlanId) as PlanId;
-  const status = (tenant.subscriptionStatus || tenant.subscription_status || "trial") as
-    SubscriptionState["status"];
+  const subscription = org.subscription;
+  const planId = (subscription?.planId || org.planId || fallbackPlanId) as PlanId;
+  const status = (subscription?.status || org.subscriptionStatus || "trial") as SubscriptionState["status"];
   const trialEndsAt =
-    typeof tenant.trialEndsAt === "string"
-      ? tenant.trialEndsAt
-      : tenant.trial_ends_at
-        ? new Date(tenant.trial_ends_at as string).toISOString()
-        : null;
+    subscription?.trialEndsAt ||
+    (org.trialEndsAt ? new Date(org.trialEndsAt).toISOString() : null);
+  const periodEnd = org.currentPeriodEnd
+    ? new Date(org.currentPeriodEnd).toISOString().slice(0, 10)
+    : trialEndsAt
+      ? trialEndsAt.slice(0, 10)
+      : DEMO_SUBSCRIPTION.currentPeriodEnd;
 
   return {
     planId,
     cycle: "monthly",
     status,
     trialEndsAt,
-    currentPeriodEnd: trialEndsAt
-      ? trialEndsAt.slice(0, 10)
-      : DEMO_SUBSCRIPTION.currentPeriodEnd,
+    currentPeriodEnd: periodEnd,
     seats: DEMO_SUBSCRIPTION.seats,
     storageGb: DEMO_SUBSCRIPTION.storageGb,
+    isTrialActive: subscription?.isTrialActive ?? false,
+    isTrialExpired: subscription?.isTrialExpired ?? false,
+    isReadOnly: subscription?.isReadOnly ?? false,
   };
 };
 
 export function useSubscription() {
   const { user } = useAuth();
   const fallbackPlanId = readSignupPlan() || DEMO_SUBSCRIPTION.planId;
-  const [sub, setSub] = useState<SubscriptionState>(() => ({
-    ...DEMO_SUBSCRIPTION,
-    planId: fallbackPlanId,
-    status: "trial",
-    trialEndsAt: new Date(Date.now() + 14 * 86_400_000).toISOString(),
-  }));
+  const [sub, setSub] = useState<SubscriptionState>(() => buildFallbackState(fallbackPlanId));
   const { plans } = usePlanCatalog();
+
+  const refresh = useCallback(async () => {
+    if (!user?.organization_id) return;
+    try {
+      const org = await tenantsApi.getCurrent();
+      setSub(mapOrganizationToState(org, fallbackPlanId));
+    } catch {
+      // keep existing state
+    }
+  }, [user?.organization_id, fallbackPlanId]);
 
   useEffect(() => {
     if (!user?.organization_id) return;
@@ -61,9 +83,9 @@ export function useSubscription() {
 
     (async () => {
       try {
-        const tenant = (await tenantsApi.getCurrent()) as Record<string, unknown>;
+        const org = await tenantsApi.getCurrent();
         if (!mounted) return;
-        setSub(tenantToSubscription(tenant, fallbackPlanId));
+        setSub(mapOrganizationToState(org, fallbackPlanId));
       } catch {
         // keep local fallback
       }
@@ -80,10 +102,14 @@ export function useSubscription() {
   );
 
   const daysLeftInTrial = useMemo(() => {
+    if (sub.isTrialActive === false && sub.trialEndsAt) {
+      const msLeft = new Date(sub.trialEndsAt).getTime() - Date.now();
+      return Math.max(0, Math.ceil(msLeft / 86_400_000));
+    }
     if (!sub.trialEndsAt) return null;
     const msLeft = new Date(sub.trialEndsAt).getTime() - Date.now();
     return Math.max(0, Math.ceil(msLeft / 86_400_000));
-  }, [sub.trialEndsAt]);
+  }, [sub.trialEndsAt, sub.isTrialActive]);
 
   const daysLeftInPeriod = useMemo(() => {
     const msLeft = new Date(sub.currentPeriodEnd).getTime() - Date.now();
@@ -123,5 +149,9 @@ export function useSubscription() {
     staffPct,
     storagePct,
     canAccess,
+    isTrialActive: sub.isTrialActive,
+    isTrialExpired: sub.isTrialExpired,
+    isReadOnly: sub.isReadOnly,
+    refresh,
   };
 }

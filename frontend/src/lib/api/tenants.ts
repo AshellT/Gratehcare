@@ -1,6 +1,25 @@
 import { apiClient, normalizePage } from "./client";
 import type { PaginatedResponse, Tenant, User } from "./types";
 
+export type ResolvedSubscription = {
+  status: string;
+  planId: string;
+  trialEndsAt: string | null;
+  daysLeftInTrial: number | null;
+  isTrialActive: boolean;
+  isTrialExpired: boolean;
+  isReadOnly: boolean;
+};
+
+export type OrganizationCurrent = Tenant & {
+  planId?: string;
+  subscriptionStatus?: string;
+  trialEndsAt?: string | null;
+  currentPeriodEnd?: string | null;
+  stripeCustomerId?: string | null;
+  subscription?: ResolvedSubscription;
+};
+
 export const tenantsApi = {
   list: () =>
     apiClient
@@ -10,8 +29,13 @@ export const tenantsApi = {
   create: (data: { name: string; slug: string; region?: string }) =>
     apiClient.post<Tenant>("/organizations", data as any),
 
-  getCurrent: () =>
-    apiClient.get<Tenant>("/organizations/current"),
+  getCurrent: () => apiClient.get<OrganizationCurrent>("/organizations/current"),
+
+  requestUpgrade: (message?: string) =>
+    apiClient.post<{ id: string; message: string }>(
+      "/organizations/current/subscription/upgrade-request",
+      { message } as any,
+    ),
 
   update: (data: Partial<Tenant>) =>
     apiClient.patch<Tenant>("/organizations/current", data as any),

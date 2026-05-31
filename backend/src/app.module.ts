@@ -2,6 +2,7 @@ import { MiddlewareConsumer, Module, NestModule } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { ThrottlerModule } from "@nestjs/throttler";
 import { RequestContextMiddleware } from "./common/middleware/request-context.middleware";
+import { SubscriptionBillingModule } from "./modules/subscription-billing/subscription-billing.module";
 import { AiInsightsModule } from "./modules/ai-insights/ai-insights.module";
 import { AuditLogsModule } from "./modules/audit-logs/audit-logs.module";
 import { AuthModule } from "./modules/auth/auth.module";
@@ -22,6 +23,7 @@ import { MedicationModule } from "./modules/medication/medication.module";
 import { MessagesModule } from "./modules/messages/messages.module";
 import { NotificationsModule } from "./modules/notifications/notifications.module";
 import { OrganizationsModule } from "./modules/organizations/organizations.module";
+import { SubscriptionsModule } from "./modules/subscriptions/subscriptions.module";
 import { ReportsModule } from "./modules/reports/reports.module";
 import { RolesModule } from "./modules/roles/roles.module";
 import { RosteringModule } from "./modules/rostering/rostering.module";
@@ -44,6 +46,7 @@ import { SupabaseModule } from "./supabase/supabase.module";
     SupabaseModule,
     RedisModule,
     AuthModule,
+    SubscriptionsModule,
     UsersModule,
     RolesModule,
     OrganizationsModule,
@@ -67,6 +70,7 @@ import { SupabaseModule } from "./supabase/supabase.module";
     ClaimsModule,
     TicketsModule,
     PublicModule,
+    SubscriptionBillingModule,
     SystemModule,
     KnowledgeModule,
   ],

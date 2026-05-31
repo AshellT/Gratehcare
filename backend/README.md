@@ -69,6 +69,8 @@ API prefix: `/api/v1`
 - `medication`
 - `incidents`
 - `billing`
+- `subscription-billing` (Stripe Checkout, webhooks, billing emails)
+- `subscriptions` (trial resolution, read-only guard)
 - `compliance`
 - `documents`
 - `messages`

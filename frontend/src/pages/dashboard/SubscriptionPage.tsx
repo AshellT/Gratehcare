@@ -2,9 +2,12 @@ import Badge from "@/components/dashboard/Badge";
 import Card from "@/components/dashboard/Card";
 import PageHeader from "@/components/dashboard/PageHeader";
 import StatCard from "@/components/dashboard/StatCard";
+import UpgradePanel from "@/components/dashboard/UpgradePanel";
 import { useAuth } from "@/context/AuthContext";
 import { usePlanCatalog } from "@/hooks/usePlanCatalog";
 import { useSubscription } from "@/hooks/useSubscription";
+import { subscriptionBillingApi } from "@/lib/api/subscriptionBilling";
+import { tenantsApi } from "@/lib/api/tenants";
 import {
   PLAN_FEATURES,
   type BillingCycle,
@@ -28,8 +31,8 @@ import {
   Users,
   Zap,
 } from "lucide-react";
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useEffect, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 // ─── Usage bar ────────────────────────────────────────────────────────────────
 
@@ -396,20 +399,75 @@ const PlanAdminEditor: React.FC<{
 
 const SubscriptionPage: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
   const { plans, updatePlan, resetPlans } = usePlanCatalog();
   const sub = useSubscription();
   const [toast, setToast] = useState<string | null>(null);
   const [changePlanOpen, setChangePlanOpen] = useState(false);
+  const [upgradeRequesting, setUpgradeRequesting] = useState(false);
+  const [upgradeRequested, setUpgradeRequested] = useState(false);
+  const [checkingOut, setCheckingOut] = useState(false);
+  const [stripeEnabled, setStripeEnabled] = useState(false);
   const canEditSystemPlans =
     user?.role === "super_admin" || user?.role === "platform_owner";
+
+  useEffect(() => {
+    subscriptionBillingApi
+      .getConfig()
+      .then((config) => setStripeEnabled(config.stripeEnabled))
+      .catch(() => setStripeEnabled(false));
+  }, []);
+
+  useEffect(() => {
+    const checkout = searchParams.get("checkout");
+    if (checkout === "success") {
+      notify("Payment setup complete — refreshing your subscription…");
+      void sub.refresh?.();
+      setSearchParams({}, { replace: true });
+    } else if (checkout === "cancel") {
+      notify("Checkout cancelled. You can try again anytime.");
+      setSearchParams({}, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   const notify = (msg: string) => {
     setToast(msg);
     window.setTimeout(() => setToast(null), 3200);
   };
 
+  const handleUpgradeRequest = async () => {
+    setUpgradeRequesting(true);
+    try {
+      const res = await tenantsApi.requestUpgrade(
+        `Upgrade request from ${user?.organization || "organization"} on ${sub.plan.name}.`,
+      );
+      setUpgradeRequested(true);
+      notify(res.message);
+    } catch (err: any) {
+      notify(err?.message || "Could not send upgrade request.");
+    } finally {
+      setUpgradeRequesting(false);
+    }
+  };
+
+  const handleCheckout = async (planId: PlanId) => {
+    setCheckingOut(true);
+    try {
+      const session = await subscriptionBillingApi.createCheckout(planId);
+      window.location.href = session.url;
+    } catch (err: any) {
+      notify(err?.message || "Could not start Stripe checkout.");
+      setCheckingOut(false);
+    }
+  };
+
   const handlePlanSelect = (id: PlanId) => {
+    if (sub.isReadOnly) {
+      notify("Upgrade your plan before changing subscription settings.");
+      return;
+    }
     const target = plans.find((p) => p.id === id)!;
     const direction =
       plans.findIndex((p) => p.id === id) >
@@ -486,30 +544,19 @@ const SubscriptionPage: React.FC = () => {
         />
       )}
 
-      {/* Trial / past-due banner */}
-      {sub.status === "trial" && sub.daysLeftInTrial !== null && (
-        <motion.div
-          initial={{ opacity: 0, y: -8 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-5 py-4"
-        >
-          <AlertTriangle className="h-5 w-5 flex-shrink-0 text-amber-600" />
-          <div className="flex-1">
-            <span className="text-sm font-bold text-amber-800">
-              Trial ends in {sub.daysLeftInTrial} days
-            </span>
-            <span className="ml-2 text-sm text-amber-700">
-              — add a payment method to keep your access after the trial.
-            </span>
-          </div>
-          <button
-            onClick={() => notify("Payment method modal opened.")}
-            className="rounded-full bg-amber-600 px-4 py-1.5 text-xs font-bold text-white hover:bg-amber-700"
-          >
-            Add payment
-          </button>
-        </motion.div>
-      )}
+      <UpgradePanel
+        plan={sub.plan}
+        planId={sub.planId}
+        isReadOnly={sub.isReadOnly}
+        isTrialActive={sub.isTrialActive}
+        daysLeftInTrial={sub.daysLeftInTrial}
+        stripeEnabled={stripeEnabled}
+        onCheckout={handleCheckout}
+        onRequestUpgrade={handleUpgradeRequest}
+        checkingOut={checkingOut}
+        requesting={upgradeRequesting}
+        requested={upgradeRequested}
+      />
 
       {sub.status === "past_due" && (
         <div className="flex items-center gap-3 rounded-xl border border-rose-200 bg-rose-50 px-5 py-4">
@@ -637,8 +684,9 @@ const SubscriptionPage: React.FC = () => {
             {/* Change plan */}
             <div className="mt-5 flex flex-wrap gap-3">
               <button
-                onClick={() => setChangePlanOpen((v) => !v)}
-                className="flex items-center gap-2 rounded-full bg-indigo-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-indigo-700"
+                onClick={() => !sub.isReadOnly && setChangePlanOpen((v) => !v)}
+                disabled={sub.isReadOnly}
+                className="flex items-center gap-2 rounded-full bg-indigo-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <TrendingUp className="h-4 w-4" />
                 Change plan

@@ -525,10 +525,14 @@ async function main() {
       name: "GRATEHCARE Demo Organization",
       slug: "gratehcare-demo",
       region: "Demo",
+      planId: "pro",
+      subscriptionStatus: "active",
     },
     update: {
       name: "GRATEHCARE Demo Organization",
       region: "Demo",
+      subscriptionStatus: "active",
+      trialEndsAt: null,
     },
   });
 

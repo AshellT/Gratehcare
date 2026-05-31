@@ -98,6 +98,10 @@ model Tenant {
   planId             String          @default("pro") @map("plan_id")
   subscriptionStatus String          @default("trial") @map("subscription_status")
   trialEndsAt        DateTime?       @map("trial_ends_at")
+  stripeCustomerId     String?       @map("stripe_customer_id")
+  stripeSubscriptionId String?       @map("stripe_subscription_id")
+  billingEmail         String?       @map("billing_email")
+  currentPeriodEnd     DateTime?     @map("current_period_end")
   createdAt          DateTime        @default(now())
   updatedAt          DateTime        @updatedAt
   users          User[]

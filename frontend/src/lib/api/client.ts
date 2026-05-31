@@ -84,6 +84,7 @@ export class ApiError extends Error {
     public readonly status: number,
     public readonly code: string,
     message: string,
+    public readonly upgradeUrl?: string,
   ) {
     super(message);
     this.name = "ApiError";
@@ -191,11 +192,24 @@ async function request<T>(
     try {
       payload = await res.json();
     } catch {}
-    throw new ApiError(
-      res.status,
-      payload?.error ?? payload?.message ?? "API_ERROR",
-      payload?.message ?? `HTTP ${res.status}`,
-    );
+    const nested =
+      payload?.message && typeof payload.message === "object" ? payload.message : null;
+    const code = nested?.code ?? payload?.code ?? payload?.error ?? "API_ERROR";
+    const message =
+      nested?.message ??
+      (typeof payload?.message === "string" ? payload.message : undefined) ??
+      `HTTP ${res.status}`;
+    const upgradeUrl = nested?.upgradeUrl ?? payload?.upgradeUrl;
+
+    if (code === "TRIAL_EXPIRED" && typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent("gratehcare:trial-expired", {
+          detail: { message, upgradeUrl: upgradeUrl || "/app/subscription" },
+        }),
+      );
+    }
+
+    throw new ApiError(res.status, code, message, upgradeUrl);
   }
 
   // 204 No Content

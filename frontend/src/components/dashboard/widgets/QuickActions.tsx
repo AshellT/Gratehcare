@@ -2,6 +2,7 @@ import React from "react";
 import { motion } from "framer-motion";
 import Card from "@/components/dashboard/Card";
 import { useAppAction } from "@/hooks/useAppAction";
+import { useWriteAccess } from "@/context/SubscriptionContext";
 
 export type QuickAction = {
   label: string;
@@ -26,6 +27,7 @@ const QuickActions: React.FC<{
   columns?: 2 | 3 | 4;
 }> = ({ title = "Quick actions", actions, columns = 2 }) => {
   const { runAction: runAppAction } = useAppAction();
+  const canWrite = useWriteAccess();
   const colClass =
     columns === 4 ? "grid-cols-4" : columns === 3 ? "grid-cols-3" : "grid-cols-2";
 
@@ -38,11 +40,12 @@ const QuickActions: React.FC<{
             initial={{ opacity: 0, scale: 0.96 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: i * 0.04 }}
-            onClick={() => runAppAction(a.label, a.onClick)}
+            onClick={() => canWrite && runAppAction(a.label, a.onClick)}
+            disabled={!canWrite}
             data-testid={`quick-action-${a.label.toLowerCase().replace(/\s+/g, "-")}`}
             className={`group flex flex-col items-start gap-2 rounded-xl p-3.5 text-left transition-all ring-1 ${
               tones[a.tone || "indigo"]
-            }`}
+            } ${!canWrite ? "cursor-not-allowed opacity-50" : ""}`}
           >
             <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-white/70 group-hover:scale-110 transition-transform">
               {a.icon}

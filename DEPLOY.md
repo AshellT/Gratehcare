@@ -40,6 +40,12 @@ In [Supabase Dashboard](https://supabase.com/dashboard) → your project:
 - After first deploy:
 
 ```bash
+npx prisma migrate deploy
+```
+
+This applies tenant subscription fields, marketing leads, and trial backfill for existing organizations.
+
+```bash
 railway run npx prisma migrate deploy
 railway run npm run db:seed   # optional demo users *@gratehcare.test
 ```
