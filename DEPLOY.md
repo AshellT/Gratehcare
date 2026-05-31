@@ -35,7 +35,7 @@ In [Supabase Dashboard](https://supabase.com/dashboard) → your project:
 
 ## 2. Railway (API)
 
-- **Root directory:** `backend`
+- **Root directory:** leave as repo root (default) — `railway.json` + `railpack.json` at repo root build `backend/`. Alternatively set root directory to `backend` and use `backend/railpack.json`.
 - **Env template:** [`env/gratehcare-production.railway.txt`](./env/gratehcare-production.railway.txt)
 - After first deploy:
 
