@@ -35,7 +35,7 @@ In [Supabase Dashboard](https://supabase.com/dashboard) → your project:
 
 ## 2. Railway (API)
 
-- **Root directory:** leave empty (repo root). Railpack builds the monorepo and uses `backend/scripts/railway-build.sh` + `node backend/dist/main.js` from repo-root `railway.json`.
+- **Root directory:** leave empty (repo root). Builds use `backend/Dockerfile` via repo-root `railway.json`.
 - **Env template:** [`env/gratehcare-production.railway.txt`](./env/gratehcare-production.railway.txt)
 - After first deploy:
 

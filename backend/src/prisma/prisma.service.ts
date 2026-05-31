@@ -5,7 +5,14 @@ import { PrismaClient } from "@prisma/client";
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
   async onModuleInit() {
     this.registerAuditHook();
-    await this.$connect();
+    try {
+      await this.$connect();
+    } catch (error) {
+      console.error(
+        "Prisma failed to connect — API will start but DB routes may fail:",
+        error instanceof Error ? error.message : error,
+      );
+    }
   }
 
   async onModuleDestroy() {
