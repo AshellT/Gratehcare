@@ -1,16 +1,7 @@
 {
   "$schema": "https://schema.railpack.com",
-  "steps": {
-    "install": {
-      "commands": ["npm ci --include=dev"]
-    },
-    "build": {
-      "inputs": [{ "step": "install" }],
-      "commands": ["npx prisma generate", "npm run build"]
-    }
-  },
   "deploy": {
-    "startCommand": "npm run start:prod",
+    "startCommand": "sh scripts/railway-start.sh",
     "paths": ["node_modules/.bin"]
   }
 }
