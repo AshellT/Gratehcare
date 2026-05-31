@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.railpack.com",
   "deploy": {
-    "startCommand": "node dist/main.js",
+    "startCommand": "node dist/src/main.js",
     "paths": ["node_modules/.bin"]
   }
 }

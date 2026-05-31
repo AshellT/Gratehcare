@@ -12,6 +12,6 @@ import { AuthService } from "./auth.service";
   imports: [JwtModule.register({}), SupabaseModule, SubscriptionsModule],
   controllers: [AuthController],
   providers: [AuthService, SubscriptionGuard, JwtAuthGuard],
-  exports: [AuthService, JwtModule, JwtAuthGuard],
+  exports: [AuthService, JwtModule, JwtAuthGuard, SubscriptionGuard],
 })
 export class AuthModule {}
