@@ -26,7 +26,11 @@ export class TenantCrudService {
   async list(query: PaginationDto, user: AuthUser) {
     const page = query.page || 1;
     const limit = query.limit || 25;
-    const where = user.tenantId ? { tenantId: user.tenantId } : {};
+    const status = query.status?.trim();
+    const where = {
+      ...(user.tenantId ? { tenantId: user.tenantId } : {}),
+      ...(status ? { status: status.toUpperCase() } : {}),
+    };
     const [items, total] = await Promise.all([
       this.delegate().findMany({
         where,

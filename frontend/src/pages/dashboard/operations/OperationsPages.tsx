@@ -249,658 +249,6 @@ const priorityTone: Record<OperationRecord["priority"], Tone> = {
   critical: "rose",
 };
 
-const baseRecords: Record<ModuleKey, OperationRecord[]> = {
-  staff: [
-    row(
-      "STF-1042",
-      "Priya Raman",
-      "Support worker - complex care",
-      "Olivia Grant",
-      "active",
-      "medium",
-      "Today",
-      "North team",
-      "32 hours rostered this week with two medication competencies expiring next month.",
-      {
-        Role: "Support worker",
-        Skills: "Medication, dementia",
-        Availability: "Mon-Fri",
-        Utilisation: "84%",
-      },
-    ),
-    row(
-      "STF-1041",
-      "Daniel Wu",
-      "Support worker - community access",
-      "Sara Hill",
-      "active",
-      "low",
-      "Today",
-      "East team",
-      "Available for two extra afternoon shifts this week.",
-      {
-        Role: "Support worker",
-        Skills: "Transport, personal care",
-        Availability: "Tue-Sat",
-        Utilisation: "76%",
-      },
-    ),
-    row(
-      "STF-1038",
-      "James McGuire",
-      "First aid certificate expires in 4 days",
-      "Compliance",
-      "review",
-      "high",
-      "Apr 30",
-      "South team",
-      "Credential renewal is blocking assignment to high-intensity shifts.",
-      {
-        Role: "Practitioner",
-        Skills: "Clinical review",
-        Availability: "Mon-Thu",
-        Utilisation: "68%",
-      },
-    ),
-  ],
-  clients: [
-    row(
-      "CLI-2208",
-      "Eleanor Rivers",
-      "NDIS plan-managed - 32h/wk",
-      "Priya Raman",
-      "active",
-      "medium",
-      "Today",
-      "Sydney",
-      "Stable care plan with improving wellbeing trend and family engagement.",
-      {
-        Funding: "NDIS",
-        Coordinator: "Priya Raman",
-        "Next review": "May 14",
-        Risk: "Low falls risk",
-      },
-    ),
-    row(
-      "CLI-2207",
-      "Maya Krishnan",
-      "Onboarding - agency managed",
-      "Sara Hill",
-      "pending",
-      "high",
-      "Tomorrow",
-      "Melbourne",
-      "Awaiting service agreement and medication authorisation before first visit.",
-      {
-        Funding: "NDIS",
-        Coordinator: "Sara Hill",
-        "Next review": "May 02",
-        Risk: "Medication setup",
-      },
-    ),
-    row(
-      "CLI-2206",
-      "Henry Park",
-      "Self-managed respite",
-      "Daniel Wu",
-      "active",
-      "low",
-      "Yesterday",
-      "Brisbane",
-      "Family requested weekend respite cover for May roster.",
-      {
-        Funding: "Private",
-        Coordinator: "Daniel Wu",
-        "Next review": "Jun 01",
-        Risk: "None",
-      },
-    ),
-  ],
-  rostering: [
-    row(
-      "ROS-778",
-      "Weekday personal care roster",
-      "86 shifts - 98% coverage",
-      "Operations",
-      "published",
-      "medium",
-      "Apr 27",
-      "All regions",
-      "Roster is published with two open shifts and one travel warning.",
-      { Coverage: "98%", Shifts: "86", Open: "2", Conflicts: "1" },
-    ),
-    row(
-      "ROS-777",
-      "Weekend respite roster",
-      "24 shifts - draft",
-      "Sara Hill",
-      "draft",
-      "medium",
-      "May 03",
-      "Metro",
-      "Needs final support worker assignments before publishing.",
-      { Coverage: "74%", Shifts: "24", Open: "6", Conflicts: "0" },
-    ),
-    row(
-      "ROS-776",
-      "Clinical review block",
-      "12 appointments",
-      "Dr. Raj Patel",
-      "scheduled",
-      "low",
-      "May 06",
-      "North",
-      "Practitioner appointments prepared for care plan review week.",
-      { Coverage: "100%", Shifts: "12", Open: "0", Conflicts: "0" },
-    ),
-  ],
-  "open-shifts": [
-    row(
-      "OSH-511",
-      "Maya Krishnan - evening support",
-      "No qualified worker assigned",
-      "Roster desk",
-      "unfilled",
-      "critical",
-      "Today 19:00",
-      "Melbourne",
-      "Requires medication competency and female worker preference.",
-      {
-        Client: "Maya Krishnan",
-        Duration: "2h",
-        Skills: "Medication",
-        Offers: "3 sent",
-      },
-    ),
-    row(
-      "OSH-510",
-      "Henry Park - weekend respite",
-      "Offer sent to 4 workers",
-      "Daniel Wu",
-      "offered",
-      "medium",
-      "Sat 10:00",
-      "Brisbane",
-      "First response due by 17:00 today.",
-      {
-        Client: "Henry Park",
-        Duration: "4h",
-        Skills: "Respite",
-        Offers: "4 sent",
-      },
-    ),
-    row(
-      "OSH-509",
-      "Eleanor Rivers - morning visit",
-      "Worker replacement needed",
-      "Priya Raman",
-      "open",
-      "high",
-      "Tomorrow 09:00",
-      "Sydney",
-      "Original worker called in sick. Family has been notified.",
-      {
-        Client: "Eleanor Rivers",
-        Duration: "1.5h",
-        Skills: "Personal care",
-        Offers: "1 sent",
-      },
-    ),
-  ],
-  "shift-conflicts": [
-    row(
-      "CON-338",
-      "Double booking - Daniel Wu",
-      "Two shifts overlap by 45 minutes",
-      "Operations",
-      "conflict",
-      "high",
-      "Today",
-      "East team",
-      "Community access shift overlaps with transport booking.",
-      {
-        Worker: "Daniel Wu",
-        Impact: "2 clients",
-        Type: "Overlap",
-        "Suggested fix": "Reassign transport",
-      },
-    ),
-    row(
-      "CON-337",
-      "Expired credential risk",
-      "James McGuire assigned to first aid required visit",
-      "Compliance",
-      "review",
-      "high",
-      "Apr 30",
-      "South team",
-      "Credential expires before the rostered service date.",
-      {
-        Worker: "James McGuire",
-        Impact: "1 shift",
-        Type: "Credential",
-        "Suggested fix": "Renew or swap",
-      },
-    ),
-    row(
-      "CON-336",
-      "Travel time warning",
-      "Priya Raman has 12 min transfer window",
-      "Roster desk",
-      "open",
-      "medium",
-      "Tomorrow",
-      "North team",
-      "Travel estimate is 22 minutes between client visits.",
-      {
-        Worker: "Priya Raman",
-        Impact: "2 visits",
-        Type: "Travel",
-        "Suggested fix": "Move second visit",
-      },
-    ),
-  ],
-  timesheets: [
-    row(
-      "TS-9102",
-      "Priya Raman",
-      "38.5 hours - 12 visits",
-      "Payroll",
-      "submitted",
-      "low",
-      "Apr 26",
-      "North team",
-      "Includes 24 km travel claim and one manual adjustment.",
-      { Hours: "38.5", Visits: "12", Mileage: "24 km", Exceptions: "1" },
-    ),
-    row(
-      "TS-9101",
-      "Daniel Wu",
-      "34 hours - awaiting approval",
-      "Sara Hill",
-      "pending",
-      "medium",
-      "Apr 26",
-      "East team",
-      "One shift has a late clock-out variance.",
-      { Hours: "34", Visits: "10", Mileage: "41 km", Exceptions: "1" },
-    ),
-    row(
-      "TS-9100",
-      "James McGuire",
-      "18 hours - approved",
-      "Payroll",
-      "approved",
-      "low",
-      "Apr 25",
-      "Clinical",
-      "Ready for payroll export.",
-      { Hours: "18", Visits: "6", Mileage: "0 km", Exceptions: "0" },
-    ),
-  ],
-  attendance: [
-    row(
-      "ATT-622",
-      "Eleanor Rivers morning visit",
-      "Clocked in 09:02 - completed",
-      "Priya Raman",
-      "completed",
-      "low",
-      "Today",
-      "Sydney",
-      "Visit completed with care note submitted.",
-      {
-        Worker: "Priya Raman",
-        Client: "Eleanor Rivers",
-        Start: "09:02",
-        End: "10:31",
-      },
-    ),
-    row(
-      "ATT-621",
-      "Marcus Thompson transport",
-      "Late arrival by 18 minutes",
-      "Daniel Wu",
-      "review",
-      "medium",
-      "Today",
-      "Sydney",
-      "Traffic delay logged with family notification sent.",
-      {
-        Worker: "Daniel Wu",
-        Client: "Marcus Thompson",
-        Start: "11:18",
-        End: "12:04",
-      },
-    ),
-    row(
-      "ATT-620",
-      "Maya Krishnan medication setup",
-      "No clock-in detected",
-      "Roster desk",
-      "missed",
-      "critical",
-      "Today",
-      "Melbourne",
-      "Escalation triggered after 10 minute grace period.",
-      { Worker: "Unassigned", Client: "Maya Krishnan", Start: "--", End: "--" },
-    ),
-  ],
-  "care-plans": [
-    row(
-      "CP-408",
-      "Eleanor Rivers care plan",
-      "Review due May 14",
-      "Priya Raman",
-      "active",
-      "medium",
-      "May 14",
-      "Sydney",
-      "Goals focus on mobility, nutrition and community participation.",
-      {
-        Goals: "4 active",
-        Risks: "Falls, nutrition",
-        Review: "May 14",
-        Family: "Shared",
-      },
-    ),
-    row(
-      "CP-407",
-      "Maya Krishnan onboarding plan",
-      "Draft awaiting clinical sign-off",
-      "Dr. Raj Patel",
-      "draft",
-      "high",
-      "May 02",
-      "Melbourne",
-      "Medication and behaviour support sections are incomplete.",
-      {
-        Goals: "2 draft",
-        Risks: "Medication",
-        Review: "May 02",
-        Family: "Not shared",
-      },
-    ),
-    row(
-      "CP-406",
-      "Henry Park respite plan",
-      "Active respite routine",
-      "Daniel Wu",
-      "active",
-      "low",
-      "Jun 01",
-      "Brisbane",
-      "Weekend routine and emergency contact details verified.",
-      { Goals: "3 active", Risks: "Low", Review: "Jun 01", Family: "Shared" },
-    ),
-  ],
-  "care-notes": [
-    row(
-      "CN-7810",
-      "Eleanor Rivers visit note",
-      "Wellbeing improved after garden walk",
-      "Priya Raman",
-      "completed",
-      "low",
-      "Today",
-      "Sydney",
-      "Client ate well, completed exercises and was in good spirits.",
-      {
-        Mood: "Positive",
-        Nutrition: "Good",
-        Mobility: "Improving",
-        Followup: "None",
-      },
-    ),
-    row(
-      "CN-7809",
-      "Marcus Thompson community access",
-      "Transport delay noted",
-      "Daniel Wu",
-      "review",
-      "medium",
-      "Today",
-      "Sydney",
-      "Late start but service outcome completed.",
-      {
-        Mood: "Calm",
-        Nutrition: "N/A",
-        Mobility: "Stable",
-        Followup: "Coordinator review",
-      },
-    ),
-    row(
-      "CN-7808",
-      "Maya Krishnan onboarding call",
-      "Family requested medication clarification",
-      "Sara Hill",
-      "open",
-      "high",
-      "Yesterday",
-      "Melbourne",
-      "Need practitioner confirmation before first medication support visit.",
-      {
-        Mood: "N/A",
-        Nutrition: "N/A",
-        Mobility: "N/A",
-        Followup: "Clinical call",
-      },
-    ),
-  ],
-  medication: [
-    row(
-      "MED-118",
-      "Maya Krishnan medication authority",
-      "Consent form incomplete",
-      "Sara Hill",
-      "review",
-      "high",
-      "Today",
-      "Melbourne",
-      "Medication support cannot begin until authority and chart are uploaded.",
-      {
-        Medication: "Webster pack",
-        Schedule: "Evening",
-        Authority: "Missing",
-        LastAdmin: "--",
-      },
-    ),
-    row(
-      "MED-117",
-      "Eleanor Rivers evening medication",
-      "Administered and signed",
-      "Priya Raman",
-      "administered",
-      "low",
-      "Yesterday",
-      "Sydney",
-      "No variance recorded.",
-      {
-        Medication: "Metformin",
-        Schedule: "Evening",
-        Authority: "Valid",
-        LastAdmin: "Apr 26",
-      },
-    ),
-    row(
-      "MED-116",
-      "Henry Park PRN review",
-      "Review scheduled with practitioner",
-      "Dr. Raj Patel",
-      "scheduled",
-      "medium",
-      "May 01",
-      "Brisbane",
-      "PRN usage summary requested by family.",
-      {
-        Medication: "PRN pain relief",
-        Schedule: "As needed",
-        Authority: "Valid",
-        LastAdmin: "Apr 20",
-      },
-    ),
-  ],
-  incidents: [
-    row(
-      "INC-620",
-      "Medication chart missing",
-      "Potential service delay for onboarding client",
-      "Sara Hill",
-      "open",
-      "high",
-      "Today",
-      "Melbourne",
-      "Incident opened to track missing medication documents and safety checks.",
-      {
-        Type: "Medication",
-        Severity: "High",
-        Client: "Maya Krishnan",
-        RCA: "Pending",
-      },
-    ),
-    row(
-      "INC-619",
-      "Late attendance escalation",
-      "Worker delayed by traffic",
-      "Daniel Wu",
-      "review",
-      "medium",
-      "Today",
-      "Sydney",
-      "Family notified and visit completed.",
-      {
-        Type: "Attendance",
-        Severity: "Medium",
-        Client: "Marcus Thompson",
-        RCA: "In progress",
-      },
-    ),
-    row(
-      "INC-618",
-      "Falls risk near miss",
-      "Client stumbled during garden walk",
-      "Priya Raman",
-      "resolved",
-      "medium",
-      "Apr 24",
-      "Sydney",
-      "No injury. Care plan updated with extra mobility cue.",
-      {
-        Type: "Near miss",
-        Severity: "Medium",
-        Client: "Eleanor Rivers",
-        RCA: "Closed",
-      },
-    ),
-  ],
-  "live-activity": [
-    row(
-      "ACT-9901",
-      "Roster published",
-      "86 shifts visible to staff",
-      "Operations",
-      "published",
-      "low",
-      "2 min ago",
-      "All regions",
-      "Weekday roster has been published and notifications are queued.",
-      {
-        Stream: "Rostering",
-        Actor: "Sara Hill",
-        Source: "Web",
-        Visibility: "Internal",
-      },
-    ),
-    row(
-      "ACT-9900",
-      "Claim approved",
-      "CLM-2196 approved for $1,420",
-      "Finance",
-      "approved",
-      "low",
-      "18 min ago",
-      "Billing",
-      "Payer approval received and posted to finance dashboard.",
-      {
-        Stream: "Finance",
-        Actor: "Payer portal",
-        Source: "Integration",
-        Visibility: "Finance",
-      },
-    ),
-    row(
-      "ACT-9899",
-      "Attendance alert",
-      "No clock-in detected for Maya K.",
-      "System",
-      "escalated",
-      "critical",
-      "31 min ago",
-      "Melbourne",
-      "Alert created from attendance monitor.",
-      {
-        Stream: "Attendance",
-        Actor: "System",
-        Source: "Mobile",
-        Visibility: "Operations",
-      },
-    ),
-  ],
-  alerts: [
-    row(
-      "ALT-440",
-      "No clock-in detected",
-      "Maya K. medication setup",
-      "Roster desk",
-      "critical",
-      "critical",
-      "Now",
-      "Melbourne",
-      "Escalate to coordinator and find backup worker.",
-      {
-        Category: "Attendance",
-        SLA: "10 min",
-        Owner: "Roster desk",
-        Action: "Escalate",
-      },
-    ),
-    row(
-      "ALT-439",
-      "Credential expiry",
-      "James M. first aid expires in 4 days",
-      "Compliance",
-      "open",
-      "high",
-      "Today",
-      "South team",
-      "Renewal required before next high-intensity shift.",
-      {
-        Category: "Compliance",
-        SLA: "4 days",
-        Owner: "Compliance",
-        Action: "Renew",
-      },
-    ),
-    row(
-      "ALT-438",
-      "Funding risk",
-      "Alana W. projected low balance",
-      "Finance",
-      "review",
-      "medium",
-      "Today",
-      "Billing",
-      "Package balance drops below two weeks of services.",
-      {
-        Category: "Funding",
-        SLA: "2 days",
-        Owner: "Finance",
-        Action: "Review",
-      },
-    ),
-  ],
-};
-
 function row(
   id: string,
   primary: string,
@@ -949,8 +297,6 @@ function useModuleRecords(moduleKey: ModuleKey): OperationRecord[] {
   const incidentsQ = useIncidents();
 
   return useMemo((): OperationRecord[] => {
-    const fb = baseRecords[moduleKey];
-
     const fromShifts = (shifts: Shift[]): OperationRecord[] =>
       shifts.map((s) => {
         const d = new Date(s.startTime).toLocaleString("en-AU", {
@@ -985,7 +331,7 @@ function useModuleRecords(moduleKey: ModuleKey): OperationRecord[] {
     switch (moduleKey) {
       case "staff": {
         const items = staffQ.data?.data;
-        if (!items?.length) return fb;
+        if (!items?.length) return [];
         return items.map((s: StaffMember) =>
           row(
             s.id,
@@ -1008,7 +354,7 @@ function useModuleRecords(moduleKey: ModuleKey): OperationRecord[] {
       }
       case "clients": {
         const items = clientsQ.data?.data;
-        if (!items?.length) return fb;
+        if (!items?.length) return [];
         return items.map((c: Client) =>
           row(
             c.id,
@@ -1035,17 +381,17 @@ function useModuleRecords(moduleKey: ModuleKey): OperationRecord[] {
       }
       case "rostering": {
         const items = allShiftsQ.data?.data;
-        if (!items?.length) return fb;
+        if (!items?.length) return [];
         return fromShifts(items);
       }
       case "open-shifts": {
         const items = openShiftsQ.data?.data;
-        if (!items?.length) return fb;
+        if (!items?.length) return [];
         return fromShifts(items.filter((s: Shift) => s.status === "open"));
       }
       case "timesheets": {
         const items = timesheetsQ.data?.data;
-        if (!items?.length) return fb;
+        if (!items?.length) return [];
         return items.map((t: Timesheet) =>
           row(
             t.id,
@@ -1068,7 +414,7 @@ function useModuleRecords(moduleKey: ModuleKey): OperationRecord[] {
       }
       case "care-plans": {
         const items = plansQ.data?.data;
-        if (!items?.length) return fb;
+        if (!items?.length) return [];
         return items.map((p: CarePlan) =>
           row(
             p.id,
@@ -1091,7 +437,7 @@ function useModuleRecords(moduleKey: ModuleKey): OperationRecord[] {
       }
       case "care-notes": {
         const items = notesQ.data?.data;
-        if (!items?.length) return fb;
+        if (!items?.length) return [];
         return items.map((n: CareNote) =>
           row(
             n.id,
@@ -1114,7 +460,7 @@ function useModuleRecords(moduleKey: ModuleKey): OperationRecord[] {
       }
       case "incidents": {
         const items = incidentsQ.data?.data;
-        if (!items?.length) return fb;
+        if (!items?.length) return [];
         return items.map((i: Incident) =>
           row(
             i.reference,
@@ -1139,7 +485,7 @@ function useModuleRecords(moduleKey: ModuleKey): OperationRecord[] {
         );
       }
       default:
-        return fb;
+        return [];
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [

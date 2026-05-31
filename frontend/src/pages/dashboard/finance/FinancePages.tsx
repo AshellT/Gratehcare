@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   ArrowRight,
@@ -21,6 +21,10 @@ import Card from "@/components/dashboard/Card";
 import Badge from "@/components/dashboard/Badge";
 import StatCard from "@/components/dashboard/StatCard";
 import { useAuth } from "@/context/AuthContext";
+import { useToast } from "@/context/ToastContext";
+import { billingApi } from "@/lib/api/billing";
+import { claimsApi } from "@/lib/api/claims";
+import type { Invoice } from "@/lib/api/types";
 
 type FinancePageKind =
   | "overview"
@@ -55,19 +59,6 @@ const money = (value: number) =>
     currency: "USD",
     maximumFractionDigits: 0,
   }).format(value);
-
-const records: FinanceRecord[] = [
-  { id: "INV-4028", client: "Eleanor Rivers", payer: "Family", service: "In-home support", amount: 1240, issued: "Apr 01", due: "Apr 15", paid: "Apr 08", status: "paid", owner: "Priya Raman" },
-  { id: "INV-4027", client: "Marcus Thompson", payer: "NDIS", service: "Community access", amount: 2180, issued: "Apr 01", due: "Apr 15", status: "sent", owner: "Daniel Wu" },
-  { id: "INV-4026", client: "Alana Williams", payer: "Aged Care", service: "Personal care", amount: 840, issued: "Mar 28", due: "Apr 11", status: "overdue", owner: "Sara Hill", warning: "Payment is 16 days overdue. Reminder sequence paused for funding review." },
-  { id: "INV-4025", client: "Henry Park", payer: "Private", service: "Respite", amount: 1560, issued: "Mar 28", due: "Apr 12", status: "disputed", owner: "Tom Reed", warning: "Line item rate does not match current service agreement." },
-  { id: "CLM-2196", client: "Eleanor Rivers", payer: "NDIS", service: "Therapy support", amount: 1420, issued: "Apr 03", due: "Apr 18", status: "approved", owner: "Priya Raman" },
-  { id: "CLM-2195", client: "Marcus Thompson", payer: "Allianz", service: "Transport", amount: 840, issued: "Apr 03", due: "Apr 18", status: "review", owner: "Daniel Wu", warning: "Missing progress note attachment." },
-  { id: "CLM-2194", client: "Maya Krishnan", payer: "NDIS", service: "Plan management", amount: 580, issued: "Mar 30", due: "Apr 13", status: "rejected", owner: "Sara Hill", warning: "Rejected code: support category exhausted." },
-  { id: "PAY-1188", client: "Eleanor Rivers", payer: "Family", service: "Card payment", amount: 1240, issued: "Apr 08", due: "Apr 08", paid: "Apr 08", status: "matched", owner: "Finance" },
-  { id: "PAY-1187", client: "Marcus Thompson", payer: "NDIS", service: "Bank deposit", amount: 2100, issued: "Apr 07", due: "Apr 07", paid: "Apr 07", status: "unmatched", owner: "Finance", warning: "Deposit is $80 short against invoice INV-4027." },
-  { id: "FND-774", client: "Alana Williams", payer: "Aged Care", service: "Monthly package", amount: 3840, issued: "Apr 01", due: "Apr 30", status: "low-funds", owner: "Coordinator", warning: "Projected funding balance drops below two weeks of rostered services." },
-];
 
 const pageMeta: Record<FinancePageKind, { title: string; description: string; eyebrow: string }> = {
   overview: {
@@ -127,6 +118,63 @@ const pageMeta: Record<FinancePageKind, { title: string; description: string; ey
   },
 };
 
+
+const invoiceStatusMap: Record<string, FinanceRecord['status']> = {
+  draft: 'draft',
+  pending: 'sent',
+  paid: 'paid',
+  overdue: 'overdue',
+  cancelled: 'draft',
+};
+
+const mapInvoice = (inv: Invoice): FinanceRecord => ({
+  id: inv.invoiceNumber || inv.id,
+  client: inv.clientName,
+  payer: '—',
+  service: 'Care services',
+  amount: inv.amount,
+  issued: inv.issuedAt,
+  due: inv.dueAt,
+  paid: inv.status === 'paid' ? inv.dueAt : undefined,
+  status: invoiceStatusMap[inv.status] ?? 'sent',
+  owner: '—',
+});
+
+type RawClaim = {
+  id: string;
+  number: string;
+  payer?: string;
+  service?: string;
+  amount: number | string;
+  status: string;
+  submittedAt?: string;
+  paidAt?: string;
+  createdAt?: string;
+  client?: { fullName?: string };
+};
+
+const claimStatusMap: Record<string, FinanceRecord["status"]> = {
+  DRAFT: "draft",
+  SUBMITTED: "submitted",
+  REVIEW: "review",
+  APPROVED: "approved",
+  PAID: "paid",
+  REJECTED: "rejected",
+};
+
+const mapClaim = (claim: RawClaim): FinanceRecord => ({
+  id: claim.number || claim.id,
+  client: claim.client?.fullName ?? "—",
+  payer: claim.payer ?? "—",
+  service: claim.service ?? "Care services",
+  amount: Number(claim.amount),
+  issued: claim.submittedAt ?? claim.createdAt ?? new Date().toISOString(),
+  due: claim.paidAt ?? claim.submittedAt ?? new Date().toISOString(),
+  paid: claim.status === "PAID" ? claim.paidAt : undefined,
+  status: claimStatusMap[claim.status] ?? "submitted",
+  owner: "—",
+});
+
 const statusTone: Record<FinanceRecord["status"], any> = {
   draft: "slate",
   ready: "indigo",
@@ -144,25 +192,28 @@ const statusTone: Record<FinanceRecord["status"], any> = {
   "low-funds": "rose",
 };
 
-const pageRecords = (kind: FinancePageKind, family = false) => {
-  const familyRows = family
-    ? records.filter((record) => ["Eleanor Rivers", "Maya Krishnan"].includes(record.client))
-    : records;
+const pageRecords = (
+  kind: FinancePageKind,
+  source: FinanceRecord[],
+  claimSource: FinanceRecord[],
+  family = false,
+) => {
+  const familyRows = family ? source : source;
 
   if (kind === "invoices" || kind === "billing-dashboard" || kind === "invoice-builder") {
-    return familyRows.filter((record) => record.id.startsWith("INV"));
+    return familyRows;
   }
   if (kind === "claims" || kind === "claim-tracking") {
-    return familyRows.filter((record) => record.id.startsWith("CLM"));
+    return claimSource;
   }
   if (kind === "payments" || kind === "reconciliation") {
-    return familyRows.filter((record) => record.id.startsWith("PAY"));
+    return familyRows.filter((record) => record.status === "paid" || record.status === "matched");
   }
   if (kind === "client-funding") {
-    return familyRows.filter((record) => record.id.startsWith("FND") || record.status === "low-funds");
+    return [];
   }
   if (kind === "outstanding-balances") {
-    return familyRows.filter((record) => ["sent", "overdue", "disputed", "unmatched", "rejected"].includes(record.status));
+    return familyRows.filter((record) => ["sent", "overdue", "disputed"].includes(record.status));
   }
   return familyRows;
 };
@@ -172,6 +223,36 @@ const FinancePage: React.FC<{ kind: FinancePageKind; familyOnly?: boolean }> = (
   familyOnly,
 }) => {
   const { user } = useAuth();
+  const toast = useToast();
+  const [records, setRecords] = useState<FinanceRecord[]>([]);
+  const [claimRecords, setClaimRecords] = useState<FinanceRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        setLoading(true);
+        const loads = [billingApi.listInvoices()];
+        if (kind === "claims" || kind === "claim-tracking") {
+          loads.push(claimsApi.list());
+        }
+        const [invoiceRes, claimRes] = await Promise.all(loads);
+        if (!mounted) return;
+        setRecords(((invoiceRes as any).data ?? []).map(mapInvoice));
+        if (claimRes) {
+          setClaimRecords(((claimRes as any).data ?? []).map((row: RawClaim) => mapClaim(row)));
+        }
+      } catch {
+        if (mounted) toast.error("Failed to load billing data", "Could not fetch finance records from backend.");
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [kind, toast]);
   const [selected, setSelected] = useState<FinanceRecord | null>(null);
   const [status, setStatus] = useState("All statuses");
   const [payer, setPayer] = useState("All payers");
@@ -180,7 +261,7 @@ const FinancePage: React.FC<{ kind: FinancePageKind; familyOnly?: boolean }> = (
   const canManage = user?.role === "billing_officer" && !familyOnly;
   const isOwnerView = user?.role === "org_owner";
   const rows = useMemo(() => {
-    const source = pageRecords(kind, familyOnly || user?.role === "family");
+    const source = pageRecords(kind, records, claimRecords, familyOnly || user?.role === "family");
     return source.filter((record) => {
       const statusMatch = status === "All statuses" || record.status === status;
       const payerMatch = payer === "All payers" || record.payer === payer;
@@ -189,7 +270,7 @@ const FinancePage: React.FC<{ kind: FinancePageKind; familyOnly?: boolean }> = (
         .includes(query.toLowerCase());
       return statusMatch && payerMatch && textMatch;
     });
-  }, [familyOnly, kind, payer, query, status, user?.role]);
+  }, [claimRecords, familyOnly, kind, payer, query, records, status, user?.role]);
 
   const meta = familyOnly
     ? {
@@ -259,7 +340,16 @@ const FinancePage: React.FC<{ kind: FinancePageKind; familyOnly?: boolean }> = (
           onQuery={setQuery}
           onSavedViews={() => notify("Saved finance views opened in demo mode.")}
         />
-        <FinanceTable rows={rows} onSelect={setSelected} readonly={!canManage} />
+        {loading ? (
+          <div className="py-12 text-center text-sm text-slate-500">Loading billing records...</div>
+        ) : rows.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-6 py-12 text-center">
+            <div className="font-display text-lg font-bold text-slate-900">No billing records yet</div>
+            <p className="mt-1 text-sm text-slate-500">Create invoices in the billing module to see them here.</p>
+          </div>
+        ) : (
+          <FinanceTable rows={rows} onSelect={setSelected} readonly={!canManage} />
+        )}
       </Card>
 
       {kind === "revenue-reports" && <RevenueBreakdown />}

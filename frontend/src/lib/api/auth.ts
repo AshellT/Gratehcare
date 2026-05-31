@@ -1,6 +1,7 @@
 import {
   apiClient,
   clearToken,
+  clearTenantId,
   storeTenantId,
   storeToken,
   withFallback,
@@ -15,12 +16,12 @@ export interface AuthResponse {
   accessToken: string;
   refreshToken?: string;
   user: User;
-  tenantId: string;
+  tenantId?: string;
 }
 
 export const authApi = {
   login: (payload: LoginPayload) =>
-    apiClient.post<AuthResponse>("/auth/login", payload as any),
+    apiClient.post<AuthResponse>("/auth/login", payload as any, { public: true }),
 
   logout: () =>
     withFallback(() => apiClient.post("/auth/logout", {}), undefined),
@@ -39,10 +40,12 @@ export const authApi = {
   /** Convenience: persist tokens after a successful login response */
   persistSession: (resp: AuthResponse) => {
     storeToken(resp.accessToken);
-    storeTenantId(resp.tenantId);
+    const tenantId = resp.tenantId || (resp.user as any)?.tenantId;
+    if (tenantId) storeTenantId(tenantId);
   },
 
   clearSession: () => {
     clearToken();
+    clearTenantId();
   },
 };

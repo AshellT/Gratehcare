@@ -1,4 +1,5 @@
 import React from "react";
+import { formatCurrency, useRoleHomeData } from "@/hooks/useRoleHomeData";
 import {
   Users,
   Stethoscope,
@@ -17,7 +18,10 @@ import ActivityFeed from "@/components/dashboard/widgets/ActivityFeed";
 import WorkQueue from "@/components/dashboard/widgets/WorkQueue";
 import { TrendCard } from "@/components/dashboard/widgets/TrendCard";
 
-const PractitionerHome: React.FC = () => (
+const PractitionerHome: React.FC = () => {
+  const data = useRoleHomeData();
+  const loading = data.loading ? "..." : undefined;
+  return (
   <div className="space-y-8">
     <RoleGreeting
       actions={[
@@ -27,12 +31,7 @@ const PractitionerHome: React.FC = () => (
     />
 
     <KpiGrid
-      items={[
-        { label: "Active patients", value: "42", tone: "indigo", icon: <Users className="h-5 w-5" /> },
-        { label: "Plans due review", value: "6", tone: "amber", icon: <Stethoscope className="h-5 w-5" /> },
-        { label: "Sessions this week", value: "18", tone: "emerald", icon: <CalendarCheck className="h-5 w-5" /> },
-        { label: "Outcomes met", value: "87%", tone: "sky", icon: <Activity className="h-5 w-5" />, delta: { value: "+5%", direction: "up" } },
-      ]}
+      items={[]}
     />
 
     <div className="grid lg:grid-cols-3 gap-6">
@@ -46,11 +45,7 @@ const PractitionerHome: React.FC = () => (
 
       <AlertsWidget
         title="Clinical attention"
-        alerts={[
-          { id: "pr1", severity: "warning", title: "Eleanor R. care plan overdue", description: "Last reviewed 92 days ago.", cta: "Schedule review", meta: "92d" },
-          { id: "pr2", severity: "info", title: "New referral · Olivier Chen", description: "Aged Care Package · physio.", cta: "Accept", meta: "today" },
-          { id: "pr3", severity: "success", title: "Marcus T. exceeded mobility goal", description: "100% range achieved 4 weeks early.", meta: "this wk" },
-        ]}
+        alerts={[]}
       />
     </div>
 
@@ -59,12 +54,7 @@ const PractitionerHome: React.FC = () => (
         className="lg:col-span-2"
         title="Care plans due review"
         description="Overdue first"
-        items={[
-          { id: "pr-q1", primary: "Eleanor Rivers", secondary: "Last review 92 days ago", meta: "Overdue", badge: { label: "Overdue", tone: "rose", dot: true } },
-          { id: "pr-q2", primary: "Marcus Thompson", secondary: "Last review 64 days ago", meta: "26d", badge: { label: "Soon", tone: "amber", dot: true } },
-          { id: "pr-q3", primary: "Alana Williams", secondary: "Last review 41 days ago", meta: "49d", badge: { label: "Upcoming", tone: "indigo", dot: true } },
-          { id: "pr-q4", primary: "Henry Park", secondary: "Last review 30 days ago", meta: "60d", badge: { label: "Upcoming", tone: "indigo", dot: true } },
-        ]}
+        items={[]}
       />
 
       <QuickActions
@@ -82,14 +72,10 @@ const PractitionerHome: React.FC = () => (
 
     <ActivityFeed
       title="Clinical activity"
-      items={[
-        { id: "pr-a1", who: "You", what: "completed Eleanor's physio review", when: "12m ago", tag: { label: "Session", tone: "indigo" } },
-        { id: "pr-a2", who: "Coordinator", what: "referred Olivier Chen for physiotherapy", when: "1h ago", tag: { label: "Referral", tone: "violet" } },
-        { id: "pr-a3", who: "You", what: "logged outcome for Marcus T. (100%)", when: "3h ago", tag: { label: "Outcome", tone: "emerald" } },
-        { id: "pr-a4", who: "Family · Eleanor", what: "messaged about progress", when: "Yesterday", tag: { label: "Family", tone: "sky" } },
-      ]}
+      items={[]}
     />
   </div>
-);
+  );
+};
 
 export default PractitionerHome;

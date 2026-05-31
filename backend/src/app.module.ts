@@ -12,6 +12,10 @@ import { ClientsModule } from "./modules/clients/clients.module";
 import { ComplianceModule } from "./modules/compliance/compliance.module";
 import { DocumentsModule } from "./modules/documents/documents.module";
 import { IncidentsModule } from "./modules/incidents/incidents.module";
+import { IntegrationsModule } from "./modules/integrations/integrations.module";
+import { ClaimsModule } from "./modules/claims/claims.module";
+import { TicketsModule } from "./modules/tickets/tickets.module";
+import { PublicModule } from "./modules/public/public.module";
 import { MedicationModule } from "./modules/medication/medication.module";
 import { MessagesModule } from "./modules/messages/messages.module";
 import { NotificationsModule } from "./modules/notifications/notifications.module";
@@ -57,6 +61,10 @@ import { SupabaseModule } from "./supabase/supabase.module";
     ReportsModule,
     AuditLogsModule,
     AiInsightsModule,
+    IntegrationsModule,
+    ClaimsModule,
+    TicketsModule,
+    PublicModule,
   ],
 })
 export class AppModule implements NestModule {

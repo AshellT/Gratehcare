@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   ArrowRight,
   CalendarCheck,
@@ -22,6 +22,11 @@ import Card from "@/components/dashboard/Card";
 import Badge from "@/components/dashboard/Badge";
 import StatCard from "@/components/dashboard/StatCard";
 import { useAuth } from "@/context/AuthContext";
+import { clientsApi } from "@/lib/api/clients";
+import { careApi } from "@/lib/api/care";
+import { documentsApi } from "@/lib/api/documents";
+import { billingApi } from "@/lib/api/billing";
+import { rosteringApi } from "@/lib/api/rostering";
 
 type Tone = "emerald" | "amber" | "rose" | "indigo" | "sky" | "slate" | "violet";
 type FamilyPageKind =
@@ -55,25 +60,116 @@ type PortalRecord = {
   sharedBy?: string;
 };
 
-const familyRecords: PortalRecord[] = [
-  { id: "VIS-2044", title: "Morning personal care", subtitle: "Completed visit with Priya", person: "Eleanor Rivers", date: "Today 09:00", status: "completed", category: "Visit", detail: "Eleanor had breakfast, completed her mobility exercises, and enjoyed a short garden walk.", sharedBy: "Priya Raman" },
-  { id: "VIS-2045", title: "Physiotherapy review", subtitle: "Upcoming visit", person: "Eleanor Rivers", date: "Fri 14:00", status: "scheduled", category: "Visit", detail: "Dr. Raj will review Eleanor's current mobility goals and update recommendations.", sharedBy: "Care team" },
-  { id: "NOTE-887", title: "Care note: good spirits today", subtitle: "Shared care update", person: "Eleanor Rivers", date: "Today", status: "shared", category: "Care note", detail: "Eleanor was calm, alert, and engaged. The team noted improved confidence during transfers.", sharedBy: "Priya Raman" },
-  { id: "DOC-312", title: "Updated care plan", subtitle: "PDF document", person: "Eleanor Rivers", date: "Apr 22", status: "available", category: "Document", detail: "Latest care plan with goals, routines, and emergency contact information.", sharedBy: "Care coordinator" },
-  { id: "INV-4028", title: "April support invoice", subtitle: "Paid by card", person: "Eleanor Rivers", date: "Apr 08", status: "paid", category: "Invoice", detail: "Invoice for in-home support and community access services.", amount: "$1,240", sharedBy: "Finance team" },
-  { id: "PAY-1188", title: "Card payment received", subtitle: "Receipt available", person: "Eleanor Rivers", date: "Apr 08", status: "received", category: "Payment", detail: "Payment matched to April support invoice.", amount: "$1,240", sharedBy: "Finance team" },
-  { id: "MSG-778", title: "Message from care team", subtitle: "Physio review reminder", person: "Eleanor Rivers", date: "Yesterday", status: "unread", category: "Message", detail: "Reminder that the physio review is scheduled for Friday afternoon.", sharedBy: "Sara Hill" },
-];
 
-const practitionerRecords: PortalRecord[] = [
-  { id: "CLI-2208", title: "Eleanor Rivers", subtitle: "Mobility and wellbeing review", person: "Eleanor Rivers", date: "Fri 14:00", status: "active", category: "Assigned client", detail: "Goal review due with focus on transfers, nutrition, and community participation.", sharedBy: "Priya Raman" },
-  { id: "CLI-2207", title: "Maya Krishnan", subtitle: "Medication onboarding consult", person: "Maya Krishnan", date: "Today", status: "review", category: "Assigned client", detail: "Medication authority requires clinical confirmation before first support visit.", sharedBy: "Sara Hill" },
-  { id: "PLAN-408", title: "Eleanor mobility plan", subtitle: "Care plan review", person: "Eleanor Rivers", date: "May 14", status: "active", category: "Care plan", detail: "Current interventions include daily mobility cues and supervised garden walks.", sharedBy: "Care team" },
-  { id: "NOTE-903", title: "Clinical note draft", subtitle: "Transfer assessment", person: "Eleanor Rivers", date: "Today", status: "draft", category: "Clinical note", detail: "Draft note for transfer confidence assessment.", sharedBy: "Dr. Raj Patel" },
-  { id: "REP-144", title: "Monthly outcomes report", subtitle: "Family-shareable summary", person: "Eleanor Rivers", date: "Apr 26", status: "ready", category: "Report", detail: "Summary of mobility, mood, nutrition, and participation outcomes.", sharedBy: "Dr. Raj Patel" },
-  { id: "EVAL-052", title: "Functional mobility evaluation", subtitle: "Evaluation required", person: "Maya Krishnan", date: "May 02", status: "scheduled", category: "Evaluation", detail: "Initial evaluation to inform support routines and risk controls.", sharedBy: "Clinical team" },
-  { id: "MSG-911", title: "Coordinator message", subtitle: "Medication chart question", person: "Maya Krishnan", date: "2h ago", status: "unread", category: "Message", detail: "Care coordinator is asking for confirmation on medication support requirements.", sharedBy: "Sara Hill" },
-];
+async function loadPortalRecords(practitioner: boolean): Promise<PortalRecord[]> {
+  const [clients, notes, plans, documents, invoices, shifts] = await Promise.all([
+    clientsApi.list().catch(() => ({ data: [] })),
+    careApi.listNotes().catch(() => ({ data: [] })),
+    careApi.listPlans().catch(() => ({ data: [] })),
+    documentsApi.list().catch(() => ({ data: [] })),
+    billingApi.listInvoices().catch(() => ({ data: [] })),
+    rosteringApi.listShifts().catch(() => ({ data: [] })),
+  ]);
+
+  const rows: PortalRecord[] = [];
+
+  for (const client of clients.data ?? []) {
+    rows.push({
+      id: client.id,
+      title: client.fullName,
+      subtitle: client.funding,
+      person: client.fullName,
+      date: client.since,
+      status: client.status,
+      category: practitioner ? "Assigned client" : "Overview",
+      detail: `Client since ${client.since}. Funding: ${client.funding}.`,
+      sharedBy: client.coordinator ?? "Care team",
+    });
+  }
+
+  for (const note of notes.data ?? []) {
+    rows.push({
+      id: note.id,
+      title: note.content.slice(0, 60),
+      subtitle: `Visit ${note.visitDate}`,
+      person: note.clientName,
+      date: note.visitDate,
+      status: note.flagged ? "review" : "shared",
+      category: practitioner ? "Clinical note" : "Care note",
+      detail: note.content,
+      sharedBy: note.workerName,
+    });
+  }
+
+  for (const plan of plans.data ?? []) {
+    rows.push({
+      id: plan.id,
+      title: `${plan.clientName} care plan`,
+      subtitle: plan.status.replace(/_/g, " "),
+      person: plan.clientName,
+      date: plan.nextReviewAt ?? plan.lastReviewedAt ?? "—",
+      status: plan.status === "review_due" ? "review" : "active",
+      category: "Care plan",
+      detail: `Goals: ${plan.goals.join(", ")}`,
+      sharedBy: plan.coordinator,
+    });
+  }
+
+  for (const doc of documents.data ?? []) {
+    rows.push({
+      id: doc.id,
+      title: doc.name,
+      subtitle: doc.mimeType,
+      person: "—",
+      date: doc.createdAt ?? "—",
+      status: "available",
+      category: "Document",
+      detail: `Uploaded by ${doc.uploadedBy}`,
+      sharedBy: doc.uploadedBy,
+    });
+  }
+
+  for (const inv of invoices.data ?? []) {
+    rows.push({
+      id: inv.invoiceNumber || inv.id,
+      title: `Invoice ${inv.invoiceNumber}`,
+      subtitle: inv.clientName,
+      person: inv.clientName,
+      date: inv.issuedAt,
+      status: inv.status === "paid" ? "paid" : "sent",
+      category: inv.status === "paid" ? "Payment" : "Invoice",
+      detail: `Amount ${inv.amount}`,
+      amount: `${inv.amount.toLocaleString()}`,
+      sharedBy: "Finance",
+    });
+  }
+
+  for (const shift of shifts.data ?? []) {
+    rows.push({
+      id: shift.id,
+      title: `${shift.clientName} · ${shift.type}`,
+      subtitle: shift.workerName ? `With ${shift.workerName}` : "Unassigned",
+      person: shift.clientName,
+      date: new Date(shift.startTime).toLocaleString("en-AU", {
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+      status:
+        shift.status === "open"
+          ? "scheduled"
+          : shift.status === "completed"
+            ? "completed"
+            : "active",
+      category: "Visit",
+      detail: `Location: ${shift.location ?? "—"}`,
+      sharedBy: shift.workerName ?? "Rostering",
+    });
+  }
+
+  return rows;
+}
 
 const statusTone = (status: string): Tone => {
   if (["completed", "paid", "received", "available", "active", "ready", "shared"].includes(status)) return "emerald";
@@ -118,7 +214,8 @@ const FamilyPortalPage: React.FC<{ kind: FamilyPageKind }> = ({ kind }) => {
       pageTitle={page.title}
       eyebrow="Family portal"
       description={page.description}
-      records={filterRecords(familyRecords, page.category, kind)}
+      portalKind={kind}
+      portalCategory={page.category}
       icon={page.icon}
       readOnly
       allowMessage={kind === "messages"}
@@ -133,7 +230,8 @@ const PractitionerPortalPage: React.FC<{ kind: PractitionerPageKind }> = ({ kind
       pageTitle={page.title}
       eyebrow="Practitioner portal"
       description={page.description}
-      records={filterRecords(practitionerRecords, page.category)}
+      portalKind={kind}
+      portalCategory={page.category}
       icon={page.icon}
       createLabel={page.create}
       canCreate={Boolean(page.create)}
@@ -147,16 +245,34 @@ const PortalShell: React.FC<{
   pageTitle: string;
   eyebrow: string;
   description: string;
-  records: PortalRecord[];
+  portalKind?: string;
+  portalCategory?: string;
   icon: React.ReactNode;
   readOnly?: boolean;
   practitioner?: boolean;
   canCreate?: boolean;
   createLabel?: string;
   allowMessage?: boolean;
-}> = ({ pageTitle, eyebrow, description, records, icon, readOnly, practitioner, canCreate, createLabel, allowMessage }) => {
+}> = ({ pageTitle, eyebrow, description, portalKind, portalCategory, icon, readOnly, practitioner, canCreate, createLabel, allowMessage }) => {
   const { user } = useAuth();
-  const [items, setItems] = useState(records);
+  const [items, setItems] = useState<PortalRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+    loadPortalRecords(Boolean(practitioner))
+      .then((records) => {
+        if (!mounted) return;
+        setItems(filterRecords(records, portalCategory, portalKind));
+        setLoading(false);
+      })
+      .catch(() => {
+        if (mounted) setLoading(false);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [practitioner, portalCategory, portalKind]);
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("All statuses");
   const [selected, setSelected] = useState<PortalRecord | null>(null);
@@ -248,7 +364,9 @@ const PortalShell: React.FC<{
           </select>
         </div>
 
-        {filtered.length === 0 ? (
+        {loading ? (
+          <div className="py-12 text-center text-sm text-slate-500">Loading portal records...</div>
+        ) : filtered.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-6 py-12 text-center">
             <div className="font-display text-lg font-bold text-slate-900">Nothing to show yet</div>
             <p className="mt-1 text-sm text-slate-500">Try a different search or clear the filters.</p>

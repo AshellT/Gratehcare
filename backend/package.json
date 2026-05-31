@@ -4,7 +4,8 @@
   "private": true,
   "description": "GRATEHCARE NestJS backend foundation",
   "scripts": {
-    "start": "nest start",
+    "start": "node dist/main",
+    "start:prod": "node dist/main",
     "dev": "nest start --watch",
     "start:dev": "nest start --watch",
     "setup:db": "ts-node --transpile-only scripts/setup-backend.ts",

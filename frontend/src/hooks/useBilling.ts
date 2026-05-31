@@ -4,7 +4,7 @@ import type {
   PaginatedResponse,
   PaginationQuery,
 } from "@/lib/api/types";
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { useApi } from "./useApi";
 
 export function useBilling(query?: PaginationQuery & { status?: string }) {
@@ -38,7 +38,18 @@ export function useBilling(query?: PaginationQuery & { status?: string }) {
     [state],
   );
 
-  const stats = billingApi.getMockStats();
+  const stats = useMemo(() => {
+    const invoices = state.data?.data ?? [];
+    return {
+      outstanding: invoices
+        .filter((i) => i.status === "pending" || i.status === "overdue")
+        .reduce((sum, i) => sum + i.amount, 0),
+      paidThisMonth: invoices
+        .filter((i) => i.status === "paid")
+        .reduce((sum, i) => sum + i.amount, 0),
+      overdue: invoices.filter((i) => i.status === "overdue").length,
+    };
+  }, [state.data]);
 
   return { ...state, create, markPaid, send, stats };
 }

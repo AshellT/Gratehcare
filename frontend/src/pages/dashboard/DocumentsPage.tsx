@@ -13,7 +13,10 @@ import {
   Upload,
   X,
 } from "lucide-react";
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { documentsApi } from "@/lib/api/documents";
+import { useToast } from "@/context/ToastContext";
+import type { Document } from "@/lib/api/types";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -31,51 +34,16 @@ interface DocumentRecord {
   previewUrl?: string;
 }
 
-// ─── Mock seed documents ──────────────────────────────────────────────────
-
-const MOCK_DOCS: DocumentRecord[] = [
-  {
-    id: "doc-001",
-    name: "Eleanor_R_Care_Plan_2026.pdf",
-    mimeType: "application/pdf",
-    sizeBytes: 1_240_000,
-    status: "ready",
-    uploadedAt: new Date(Date.now() - 2 * 3600_000).toISOString(),
-    uploadedBy: "Priya Raman",
-    previewUrl: undefined,
-  },
-  {
-    id: "doc-002",
-    name: "Incident_Report_INC-481.pdf",
-    mimeType: "application/pdf",
-    sizeBytes: 523_000,
-    status: "ready",
-    uploadedAt: new Date(Date.now() - 18 * 3600_000).toISOString(),
-    uploadedBy: "James O.",
-    previewUrl: undefined,
-  },
-  {
-    id: "doc-003",
-    name: "Staff_Photo_Daniel_Wu.jpg",
-    mimeType: "image/jpeg",
-    sizeBytes: 320_000,
-    status: "ready",
-    uploadedAt: new Date(Date.now() - 3 * 86_400_000).toISOString(),
-    uploadedBy: "HR Admin",
-    previewUrl: undefined,
-  },
-  {
-    id: "doc-004",
-    name: "NDIS_Agreement_Marcus_T_2025.docx",
-    mimeType:
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    sizeBytes: 89_000,
-    status: "ready",
-    uploadedAt: new Date(Date.now() - 7 * 86_400_000).toISOString(),
-    uploadedBy: "Operations Admin",
-    previewUrl: undefined,
-  },
-];
+const mapDocument = (doc: Document): DocumentRecord => ({
+  id: doc.id,
+  name: doc.name,
+  mimeType: doc.mimeType,
+  sizeBytes: doc.sizeBytes,
+  status: doc.status,
+  uploadedAt: doc.createdAt || new Date().toISOString(),
+  uploadedBy: doc.uploadedBy,
+  previewUrl: doc.previewUrl,
+});
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -111,25 +79,16 @@ function DocIcon({ mime }: { mime: string }) {
   return <File className="h-5 w-5 text-slate-400" />;
 }
 
-/**
- * Upload a file to the backend.
- * Swap the body of this function to integrate with the real API.
- *
- * Real implementation:
- *   const form = new FormData();
- *   form.append("file", file);
- *   const res = await fetch("/api/v1/documents/upload", { method: "POST", body: form, credentials: "include" });
- *   return await res.json();
- */
 async function uploadFile(
   file: File,
 ): Promise<{ id: string; previewUrl?: string }> {
-  // Mock: simulate 1-2 s upload then return a local object URL for images
-  await new Promise((r) => window.setTimeout(r, 1000 + Math.random() * 1000));
-  const previewUrl = file.type.startsWith("image/")
-    ? URL.createObjectURL(file)
-    : undefined;
-  return { id: `doc-${crypto.randomUUID().slice(0, 8)}`, previewUrl };
+  const uploaded = await documentsApi.upload(file);
+  return {
+    id: uploaded.id,
+    previewUrl:
+      uploaded.previewUrl ??
+      (file.type.startsWith("image/") ? URL.createObjectURL(file) : undefined),
+  };
 }
 
 // ─── Preview modal ────────────────────────────────────────────────────────
@@ -205,11 +164,34 @@ const PreviewModal: React.FC<{ doc: DocumentRecord; onClose: () => void }> = ({
 // ─── Main page ────────────────────────────────────────────────────────────
 
 const DocumentsPage: React.FC = () => {
-  const [docs, setDocs] = useState<DocumentRecord[]>(MOCK_DOCS);
+  const toast = useToast();
+  const [docs, setDocs] = useState<DocumentRecord[]>([]);
+  const [loading, setLoading] = useState(true);
   const [preview, setPreview] = useState<DocumentRecord | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        setLoading(true);
+        const res = await documentsApi.list();
+        if (!mounted) return;
+        setDocs((res.data ?? []).map(mapDocument));
+      } catch {
+        if (mounted) {
+          toast.error("Failed to load documents", "Could not fetch documents from backend.");
+        }
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [toast]);
 
   const processFile = useCallback(async (file: File) => {
     setUploadError(null);
@@ -348,7 +330,9 @@ const DocumentsPage: React.FC = () => {
           </p>
         </div>
 
-        {docs.length === 0 ? (
+        {loading ? (
+          <div className="py-12 text-center text-sm text-slate-500">Loading documents...</div>
+        ) : docs.length === 0 ? (
           <div className="px-5 py-16 text-center text-sm text-slate-400 font-medium">
             No documents yet. Upload your first file above.
           </div>

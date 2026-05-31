@@ -1,3 +1,4 @@
+export * from "./audit-logs";
 export * from "./auth";
 export * from "./billing";
 export * from "./care";
@@ -6,6 +7,7 @@ export * from "./clients";
 export * from "./compliance";
 export * from "./documents";
 export * from "./incidents";
+export * from "./integrations";
 export * from "./messages";
 export * from "./notifications";
 export * from "./reports";

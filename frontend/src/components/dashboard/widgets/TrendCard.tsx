@@ -11,14 +11,15 @@ export const SparkArea: React.FC<{
   fillId?: string;
 }> = ({ data, color = "#4f46e5", height = 60, fillId = "sparkFill" }) => {
   if (!data.length) return null;
-  const max = Math.max(...data);
-  const min = Math.min(...data);
+  const chartData = data.length > 1 ? data : [data[0], data[0]];
+  const max = Math.max(...chartData);
+  const min = Math.min(...chartData);
   const range = Math.max(1, max - min);
-  const points = data
+  const points = chartData
     .map((v, i) => {
-      const x = (i / (data.length - 1)) * 100;
+      const x = (i / (chartData.length - 1)) * 100;
       const y = 100 - ((v - min) / range) * 90 - 5;
-      return `${x.toFixed(2)},${y.toFixed(2)}`;
+      return `${Number.isFinite(x) ? x.toFixed(2) : "0.00"},${Number.isFinite(y) ? y.toFixed(2) : "95.00"}`;
     })
     .join(" L ");
 

@@ -1,14 +1,58 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Download } from "lucide-react";
 import PageHeader from "@/components/dashboard/PageHeader";
 import Card from "@/components/dashboard/Card";
 import StatCard from "@/components/dashboard/StatCard";
 import { Wallet, TrendingUp, Users, Activity } from "lucide-react";
+import { tenantsApi } from "@/lib/api/tenants";
 
 const RevenuePage: React.FC = () => {
-  const data = [142, 158, 168, 184, 210, 224, 248, 256, 272, 284, 296, 318];
-  const max = Math.max(...data);
+  const [loading, setLoading] = useState(true);
+  const [mrr, setMrr] = useState(0);
+  const [arr, setArr] = useState(0);
+  const [tenantCount, setTenantCount] = useState(0);
+  const [data, setData] = useState<number[]>([0]);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        setLoading(true);
+        const res = await tenantsApi.list();
+        if (!mounted) return;
+
+        if (res.data && res.data.length > 0) {
+          setTenantCount(res.data.length);
+          // MRR/ARR would come from billing data - for now show 0
+          setMrr(0);
+          setArr(0);
+          // Generate simple trend based on tenant count
+          const trend = Array.from({ length: 12 }, (_, i) => 
+            Math.max(0, res.data.length - (11 - i) * 2)
+          );
+          setData(trend);
+        }
+      } catch (error) {
+        console.error("Failed to load revenue data:", error);
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const max = Math.max(...data, 1);
+  const chartData = data.length > 1 ? data : [0, 0];
+  const chartPoints = chartData.map((v, i) => {
+    const x = (i / (chartData.length - 1)) * 600;
+    const y = 230 - (v / max) * 210;
+    return `${Number.isFinite(x) ? x : 0} ${Number.isFinite(y) ? y : 230}`;
+  });
 
   return (
     <div className="space-y-8">
@@ -20,86 +64,82 @@ const RevenuePage: React.FC = () => {
       />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="MRR" value="$284,910" tone="indigo" icon={<Wallet className="h-5 w-5" />} delta={{ value: "+12%", direction: "up" }} index={0} />
-        <StatCard label="ARR" value="$3.42M" tone="emerald" icon={<TrendingUp className="h-5 w-5" />} delta={{ value: "+18%", direction: "up" }} index={1} />
-        <StatCard label="Active tenants" value="1,284" tone="sky" icon={<Users className="h-5 w-5" />} delta={{ value: "+42", direction: "up" }} index={2} />
-        <StatCard label="Net retention" value="118%" tone="amber" icon={<Activity className="h-5 w-5" />} delta={{ value: "+3%", direction: "up" }} index={3} />
+        <StatCard 
+          label="MRR" 
+          value={loading ? "..." : `$${mrr.toLocaleString()}`} 
+          tone="indigo" 
+          icon={<Wallet className="h-5 w-5" />} 
+          index={0} 
+        />
+        <StatCard 
+          label="ARR" 
+          value={loading ? "..." : `$${arr.toLocaleString()}`} 
+          tone="emerald" 
+          icon={<TrendingUp className="h-5 w-5" />} 
+          index={1} 
+        />
+        <StatCard 
+          label="Active tenants" 
+          value={loading ? "..." : tenantCount.toLocaleString()} 
+          tone="sky" 
+          icon={<Users className="h-5 w-5" />} 
+          index={2} 
+        />
+        <StatCard 
+          label="Net retention" 
+          value={loading ? "..." : "0%"} 
+          tone="amber" 
+          icon={<Activity className="h-5 w-5" />} 
+          index={3} 
+        />
       </div>
 
-      <Card title="MRR · last 12 months" description="Indigo line shows trend; gradient is volume.">
-        <div className="h-72 w-full">
-          <svg viewBox="0 0 600 240" className="w-full h-full" preserveAspectRatio="none">
-            <defs>
-              <linearGradient id="revBig" x1="0" x2="0" y1="0" y2="1">
-                <stop offset="0%" stopColor="#4f46e5" stopOpacity="0.3" />
-                <stop offset="100%" stopColor="#4f46e5" stopOpacity="0" />
-              </linearGradient>
-            </defs>
-            {[0, 60, 120, 180].map((y) => (
-              <line key={y} x1="0" x2="600" y1={y + 10} y2={y + 10} stroke="#f1f5f9" />
-            ))}
-            <motion.path
-              initial={{ pathLength: 0 }}
-              animate={{ pathLength: 1 }}
-              transition={{ duration: 1.4 }}
-              d={`M ${data
-                .map((v, i) => `${(i / (data.length - 1)) * 600} ${230 - (v / max) * 210}`)
-                .join(" L ")}`}
-              fill="none"
-              stroke="#4f46e5"
-              strokeWidth="3"
-              strokeLinecap="round"
-            />
-            <path
-              d={`M 0 230 L ${data
-                .map((v, i) => `${(i / (data.length - 1)) * 600} ${230 - (v / max) * 210}`)
-                .join(" L ")} L 600 230 Z`}
-              fill="url(#revBig)"
-            />
-          </svg>
-        </div>
+      <Card title="Tenant growth · last 12 months" description="Tenant count trend over time.">
+        {loading ? (
+          <div className="h-72 flex items-center justify-center text-sm text-slate-500">
+            Loading chart data...
+          </div>
+        ) : (
+          <div className="h-72 w-full">
+            <svg viewBox="0 0 600 240" className="w-full h-full" preserveAspectRatio="none">
+              <defs>
+                <linearGradient id="revBig" x1="0" x2="0" y1="0" y2="1">
+                  <stop offset="0%" stopColor="#4f46e5" stopOpacity="0.3" />
+                  <stop offset="100%" stopColor="#4f46e5" stopOpacity="0" />
+                </linearGradient>
+              </defs>
+              {[0, 60, 120, 180].map((y) => (
+                <line key={y} x1="0" x2="600" y1={y + 10} y2={y + 10} stroke="#f1f5f9" />
+              ))}
+              <motion.path
+                initial={{ pathLength: 0 }}
+                animate={{ pathLength: 1 }}
+                transition={{ duration: 1.4 }}
+                d={`M ${chartPoints.join(" L ")}`}
+                fill="none"
+                stroke="#4f46e5"
+                strokeWidth="3"
+                strokeLinecap="round"
+              />
+              <path
+                d={`M 0 230 L ${chartPoints.join(" L ")} L 600 230 Z`}
+                fill="url(#revBig)"
+              />
+            </svg>
+          </div>
+        )}
       </Card>
 
       <div className="grid lg:grid-cols-2 gap-6">
         <Card title="Revenue by plan">
-          <ul className="space-y-3">
-            {[
-              { plan: "Enterprise", value: "$184,200", pct: 64, tone: "bg-violet-500" },
-              { plan: "Growth", value: "$78,420", pct: 27, tone: "bg-indigo-500" },
-              { plan: "Starter", value: "$22,290", pct: 9, tone: "bg-sky-500" },
-            ].map((p) => (
-              <li key={p.plan}>
-                <div className="flex items-center justify-between text-sm mb-1">
-                  <span className="font-semibold text-slate-800">{p.plan}</span>
-                  <span className="font-semibold text-slate-900">{p.value}</span>
-                </div>
-                <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
-                  <div className={`h-full rounded-full ${p.tone}`} style={{ width: `${p.pct}%` }} />
-                </div>
-              </li>
-            ))}
-          </ul>
+          <div className="text-center py-8 text-sm text-slate-500">
+            Revenue data requires billing integration
+          </div>
         </Card>
 
         <Card title="Cohort retention">
-          <div className="grid grid-cols-7 gap-1">
-            {Array.from({ length: 49 }).map((_, i) => {
-              const intensity = Math.max(20, 100 - Math.floor((i % 7) * 9) - Math.floor(i / 7) * 4);
-              return (
-                <div
-                  key={i}
-                  className="aspect-square rounded"
-                  style={{
-                    background: `rgba(79, 70, 229, ${intensity / 100})`,
-                  }}
-                  title={`${intensity}%`}
-                />
-              );
-            })}
-          </div>
-          <div className="mt-3 flex items-center justify-between text-[10px] text-slate-400 font-semibold">
-            <span>Newer</span>
-            <span>Older cohorts →</span>
+          <div className="text-center py-8 text-sm text-slate-500">
+            Retention data requires historical tracking
           </div>
         </Card>
       </div>

@@ -1,21 +1,19 @@
-import { apiClient, withFallback } from "./client";
+import { apiClient, normalizePage } from "./client";
 import type { PaginatedResponse, PaginationQuery, User } from "./types";
 
 export const usersApi = {
   list: (query?: PaginationQuery) =>
-    withFallback(
-      () =>
-        apiClient.get<PaginatedResponse<User>>("/users", {
-          params: query as any,
-        }),
-      { data: [], total: 0, page: 1, limit: 20 } as PaginatedResponse<User>,
-    ),
+    apiClient
+      .get<PaginatedResponse<User> | { items?: User[]; total?: number; page?: number; limit?: number }>("/users", {
+        params: query as any,
+      })
+      .then(normalizePage),
 
   get: (id: string) =>
-    withFallback(
-      () => apiClient.get<User>(`/users/${id}`),
-      null as unknown as User,
-    ),
+    apiClient.get<User>(`/users/${id}`),
+
+  create: (data: { fullName: string; email: string; tenantId?: string }) =>
+    apiClient.post<User>("/users", data as any),
 
   update: (id: string, data: Partial<User>) =>
     apiClient.patch<User>(`/users/${id}`, data as any),

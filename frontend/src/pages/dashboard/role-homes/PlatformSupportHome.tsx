@@ -1,4 +1,5 @@
 import React from "react";
+import { formatCurrency, useRoleHomeData } from "@/hooks/useRoleHomeData";
 import {
   Headphones,
   CheckCircle2,
@@ -16,7 +17,10 @@ import QuickActions from "@/components/dashboard/widgets/QuickActions";
 import ActivityFeed from "@/components/dashboard/widgets/ActivityFeed";
 import WorkQueue from "@/components/dashboard/widgets/WorkQueue";
 
-const PlatformSupportHome: React.FC = () => (
+const PlatformSupportHome: React.FC = () => {
+  const data = useRoleHomeData();
+  const loading = data.loading ? "..." : undefined;
+  return (
   <div className="space-y-8">
     <RoleGreeting
       actions={[
@@ -27,10 +31,10 @@ const PlatformSupportHome: React.FC = () => (
 
     <KpiGrid
       items={[
-        { label: "Open tickets", value: "32", tone: "amber", icon: <Headphones className="h-5 w-5" /> },
-        { label: "Resolved today", value: "18", tone: "emerald", icon: <CheckCircle2 className="h-5 w-5" />, delta: { value: "+4 vs avg", direction: "up" } },
-        { label: "Avg. response", value: "12m", tone: "indigo", icon: <Clock className="h-5 w-5" />, delta: { value: "-3m", direction: "up" } },
-        { label: "CSAT (30d)", value: "4.8/5", tone: "sky", icon: <Sparkles className="h-5 w-5" /> },
+        { label: "Open tickets", value: loading ?? "0", tone: "amber", icon: <Headphones className="h-5 w-5" /> },
+        { label: "Resolved today", value: loading ?? "0", tone: "emerald", icon: <CheckCircle2 className="h-5 w-5" /> },
+        { label: "Avg. response", value: loading ?? "—", tone: "indigo", icon: <Clock className="h-5 w-5" /> },
+        { label: "Tenants", value: loading ?? String(data.tenants), tone: "sky", icon: <Sparkles className="h-5 w-5" /> },
       ]}
     />
 
@@ -39,21 +43,12 @@ const PlatformSupportHome: React.FC = () => (
         className="lg:col-span-2"
         title="My active tickets"
         description="Sorted by priority"
-        items={[
-          { id: "tk-2841", primary: "#TK-2841 · Login failing for Aurora staff", secondary: "Aurora Disability · 18 users impacted", meta: "5m", badge: { label: "P0", tone: "rose", dot: true } },
-          { id: "tk-2840", primary: "#TK-2840 · Claim export missing 2 columns", secondary: "Meridian", meta: "22m", badge: { label: "P1", tone: "amber", dot: true } },
-          { id: "tk-2839", primary: "#TK-2839 · Schedule sync delayed > 5 min", secondary: "Northwind", meta: "1h", badge: { label: "P1", tone: "amber", dot: true } },
-          { id: "tk-2838", primary: "#TK-2838 · Mobile menu glitch on iOS 17", secondary: "Brightpath", meta: "2h", badge: { label: "P3", tone: "slate", dot: true } },
-        ]}
+        items={[]}
       />
 
       <AlertsWidget
         title="Escalations"
-        alerts={[
-          { id: "ps1", severity: "critical", title: "Aurora P0 SLA breach in 14m", description: "Login outage. Notify on-call engineer.", cta: "Page on-call", meta: "now" },
-          { id: "ps2", severity: "warning", title: "Spike in tenant 'Brightpath' errors", description: "5xx rate up 4x last hour.", cta: "Check status page", meta: "20m" },
-          { id: "ps3", severity: "info", title: "Weekly status email scheduled", description: "Sends Monday 9am to all tenants.", meta: "tomorrow" },
-        ]}
+        alerts={[]}
       />
     </div>
 
@@ -70,15 +65,17 @@ const PlatformSupportHome: React.FC = () => (
       <ActivityFeed
         className="lg:col-span-2"
         title="Recent tenant activity"
-        items={[
-          { id: "ps-a1", who: "Aurora Disability", what: "opened P0 ticket · login outage", when: "5m ago", tag: { label: "Critical", tone: "rose" } },
-          { id: "ps-a2", who: "Meridian", what: "imported 42 new clients", when: "1h ago", tag: { label: "Bulk", tone: "indigo" } },
-          { id: "ps-a3", who: "Brightpath", what: "changed billing plan to Growth", when: "3h ago", tag: { label: "Plan", tone: "emerald" } },
-          { id: "ps-a4", who: "Caretide", what: "completed onboarding wizard", when: "Yesterday", tag: { label: "Onboarding", tone: "sky" } },
-        ]}
+        items={data.recentActivity.map((item) => ({
+          id: item.id,
+          who: "system",
+          what: item.title,
+          when: item.time,
+          tag: { label: "Activity", tone: "sky" as const },
+        }))}
       />
     </div>
   </div>
-);
+  );
+};
 
 export default PlatformSupportHome;

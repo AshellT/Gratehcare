@@ -3,7 +3,6 @@ import { Link, useNavigate } from "react-router-dom";
 import { ArrowRight, Loader2, Eye, EyeOff, Check, AlertCircle, MailCheck } from "lucide-react";
 import AuthLayout from "@/components/auth/AuthLayout";
 import { useAuth } from "@/context/AuthContext";
-import { ROLE_GROUPS, ROLE_LABELS, type Role } from "@/lib/roles";
 
 const RegisterPage: React.FC = () => {
   const { register } = useAuth();
@@ -12,7 +11,6 @@ const RegisterPage: React.FC = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [organization, setOrganization] = useState("");
-  const [role, setRole] = useState<Role>("org_owner");
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -37,7 +35,7 @@ const RegisterPage: React.FC = () => {
     }
     setLoading(true);
     try {
-      const u = await register({ name, email, password, role, organization });
+      const u = await register({ name, email, password, role: "org_owner", organization });
       if (u) {
         navigate("/app");
       } else {
@@ -157,29 +155,6 @@ const RegisterPage: React.FC = () => {
               </li>
             ))}
           </ul>
-        </div>
-
-        <div>
-          <label htmlFor="role" className="text-sm font-medium text-slate-700">
-            Your role
-          </label>
-          <select
-            id="role"
-            value={role}
-            onChange={(e) => setRole(e.target.value as Role)}
-            data-testid="register-role-select"
-            className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          >
-            {ROLE_GROUPS.map((g) => (
-              <optgroup key={g.label} label={g.label}>
-                {g.roles.map((r) => (
-                  <option key={r} value={r}>
-                    {ROLE_LABELS[r]}
-                  </option>
-                ))}
-              </optgroup>
-            ))}
-          </select>
         </div>
 
         {error && (

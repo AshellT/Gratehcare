@@ -14,6 +14,7 @@ import BillingPage from "@/pages/dashboard/BillingPage";
 import ClaimsPage from "@/pages/dashboard/ClaimsPage";
 import DashboardHome from "@/pages/dashboard/DashboardHome";
 import DocumentsPage from "@/pages/dashboard/DocumentsPage";
+import IntegrationsPage from "@/pages/dashboard/IntegrationsPage";
 import MessagesPage from "@/pages/dashboard/MessagesPage";
 import NetworkPage from "@/pages/dashboard/NetworkPage";
 import PlaceholderPage from "@/pages/dashboard/PlaceholderPage";
@@ -263,16 +264,7 @@ function App() {
 
                 {/* Subscription management */}
                 <Route path="plans" element={<SubscriptionPage />} />
-                <Route
-                  path="integrations"
-                  element={
-                    <PlaceholderPage
-                      eyebrow="Platform"
-                      title="Integrations"
-                      description="Stripe, NDIS, single sign-on and more."
-                    />
-                  }
-                />
+                <Route path="integrations" element={<IntegrationsPage />} />
                 <Route
                   path="permissions"
                   element={

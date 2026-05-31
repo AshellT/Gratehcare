@@ -6,6 +6,7 @@ import React, {
   useState,
   useCallback,
 } from "react";
+import { authApi } from "@/lib/api/auth";
 import { supabase, type Profile } from "@/lib/supabase";
 import type { Role } from "@/lib/roles";
 
@@ -136,6 +137,20 @@ const demoUsers: Record<string, Omit<AuthUser, "id" | "email">> = {
     organization_id: null,
     avatarColor: "#14b8a6",
   },
+};
+
+const prismaRoleToUiRole: Record<string, Role> = {
+  PLATFORM_OWNER: "platform_owner",
+  SUPER_ADMIN: "super_admin",
+  PLATFORM_SUPPORT: "platform_support",
+  ORGANIZATION_OWNER: "org_owner",
+  OPERATIONS_ADMIN: "operations_admin",
+  CARE_COORDINATOR: "care_coordinator",
+  SUPPORT_WORKER: "support_worker",
+  BILLING_OFFICER: "billing_officer",
+  COMPLIANCE_OFFICER: "compliance_officer",
+  FAMILY_USER: "family",
+  PRACTITIONER: "practitioner",
 };
 
 const getDemoUser = (email: string, password: string): AuthUser | null => {
@@ -355,25 +370,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const login: AuthContextValue["login"] = async ({ email, password }) => {
     setError(null);
     try {
-      const demoUser = getDemoUser(email, password);
-      if (demoUser) {
-        localStorage.setItem(DEMO_USER_KEY, JSON.stringify(demoUser));
-        setUser(demoUser);
-        return demoUser;
-      }
+      const backendSession = await authApi.login({ email, password });
+      authApi.persistSession(backendSession);
 
-      const result = await authRest.signIn(email, password);
-      // Hand the session to supabase-js so it persists & refreshes it
-      await supabase.auth.setSession({
-        access_token: result.access_token,
-        refresh_token: result.refresh_token,
-      });
-      const u = await loadProfile(result.user.id, {
-        email: result.user.email,
-        meta: result.user.user_metadata || {},
-      });
+      const backendUser = backendSession.user as any;
+      const role = prismaRoleToUiRole[backendUser.roles?.[0]] || "org_owner";
+      const demoUser = getDemoUser(email, password);
+      const u: AuthUser = {
+        id: backendUser.sub || backendUser.id,
+        email: backendUser.email || email,
+        name: demoUser?.name || backendUser.email?.split("@")[0] || email.split("@")[0],
+        role: previewRole || role,
+        organization: demoUser?.organization || "GRATEHCARE",
+        organization_id: backendUser.tenantId || null,
+        avatarColor: accentForRole[previewRole || role],
+      };
       if (u) setUser(u);
-      return u as AuthUser;
+      return u;
     } catch (e: any) {
       const msg = e?.message || "Could not sign in.";
       setError(msg);
@@ -421,6 +434,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const logout = async () => {
+    authApi.clearSession();
     try {
       await supabase.auth.signOut();
     } catch {

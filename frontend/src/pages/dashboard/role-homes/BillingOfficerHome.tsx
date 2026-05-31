@@ -17,9 +17,13 @@ import {
   Wallet,
 } from "lucide-react";
 import React from "react";
+import { formatCurrency, useRoleHomeData } from "@/hooks/useRoleHomeData";
 import RoleGreeting from "./RoleGreeting";
 
-const BillingOfficerHome: React.FC = () => (
+const BillingOfficerHome: React.FC = () => {
+  const data = useRoleHomeData();
+  const loading = data.loading ? "..." : undefined;
+  return (
   <div className="space-y-8">
     <RoleGreeting
       actions={[
@@ -34,71 +38,25 @@ const BillingOfficerHome: React.FC = () => (
 
     <KpiGrid
       items={[
-        {
-          label: "Outstanding A/R",
-          value: "$28,420",
-          tone: "amber",
-          icon: <Receipt className="h-5 w-5" />,
-        },
-        {
-          label: "Paid this month",
-          value: "$142,180",
-          tone: "emerald",
-          icon: <Wallet className="h-5 w-5" />,
-          delta: { value: "+12%", direction: "up" },
-        },
-        {
-          label: "Claims approved",
-          value: "82%",
-          tone: "indigo",
-          icon: <ShieldCheck className="h-5 w-5" />,
-        },
-        {
-          label: "Avg. days to pay",
-          value: "11d",
-          tone: "sky",
-          icon: <Activity className="h-5 w-5" />,
-          delta: { value: "-3d", direction: "up" },
-        },
+        { label: "Paid revenue", value: loading ?? formatCurrency(data.revenue), tone: "emerald", icon: <Wallet className="h-5 w-5" /> },
+        { label: "Open compliance", value: loading ?? String(data.openCompliance), tone: "amber", icon: <ShieldCheck className="h-5 w-5" /> },
+        { label: "Clients", value: loading ?? String(data.clients), tone: "indigo", icon: <Receipt className="h-5 w-5" /> },
+        { label: "Staff", value: loading ?? String(data.staff), tone: "sky", icon: <Activity className="h-5 w-5" /> },
       ]}
     />
 
     <div className="grid lg:grid-cols-3 gap-6">
       <TrendCard
         className="lg:col-span-2"
-        title="Cash collected · last 12 weeks"
-        description="$142k this month · accelerating"
-        data={[28, 32, 31, 36, 41, 44, 48, 52, 56, 58, 64, 71]}
+        title="Cash collected"
+        description={data.loading ? "Loading..." : data.revenue > 0 ? `${formatCurrency(data.revenue)} paid` : "No billing data yet"}
+        data={data.revenue > 0 ? [0, data.revenue * 0.5, data.revenue] : [0, 0]}
         color="#10b981"
       />
 
       <AlertsWidget
         title="Money on the line"
-        alerts={[
-          {
-            id: "bo1",
-            severity: "critical",
-            title: "Claim CL-1182 stuck > 10 days",
-            description: "Allianz · $1,420.",
-            cta: "Escalate to insurer",
-            meta: "10d",
-          },
-          {
-            id: "bo2",
-            severity: "warning",
-            title: "3 invoices overdue > 14 days",
-            description: "Total $4,820. Send reminders?",
-            cta: "Send reminders",
-            meta: "14d+",
-          },
-          {
-            id: "bo3",
-            severity: "info",
-            title: "$84k approved & ready to receipt",
-            description: "Payouts arriving Friday.",
-            meta: "this wk",
-          },
-        ]}
+        alerts={[]}
       />
     </div>
 
@@ -106,36 +64,7 @@ const BillingOfficerHome: React.FC = () => (
       <WorkQueue
         className="lg:col-span-2"
         title="Claims requiring action"
-        items={[
-          {
-            id: "c1",
-            primary: "CL-2188 · Marcus Thompson",
-            secondary: "Allianz · $840 · in review 4d",
-            meta: "4d",
-            badge: { label: "Review", tone: "amber", dot: true },
-          },
-          {
-            id: "c2",
-            primary: "CL-2186 · Henry Park",
-            secondary: "Bupa · $1,180 · awaiting submission",
-            meta: "1d",
-            badge: { label: "Draft", tone: "indigo", dot: true },
-          },
-          {
-            id: "c3",
-            primary: "CL-2184 · Maya Krishnan",
-            secondary: "NDIS · $580 · rejected (resubmit)",
-            meta: "Rejected",
-            badge: { label: "Rejected", tone: "rose", dot: true },
-          },
-          {
-            id: "c4",
-            primary: "CL-1182 · Eleanor Rivers",
-            secondary: "Allianz · $1,420 · stuck 10d",
-            meta: "10d",
-            badge: { label: "Escalate", tone: "rose", dot: true },
-          },
-        ]}
+        items={[]}
       />
 
       <QuickActions
@@ -177,40 +106,18 @@ const BillingOfficerHome: React.FC = () => (
 
     <ActivityFeed
       title="Money movement today"
-      items={[
-        {
-          id: "bo-a1",
-          who: "Insurer · Allianz",
-          what: "approved claim CL-2189 ($1,420)",
-          when: "12m ago",
-          tag: { label: "Approved", tone: "emerald" },
-        },
-        {
-          id: "bo-a2",
-          who: "Family · Marcus T.",
-          what: "paid invoice INV-3420 ($2,180)",
-          when: "1h ago",
-          tag: { label: "Paid", tone: "emerald" },
-        },
-        {
-          id: "bo-a3",
-          who: "You",
-          what: "submitted 8 claims to NDIS portal",
-          when: "3h ago",
-          tag: { label: "Submitted", tone: "indigo" },
-        },
-        {
-          id: "bo-a4",
-          who: "Insurer · Bupa",
-          what: "rejected claim CL-2184 (missing docs)",
-          when: "Yesterday",
-          tag: { label: "Rejected", tone: "rose" },
-        },
-      ]}
+      items={data.recentActivity.map((item) => ({
+        id: item.id,
+        who: "system",
+        what: item.title,
+        when: item.time,
+        tag: { label: "Activity", tone: "emerald" as const },
+      }))}
     />
 
     <AIInsightsWidget categories={["billing_anomaly", "compliance_risk"]} />
   </div>
-);
+  );
+};
 
 export default BillingOfficerHome;

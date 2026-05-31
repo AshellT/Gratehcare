@@ -21,15 +21,6 @@ type TenantRow = {
   region: string;
 };
 
-const FALLBACK_TENANTS: TenantRow[] = [
-  { id: "1", name: "Meridian Home Care", plan: "Enterprise", staff: 184, mrr: "$4,820", health: "healthy", region: "AU" },
-  { id: "2", name: "Aurora Disability", plan: "Growth", staff: 142, mrr: "$3,640", health: "healthy", region: "AU" },
-  { id: "3", name: "Northwind Care", plan: "Growth", staff: 98, mrr: "$2,420", health: "watch", region: "NZ" },
-  { id: "4", name: "Brightpath", plan: "Growth", staff: 76, mrr: "$1,920", health: "healthy", region: "AU" },
-  { id: "5", name: "Caretide Co", plan: "Starter", staff: 24, mrr: "$680", health: "watch", region: "UK" },
-  { id: "6", name: "Havenwell", plan: "Starter", staff: 18, mrr: "$520", health: "at-risk", region: "US" },
-];
-
 const slugify = (value: string) =>
   value
     .toLowerCase()
@@ -41,7 +32,8 @@ const slugify = (value: string) =>
 const TenantsPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const toast = useToast();
-  const [rows, setRows] = useState<TenantRow[]>(FALLBACK_TENANTS);
+  const [rows, setRows] = useState<TenantRow[]>([]);
+  const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -59,26 +51,36 @@ const TenantsPage: React.FC = () => {
     let mounted = true;
     (async () => {
       try {
+        setLoading(true);
         const res = await tenantsApi.list();
-        if (!mounted || !res.data?.length || (res as { _isMock?: boolean })._isMock) return;
-        const mapped: TenantRow[] = res.data.map((t: Tenant, index: number) => ({
-          id: t.id,
-          name: t.name,
-          plan: t.plan || "Growth",
-          staff: 40 + index * 12,
-          mrr: `$${(1200 + index * 420).toLocaleString()}`,
-          health: index % 3 === 0 ? "watch" : "healthy",
-          region: t.region || "AU",
-        }));
-        setRows(mapped);
-      } catch {
-        // keep demo rows
+        if (!mounted) return;
+        
+        if (res.data && res.data.length > 0) {
+          const mapped: TenantRow[] = res.data.map((t: Tenant) => ({
+            id: t.id,
+            name: t.name,
+            plan: "Starter",
+            staff: 0,
+            mrr: "$0",
+            health: "healthy" as const,
+            region: t.region || "AU",
+          }));
+          setRows(mapped);
+        }
+      } catch (error) {
+        if (mounted) {
+          toast.error("Failed to load tenants", "Could not fetch tenant data from backend");
+        }
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
       }
     })();
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [toast]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -138,10 +140,10 @@ const TenantsPage: React.FC = () => {
       />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Total tenants" value={String(rows.length)} tone="indigo" icon={<Building2 className="h-5 w-5" />} index={0} />
-        <StatCard label="Active users" value="18,420" tone="sky" icon={<Users className="h-5 w-5" />} index={1} />
-        <StatCard label="Combined MRR" value="$284,910" tone="emerald" icon={<Wallet className="h-5 w-5" />} index={2} />
-        <StatCard label="NRR" value="118%" tone="amber" icon={<TrendingUp className="h-5 w-5" />} index={3} />
+        <StatCard label="Total tenants" value={loading ? "..." : String(rows.length)} tone="indigo" icon={<Building2 className="h-5 w-5" />} index={0} />
+        <StatCard label="Active users" value={loading ? "..." : "0"} tone="sky" icon={<Users className="h-5 w-5" />} index={1} />
+        <StatCard label="Combined MRR" value={loading ? "..." : "$0"} tone="emerald" icon={<Wallet className="h-5 w-5" />} index={2} />
+        <StatCard label="NRR" value={loading ? "..." : "0%"} tone="amber" icon={<TrendingUp className="h-5 w-5" />} index={3} />
       </div>
 
       <Card>
@@ -171,42 +173,56 @@ const TenantsPage: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((t) => (
-                <tr key={t.id} className="border-b border-slate-100 hover:bg-slate-50/60">
-                  <td className="px-5 py-3.5">
-                    <div className="flex items-center gap-3">
-                      <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-indigo-500 to-sky-500 text-white text-xs font-bold flex items-center justify-center">
-                        {t.name.split(" ").map((p) => p[0]).slice(0, 2).join("")}
-                      </div>
-                      <div>
-                        <div className="text-sm font-semibold text-slate-900">{t.name}</div>
-                        <div className="text-[10px] text-slate-500">tenant_{slugify(t.name).slice(0, 14)}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <Badge tone={t.plan === "Enterprise" ? "violet" : t.plan === "Growth" ? "indigo" : "slate"}>{t.plan}</Badge>
-                  </td>
-                  <td className="px-5 py-3.5 text-sm font-semibold text-slate-900">{t.staff}</td>
-                  <td className="px-5 py-3.5 text-sm font-semibold text-slate-900">{t.mrr}</td>
-                  <td className="px-5 py-3.5 text-sm text-slate-700">{t.region}</td>
-                  <td className="px-5 py-3.5">
-                    <Badge tone={t.health === "healthy" ? "emerald" : t.health === "watch" ? "amber" : "rose"} dot>
-                      {t.health}
-                    </Badge>
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <button
-                      type="button"
-                      onClick={() => setSelected(t)}
-                      aria-label={`Open actions for ${t.name}`}
-                      className="inline-flex items-center justify-center h-8 w-8 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100"
-                    >
-                      <MoreHorizontal className="h-4 w-4" />
-                    </button>
+              {loading ? (
+                <tr>
+                  <td colSpan={7} className="px-5 py-8 text-center text-sm text-slate-500">
+                    Loading tenants...
                   </td>
                 </tr>
-              ))}
+              ) : filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-5 py-8 text-center text-sm text-slate-500">
+                    {query ? "No tenants match your search" : "No tenants yet. Click 'Add tenant' to create one."}
+                  </td>
+                </tr>
+              ) : (
+                filtered.map((t) => (
+                  <tr key={t.id} className="border-b border-slate-100 hover:bg-slate-50/60">
+                    <td className="px-5 py-3.5">
+                      <div className="flex items-center gap-3">
+                        <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-indigo-500 to-sky-500 text-white text-xs font-bold flex items-center justify-center">
+                          {t.name.split(" ").map((p) => p[0]).slice(0, 2).join("")}
+                        </div>
+                        <div>
+                          <div className="text-sm font-semibold text-slate-900">{t.name}</div>
+                          <div className="text-[10px] text-slate-500">tenant_{slugify(t.name).slice(0, 14)}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-5 py-3.5">
+                      <Badge tone={t.plan === "Enterprise" ? "violet" : t.plan === "Growth" ? "indigo" : "slate"}>{t.plan}</Badge>
+                    </td>
+                    <td className="px-5 py-3.5 text-sm font-semibold text-slate-900">{t.staff}</td>
+                    <td className="px-5 py-3.5 text-sm font-semibold text-slate-900">{t.mrr}</td>
+                    <td className="px-5 py-3.5 text-sm text-slate-700">{t.region}</td>
+                    <td className="px-5 py-3.5">
+                      <Badge tone={t.health === "healthy" ? "emerald" : t.health === "watch" ? "amber" : "rose"} dot>
+                        {t.health}
+                      </Badge>
+                    </td>
+                    <td className="px-5 py-3.5">
+                      <button
+                        type="button"
+                        onClick={() => setSelected(t)}
+                        aria-label={`Open actions for ${t.name}`}
+                        className="inline-flex items-center justify-center h-8 w-8 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100"
+                      >
+                        <MoreHorizontal className="h-4 w-4" />
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

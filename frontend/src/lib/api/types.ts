@@ -149,6 +149,28 @@ export interface LineItem {
   total: number;
 }
 
+export interface Claim extends BaseEntity {
+  number: string;
+  clientName?: string;
+  payer?: string;
+  service?: string;
+  amount: number;
+  status: "draft" | "submitted" | "review" | "approved" | "paid" | "rejected";
+  submittedAt?: string;
+  paidAt?: string;
+  client?: { fullName?: string };
+}
+
+export interface SupportTicket extends BaseEntity {
+  number: string;
+  subject: string;
+  description?: string;
+  priority: "low" | "medium" | "high" | "urgent";
+  status: "open" | "in_progress" | "resolved" | "closed";
+  resolvedAt?: string;
+  csatScore?: number;
+}
+
 // ─── Compliance ───────────────────────────────────────────────────────────────
 export interface ComplianceEvent extends BaseEntity {
   title: string;
@@ -206,4 +228,16 @@ export interface ReportSummary {
   complianceScore: number;
   rosterFillRate: number;
   _isMock?: boolean;
+}
+
+// ─── Integrations ─────────────────────────────────────────────────────────────
+export interface Integration {
+  id: string;
+  name: string;
+  type: string;
+  enabled: boolean;
+  config?: Record<string, any>;
+  status?: "active" | "error" | "disabled";
+  createdAt: string;
+  updatedAt: string;
 }

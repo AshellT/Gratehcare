@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   ArrowRight,
@@ -24,6 +24,10 @@ import Card from "@/components/dashboard/Card";
 import Badge from "@/components/dashboard/Badge";
 import StatCard from "@/components/dashboard/StatCard";
 import { useAuth } from "@/context/AuthContext";
+import { complianceApi } from "@/lib/api/compliance";
+import { incidentsApi } from "@/lib/api/incidents";
+import { useToast } from "@/context/ToastContext";
+import type { ComplianceEvent, Incident } from "@/lib/api/types";
 
 type ComplianceKey =
   | "overview"
@@ -162,6 +166,52 @@ const records: ComplianceRecord[] = [
   rec("EXP-510", "NDIS clearance batch", "Expiry", "Compliance", "high", "open", "May 01", "Renewal list", "Four NDIS worker screenings expire within 14 days.", ["Expiry detected", "Renewals requested", "Escalation window", "Verification"], "Escalate renewals"),
 ];
 
+
+const categoryLabel = (value: string) => {
+  const map: Record<string, string> = {
+    credential: 'Credential',
+    training: 'Training',
+    policy: 'Policy',
+    corrective_action: 'Corrective action',
+    medication: 'Medication',
+    incident: 'Incident',
+    audit: 'Audit',
+    expiry: 'Expiry',
+    compliance: 'Compliance',
+  };
+  return map[value] ?? value.replace(/_/g, ' ').replace(/^w/, (m) => m.toUpperCase());
+};
+
+const mapComplianceEvent = (event: ComplianceEvent): ComplianceRecord =>
+  rec(
+    event.id,
+    event.title,
+    categoryLabel(event.category),
+    event.assignee ?? 'Unassigned',
+    event.severity,
+    event.status.replace(/_/g, ' '),
+    event.dueDate,
+    '—',
+    event.title,
+    ['Triage', 'Evidence', 'Review', 'Close'],
+    'Review record',
+  );
+
+const mapIncident = (incident: Incident): ComplianceRecord =>
+  rec(
+    incident.reference,
+    incident.summary,
+    'Incident',
+    incident.reportedBy,
+    incident.severity,
+    incident.status,
+    new Date(incident.occurredAt).toLocaleDateString('en-AU', { day: '2-digit', month: 'short' }),
+    '—',
+    incident.summary,
+    ['Logged', 'Investigation', 'Review', 'Close'],
+    'Complete review',
+  );
+
 function rec(
   id: string,
   subject: string,
@@ -218,26 +268,28 @@ const statusTone = (status: string): Tone => {
   return "indigo";
 };
 
-const pageRecords = (key: ComplianceKey) => {
-  if (key === "overview") return records;
-  if (key === "events") return records.filter((r) => ["Compliance", "Medication", "Expiry"].includes(r.category));
-  if (key === "risk-alerts") return records.filter((r) => ["high", "critical"].includes(r.severity));
-  if (key === "credentials") return records.filter((r) => r.category === "Credential");
-  if (key === "training") return records.filter((r) => r.category === "Training");
-  if (key === "expiry") return records.filter((r) => ["Expiry", "Credential", "Policy"].includes(r.category));
-  if (key === "incidents") return records.filter((r) => r.category === "Incident");
-  if (key === "investigations") return records.filter((r) => ["Incident", "Audit", "Corrective action"].includes(r.category));
-  if (key === "audit-logs") return records.filter((r) => ["Audit", "Policy", "Compliance"].includes(r.category));
-  if (key === "policies") return records.filter((r) => r.category === "Policy");
-  return records.filter((r) => r.category === "Corrective action");
+const pageRecords = (key: ComplianceKey, source: ComplianceRecord[]) => {
+  if (key === "overview") return source;
+  if (key === "events") return source.filter((r) => ["Compliance", "Medication", "Expiry"].includes(r.category));
+  if (key === "risk-alerts") return source.filter((r) => ["high", "critical"].includes(r.severity));
+  if (key === "credentials") return source.filter((r) => r.category === "Credential");
+  if (key === "training") return source.filter((r) => r.category === "Training");
+  if (key === "expiry") return source.filter((r) => ["Expiry", "Credential", "Policy"].includes(r.category));
+  if (key === "incidents") return source.filter((r) => r.category === "Incident");
+  if (key === "investigations") return source.filter((r) => ["Incident", "Audit", "Corrective action"].includes(r.category));
+  if (key === "audit-logs") return source.filter((r) => ["Audit", "Policy", "Compliance"].includes(r.category));
+  if (key === "policies") return source.filter((r) => r.category === "Policy");
+  return source.filter((r) => r.category === "Corrective action");
 };
 
 const managerRoles = new Set(["platform_owner", "super_admin", "org_owner", "operations_admin", "compliance_officer"]);
 
 const ComplianceSystemPage: React.FC<{ pageKey: ComplianceKey }> = ({ pageKey }) => {
   const { user } = useAuth();
+  const toast = useToast();
   const page = meta[pageKey];
-  const [items, setItems] = useState(pageRecords(pageKey));
+  const [items, setItems] = useState<ComplianceRecord[]>([]);
+  const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [severity, setSeverity] = useState("All severities");
   const [status, setStatus] = useState("All statuses");
@@ -246,14 +298,44 @@ const ComplianceSystemPage: React.FC<{ pageKey: ComplianceKey }> = ({ pageKey })
   const [message, setMessage] = useState<string | null>(null);
   const canManage = managerRoles.has(user?.role || "");
 
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        setLoading(true);
+        const useIncidents = pageKey === "incidents" || pageKey === "investigations";
+        if (useIncidents) {
+          const res = await incidentsApi.list();
+          if (!mounted) return;
+          setItems((res.data ?? []).map(mapIncident));
+        } else {
+          const res = await complianceApi.listEvents();
+          if (!mounted) return;
+          setItems((res.data ?? []).map(mapComplianceEvent));
+        }
+      } catch {
+        if (mounted) {
+          toast.error("Failed to load compliance data", "Could not fetch records from backend.");
+        }
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [pageKey, toast]);
+
   const notify = (text: string) => {
     setMessage(text);
     window.setTimeout(() => setMessage(null), 2600);
   };
 
+  const scopedItems = useMemo(() => pageRecords(pageKey, items), [items, pageKey]);
+
   const filtered = useMemo(
     () =>
-      items.filter((item) => {
+      scopedItems.filter((item) => {
         const text = `${item.id} ${item.subject} ${item.category} ${item.owner}`.toLowerCase();
         return (
           text.includes(query.toLowerCase()) &&
@@ -261,12 +343,12 @@ const ComplianceSystemPage: React.FC<{ pageKey: ComplianceKey }> = ({ pageKey })
           (status === "All statuses" || item.status === status)
         );
       }),
-    [items, query, severity, status],
+    [scopedItems, query, severity, status],
   );
 
-  const critical = items.filter((item) => item.severity === "critical").length;
-  const open = items.filter((item) => ["open", "review", "in progress"].includes(item.status)).length;
-  const evidenceReady = Math.max(78, 96 - open * 3);
+  const critical = scopedItems.filter((item) => item.severity === "critical").length;
+  const open = scopedItems.filter((item) => ["open", "review", "in progress"].includes(item.status)).length;
+  const evidenceReady = scopedItems.length === 0 ? 0 : Math.max(0, 100 - open * 5);
 
   const createRecord = (form: FormState) => {
     const next = rec(
@@ -335,7 +417,7 @@ const ComplianceSystemPage: React.FC<{ pageKey: ComplianceKey }> = ({ pageKey })
 
       <Card
         title={page.tableTitle}
-        description={`${filtered.length} records visible - audit-ready mock data`}
+        description={loading ? "Loading..." : `${filtered.length} records visible`}
         action={
           <button
             onClick={() => {
@@ -379,7 +461,9 @@ const ComplianceSystemPage: React.FC<{ pageKey: ComplianceKey }> = ({ pageKey })
           </button>
         </div>
 
-        {filtered.length === 0 ? (
+        {loading ? (
+          <div className="py-12 text-center text-sm text-slate-500">Loading compliance records...</div>
+        ) : filtered.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-6 py-12 text-center">
             <div className="font-display text-lg font-bold text-slate-900">No compliance records found</div>
             <p className="mt-1 text-sm text-slate-500">Adjust filters or create a new compliance workflow.</p>

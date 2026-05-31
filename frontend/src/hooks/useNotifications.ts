@@ -24,65 +24,6 @@ export interface LiveNotification {
   read: boolean;
 }
 
-// ─── Mock seed (used when SSE backend is unavailable) ───────────────────────
-
-const MOCK_NOTIFICATIONS: LiveNotification[] = [
-  {
-    id: "n-001",
-    type: "shift_update",
-    title: "3 night shifts uncovered tomorrow",
-    body: "No worker assigned for Eleanor R., Marcus T., Henry P.",
-    severity: "warning",
-    createdAt: new Date(Date.now() - 5 * 60_000).toISOString(),
-    read: false,
-  },
-  {
-    id: "n-002",
-    type: "incident_alert",
-    title: "Incident INC-482 logged by James O.",
-    body: "Fall incident at home visit – client Henry P.",
-    severity: "critical",
-    createdAt: new Date(Date.now() - 18 * 60_000).toISOString(),
-    read: false,
-  },
-  {
-    id: "n-003",
-    type: "missed_visit",
-    title: "Missed visit – Eleanor R. (09:00 slot)",
-    body: "Worker did not check in within the 15-min window.",
-    severity: "critical",
-    createdAt: new Date(Date.now() - 35 * 60_000).toISOString(),
-    read: false,
-  },
-  {
-    id: "n-004",
-    type: "compliance_alert",
-    title: "Police check expiring in 3 days – James M.",
-    body: "Renewal not yet submitted. Action required.",
-    severity: "warning",
-    createdAt: new Date(Date.now() - 2 * 3600_000).toISOString(),
-    read: false,
-  },
-  {
-    id: "n-005",
-    type: "messaging_update",
-    title: "New message from Eleanor's family",
-    body: "Re: Thursday morning visit schedule.",
-    severity: "info",
-    createdAt: new Date(Date.now() - 4 * 3600_000).toISOString(),
-    read: true,
-  },
-  {
-    id: "n-006",
-    type: "general",
-    title: "Claim CL-2189 approved · $1,420",
-    body: "Allianz payment confirmed.",
-    severity: "success",
-    createdAt: new Date(Date.now() - 6 * 3600_000).toISOString(),
-    read: true,
-  },
-];
-
 // ─── SSE URL ─────────────────────────────────────────────────────────────────
 
 const SSE_URL = `${API_BASE}/notifications/stream`;
@@ -102,7 +43,7 @@ export interface UseNotificationsResult {
 
 /**
  * Connects to the SSE endpoint for real-time notifications.
- * Falls back gracefully to mock data when the backend is unreachable.
+ * Falls back to an empty list when the backend is unreachable.
  *
  * To wire in a real backend:
  *   1. Ensure `/api/v1/notifications/stream` streams JSON events of shape LiveNotification.
@@ -110,7 +51,7 @@ export interface UseNotificationsResult {
  */
 export function useNotifications(): UseNotificationsResult {
   const [notifications, setNotifications] =
-    useState<LiveNotification[]>(MOCK_NOTIFICATIONS);
+    useState<LiveNotification[]>([]);
   const [connected, setConnected] = useState(false);
   const esRef = useRef<EventSource | null>(null);
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -122,13 +63,13 @@ export function useNotifications(): UseNotificationsResult {
     if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
 
     // EventSource cannot send Authorization headers; skip until a session exists.
-    let hasToken = false;
+    let token: string | null = null;
     try {
-      hasToken = Boolean(sessionStorage.getItem("gratehcare.api.access_token"));
+      token = sessionStorage.getItem("gratehcare.api.access_token");
     } catch {
-      hasToken = false;
+      token = null;
     }
-    if (!hasToken) {
+    if (!token) {
       setConnected(false);
       return;
     }
@@ -139,7 +80,9 @@ export function useNotifications(): UseNotificationsResult {
     }
 
     try {
-      const es = new EventSource(SSE_URL, { withCredentials: true });
+      const url = new URL(SSE_URL);
+      url.searchParams.set("access_token", token);
+      const es = new EventSource(url.toString(), { withCredentials: true });
       esRef.current = es;
 
       es.onopen = () => {

@@ -8,7 +8,11 @@ export class JwtAuthGuard implements CanActivate {
   async canActivate(context: ExecutionContext) {
     const request = context.switchToHttp().getRequest();
     const header = request.headers.authorization as string | undefined;
-    const token = header?.startsWith("Bearer ") ? header.slice(7) : undefined;
+    const queryToken =
+      typeof request.query?.access_token === "string"
+        ? request.query.access_token
+        : undefined;
+    const token = header?.startsWith("Bearer ") ? header.slice(7) : queryToken;
     if (!token) throw new UnauthorizedException("Missing bearer token");
 
     try {

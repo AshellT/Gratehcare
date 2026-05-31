@@ -2,9 +2,10 @@ import Badge from "@/components/dashboard/Badge";
 import Card from "@/components/dashboard/Card";
 import PageHeader from "@/components/dashboard/PageHeader";
 import { useToast } from "@/context/ToastContext";
+import { rosteringApi } from "@/lib/api/rostering";
 import { motion } from "framer-motion";
-import { ChevronLeft, ChevronRight, Filter, Plus } from "lucide-react";
-import React, { useState } from "react";
+import { ChevronLeft, ChevronRight, Filter, Loader2, Plus } from "lucide-react";
+import React, { useEffect, useMemo, useState } from "react";
 
 const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const hours = Array.from({ length: 12 }, (_, i) => 7 + i); // 7am - 6pm
@@ -17,154 +18,62 @@ type Shift = {
   staff: string;
   color: string;
   status: "filled" | "open" | "tentative";
+  service?: string;
 };
 
-const shifts: Shift[] = [
-  {
-    day: 0,
-    start: 8,
-    duration: 2,
-    client: "Eleanor R.",
-    staff: "Priya",
-    color: "indigo",
-    status: "filled",
-  },
-  {
-    day: 0,
-    start: 11,
-    duration: 1.5,
-    client: "Marcus T.",
-    staff: "Daniel",
-    color: "sky",
-    status: "filled",
-  },
-  {
-    day: 0,
-    start: 14,
-    duration: 2,
-    client: "Alana W.",
-    staff: "James",
-    color: "emerald",
-    status: "filled",
-  },
-  {
-    day: 1,
-    start: 9,
-    duration: 3,
-    client: "Henry P.",
-    staff: "Sara",
-    color: "rose",
-    status: "filled",
-  },
-  {
-    day: 1,
-    start: 13,
-    duration: 2,
-    client: "Eleanor R.",
-    staff: "Priya",
-    color: "indigo",
-    status: "filled",
-  },
-  {
-    day: 1,
-    start: 16,
-    duration: 1.5,
-    client: "Maya K.",
-    staff: "—",
-    color: "amber",
-    status: "open",
-  },
-  {
-    day: 2,
-    start: 8,
-    duration: 2,
-    client: "Eleanor R.",
-    staff: "Daniel",
-    color: "indigo",
-    status: "filled",
-  },
-  {
-    day: 2,
-    start: 10.5,
-    duration: 2,
-    client: "Marcus T.",
-    staff: "Tom",
-    color: "sky",
-    status: "tentative",
-  },
-  {
-    day: 2,
-    start: 14,
-    duration: 1.5,
-    client: "Alana W.",
-    staff: "James",
-    color: "emerald",
-    status: "filled",
-  },
-  {
-    day: 3,
-    start: 9,
-    duration: 2,
-    client: "Henry P.",
-    staff: "Sara",
-    color: "rose",
-    status: "filled",
-  },
-  {
-    day: 3,
-    start: 12,
-    duration: 2,
-    client: "Maya K.",
-    staff: "—",
-    color: "amber",
-    status: "open",
-  },
-  {
-    day: 4,
-    start: 8,
-    duration: 1.5,
-    client: "Eleanor R.",
-    staff: "Priya",
-    color: "indigo",
-    status: "filled",
-  },
-  {
-    day: 4,
-    start: 11,
-    duration: 2.5,
-    client: "Marcus T.",
-    staff: "Daniel",
-    color: "sky",
-    status: "filled",
-  },
-  {
-    day: 4,
-    start: 15,
-    duration: 2,
-    client: "Henry P.",
-    staff: "Sara",
-    color: "rose",
-    status: "filled",
-  },
-  {
-    day: 5,
-    start: 9,
-    duration: 4,
-    client: "Alana W.",
-    staff: "James",
-    color: "emerald",
-    status: "filled",
-  },
-  {
-    day: 6,
-    start: 10,
-    duration: 3,
-    client: "Eleanor R.",
-    staff: "—",
-    color: "amber",
-    status: "open",
-  },
-];
+type RawShift = {
+  id: string;
+  startsAt: string;
+  endsAt: string;
+  status: string;
+  service?: string;
+  client?: { fullName?: string };
+  staff?: { user?: { fullName?: string }; title?: string };
+};
+
+const palette = ["indigo", "sky", "emerald", "rose", "amber"];
+
+const weekStartForOffset = (weekOffset: number) => {
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  start.setDate(start.getDate() - ((start.getDay() + 6) % 7) + weekOffset * 7);
+  return start;
+};
+
+const formatWeekLabel = (weekStart: Date) => {
+  const end = new Date(weekStart);
+  end.setDate(end.getDate() + 6);
+  const fmt = (d: Date) =>
+    d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  return `${fmt(weekStart)} – ${fmt(end)}`;
+};
+
+const mapShift = (raw: RawShift, index: number, weekStart: Date): Shift | null => {
+  const start = new Date(raw.startsAt);
+  const end = new Date(raw.endsAt);
+  const day = Math.floor((start.getTime() - weekStart.getTime()) / (24 * 60 * 60 * 1000));
+  if (day < 0 || day > 6) return null;
+
+  const clientName = raw.client?.fullName ?? "Client";
+  const shortClient = clientName
+    .split(" ")
+    .map((part) => `${part[0]}.`)
+    .join(" ")
+    .replace(/\.\s*\./, ".");
+
+  return {
+    day,
+    start: start.getHours() + start.getMinutes() / 60,
+    duration: Math.max(0.5, (end.getTime() - start.getTime()) / 3600000),
+    client: shortClient,
+    staff:
+      raw.staff?.user?.fullName?.split(" ")[0] ??
+      (raw.status === "OPEN" ? "—" : raw.staff?.title ?? "Staff"),
+    color: palette[index % palette.length],
+    status: raw.status === "OPEN" ? "open" : raw.status === "FILLED" ? "filled" : "tentative",
+    service: raw.service,
+  };
+};
 
 const colorMap: Record<string, string> = {
   indigo: "bg-indigo-500",
@@ -177,7 +86,50 @@ const colorMap: Record<string, string> = {
 const SchedulePage: React.FC = () => {
   const [selected, setSelected] = useState<Shift | null>(null);
   const [weekOffset, setWeekOffset] = useState(0);
+  const [rawShifts, setRawShifts] = useState<RawShift[]>([]);
+  const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+
+  const weekStart = useMemo(() => weekStartForOffset(weekOffset), [weekOffset]);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        setLoading(true);
+        const res = await rosteringApi.listShifts({ limit: 100 });
+        if (!mounted) return;
+        setRawShifts((res.data ?? []) as unknown as RawShift[]);
+      } catch {
+        if (mounted) toast({ tone: "error", title: "Failed to load schedule shifts." });
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [toast]);
+
+  const shifts = useMemo(
+    () =>
+      rawShifts
+        .map((shift, index) => mapShift(shift, index, weekStart))
+        .filter((shift): shift is Shift => Boolean(shift)),
+    [rawShifts, weekStart],
+  );
+
+  const stats = useMemo(() => {
+    const open = shifts.filter((s) => s.status === "open").length;
+    const filled = shifts.filter((s) => s.status === "filled").length;
+    const coverage = shifts.length ? Math.round((filled / shifts.length) * 100) : 0;
+    return [
+      { label: "Shifts this week", value: String(shifts.length), tone: "bg-indigo-50 text-indigo-700" },
+      { label: "Open shifts", value: String(open), tone: "bg-amber-50 text-amber-700" },
+      { label: "Conflicts", value: "0", tone: "bg-emerald-50 text-emerald-700" },
+      { label: "Coverage", value: `${coverage}%`, tone: "bg-sky-50 text-sky-700" },
+    ];
+  }, [shifts]);
 
   return (
     <div className="space-y-8">
@@ -201,24 +153,7 @@ const SchedulePage: React.FC = () => {
       />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {[
-          {
-            label: "Shifts this week",
-            value: "86",
-            tone: "bg-indigo-50 text-indigo-700",
-          },
-          {
-            label: "Open shifts",
-            value: "12",
-            tone: "bg-amber-50 text-amber-700",
-          },
-          {
-            label: "Conflicts",
-            value: "0",
-            tone: "bg-emerald-50 text-emerald-700",
-          },
-          { label: "Coverage", value: "98%", tone: "bg-sky-50 text-sky-700" },
-        ].map((s) => (
+        {stats.map((s) => (
           <div
             key={s.label}
             className="rounded-2xl border border-slate-200 bg-white p-5"
@@ -236,11 +171,7 @@ const SchedulePage: React.FC = () => {
       </div>
 
       <Card
-        title={
-          weekOffset === 0
-            ? "Week of Dec 2 - Dec 8"
-            : `Week ${weekOffset > 0 ? "+" : ""}${weekOffset} from Dec 2 - Dec 8`
-        }
+        title={weekOffset === 0 ? `Week of ${formatWeekLabel(weekStart)}` : `Week ${weekOffset > 0 ? "+" : ""}${weekOffset} · ${formatWeekLabel(weekStart)}`}
         description="Filled · Open · Tentative"
         action={
           <div className="flex items-center gap-1">
@@ -273,6 +204,12 @@ const SchedulePage: React.FC = () => {
           </div>
         }
       >
+        {loading ? (
+          <div className="flex items-center justify-center py-16 text-slate-500">
+            <Loader2 className="h-5 w-5 animate-spin mr-2" />
+            Loading schedule…
+          </div>
+        ) : (
         <div className="overflow-x-auto">
           <div className="min-w-[800px]">
             {/* Header row */}
@@ -343,6 +280,7 @@ const SchedulePage: React.FC = () => {
             </div>
           </div>
         </div>
+        )}
       </Card>
 
       {selected && (
@@ -373,7 +311,7 @@ const SchedulePage: React.FC = () => {
             </div>
             <div>
               <div className="text-xs text-slate-500">Service</div>
-              <div className="font-semibold text-slate-900">Personal care</div>
+              <div className="font-semibold text-slate-900">{selected.service ?? "Personal care"}</div>
             </div>
             <div>
               <div className="text-xs text-slate-500">Funding</div>

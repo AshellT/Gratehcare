@@ -1,48 +1,25 @@
-import { apiClient, withFallback } from "./client";
+import { apiClient, normalizePage } from "./client";
 import type { PaginatedResponse, Tenant, User } from "./types";
-
-const MOCK_TENANT: Tenant = {
-  id: "t-demo",
-  tenantId: "t-demo",
-  createdAt: "",
-  updatedAt: "",
-  name: "GratehCare Demo Org",
-  slug: "demo",
-  plan: "professional",
-  status: "active",
-};
 
 export const tenantsApi = {
   list: () =>
-    withFallback(
-      () => apiClient.get<PaginatedResponse<Tenant>>("/organizations"),
-      {
-        data: [MOCK_TENANT],
-        total: 1,
-        page: 1,
-        limit: 20,
-      } as PaginatedResponse<Tenant>,
-    ),
+    apiClient
+      .get<PaginatedResponse<Tenant> | { items?: Tenant[]; total?: number; page?: number; limit?: number }>("/organizations")
+      .then(normalizePage),
 
   create: (data: { name: string; slug: string; region?: string }) =>
     apiClient.post<Tenant>("/organizations", data as any),
 
   getCurrent: () =>
-    withFallback(
-      () => apiClient.get<Tenant>("/organizations/current"),
-      MOCK_TENANT,
-    ),
+    apiClient.get<Tenant>("/organizations/current"),
 
   update: (data: Partial<Tenant>) =>
     apiClient.patch<Tenant>("/organizations/current", data as any),
 
   listUsers: () =>
-    withFallback(() => apiClient.get<PaginatedResponse<User>>("/users"), {
-      data: [],
-      total: 0,
-      page: 1,
-      limit: 20,
-    } as PaginatedResponse<User>),
+    apiClient
+      .get<PaginatedResponse<User> | { items?: User[]; total?: number; page?: number; limit?: number }>("/users")
+      .then(normalizePage),
 
   inviteUser: (email: string, role: string) =>
     apiClient.post("/users/invite", { email, role } as any),

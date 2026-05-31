@@ -28,7 +28,11 @@ async function bootstrap() {
   );
 
   const port = config.get<number>("PORT") || 4000;
-  await app.listen(port);
+  await app.listen(port, "0.0.0.0");
+  
+  console.log(`🚀 GRATEHCARE Backend running on port ${port}`);
+  console.log(`📡 Environment: ${config.get<string>("NODE_ENV") || "development"}`);
+  console.log(`🔗 API: http://localhost:${port}/api/v1`);
 }
 
 void bootstrap();

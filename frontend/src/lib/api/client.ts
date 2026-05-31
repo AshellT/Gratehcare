@@ -4,12 +4,13 @@
  * - Attaches Bearer token from the active Supabase session automatically.
  * - Adds X-Tenant-Id header from the stored organisation id.
  * - Retries once on 401 after a token refresh.
- * - On network error / server not reachable returns { _isMock: true } so
- *   callers can substitute fallback mock data without crashing.
+ * - On network error / server not reachable, withFallback returns empty data
+ *   with { _isMock: true } so callers can show offline state without fake rows.
  */
 
 import { supabase } from "@/lib/supabase";
 import { API_BASE } from "./config";
+import type { PaginatedResponse } from "./types";
 
 export { API_BASE };
 
@@ -90,6 +91,33 @@ export class ApiError extends Error {
 }
 
 export const isApiError = (e: unknown): e is ApiError => e instanceof ApiError;
+
+export type BackendPage<T> = PaginatedResponse<T> | {
+  items?: T[];
+  data?: T[];
+  total?: number;
+  page?: number;
+  limit?: number;
+};
+
+export function emptyPage<T>(limit = 20): PaginatedResponse<T> {
+  return { data: [], total: 0, page: 1, limit };
+}
+
+export function normalizePage<T>(page: BackendPage<T>): PaginatedResponse<T> {
+  const data = Array.isArray((page as any).data)
+    ? (page as any).data
+    : Array.isArray((page as any).items)
+      ? (page as any).items
+      : [];
+
+  return {
+    data,
+    total: typeof page.total === "number" ? page.total : data.length,
+    page: typeof page.page === "number" ? page.page : 1,
+    limit: typeof page.limit === "number" ? page.limit : data.length || 20,
+  };
+}
 
 // ─── Core request ─────────────────────────────────────────────────────────────
 
@@ -205,8 +233,7 @@ export const apiClient = {
 };
 
 /**
- * Wraps an API call and returns mock data on network errors.
- * Use this in every service function for graceful offline behaviour.
+ * Wraps an API call and returns empty fallback data on network errors.
  */
 export async function withFallback<T>(
   call: () => Promise<T>,

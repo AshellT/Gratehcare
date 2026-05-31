@@ -98,28 +98,17 @@ export class AuthService {
   }
 
   private async loginTestAccount(email: string, password: string) {
-    const expected = this.config.get<string>("TEST_ACCOUNT_PASSWORD") || "0778007350";
-    if (password !== expected) {
-      throw new UnauthorizedException("Invalid credentials");
-    }
-
     const user = await this.prisma.user.findUnique({
       where: { email },
       include: { roles: true },
     });
-    if (!user?.isTestAccount) {
+    if (!user?.isTestAccount || !user.passwordHash) {
       throw new UnauthorizedException("Invalid credentials");
     }
 
-    if (this.supabase.isConfigured) {
-      const { data, error } = await this.supabase.signInWithPassword(email, password);
-      if (!error && data.session) {
-        return {
-          accessToken: data.session.access_token,
-          refreshToken: data.session.refresh_token,
-          user: this.toAuthPayload(user),
-        };
-      }
+    const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
+    if (!isPasswordValid) {
+      throw new UnauthorizedException("Invalid credentials");
     }
 
     return this.issueLocalToken(user);

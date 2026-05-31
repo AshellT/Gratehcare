@@ -12,6 +12,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
+import { apiClient } from "@/lib/api/client";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -37,119 +38,21 @@ export interface AiInsight {
   generatedAt: string;
 }
 
-// ─── Mock data (swap fetchInsights body when real API is available) ──────────
-
-const MOCK_INSIGHTS: AiInsight[] = [
-  {
-    id: "ai-sa-001",
-    category: "staff_assignment",
-    severity: "warning",
-    title: "3 night shifts uncovered – auto-fill available",
-    description:
-      "Priya Raman and Daniel Wu are available with no conflicts. Confidence 94%.",
-    confidence: 94,
-    actionLabel: "Auto-fill shifts",
-    isMock: true,
-    generatedAt: new Date().toISOString(),
-  },
-  {
-    id: "ai-sa-002",
-    category: "staff_assignment",
-    severity: "info",
-    title: "Skill mismatch on Henry P.",
-    description:
-      "Assigned worker lacks manual handling cert required by care plan.",
-    confidence: 87,
-    actionLabel: "Reassign",
-    isMock: true,
-    generatedAt: new Date().toISOString(),
-  },
-  {
-    id: "ai-cr-001",
-    category: "client_risk",
-    severity: "critical",
-    title: "Eleanor Rivers – elevated fall risk",
-    description:
-      "14-day care note trend shows increasing mobility issues. Physio review advised.",
-    confidence: 91,
-    actionLabel: "Schedule review",
-    isMock: true,
-    generatedAt: new Date().toISOString(),
-  },
-  {
-    id: "ai-cr-002",
-    category: "client_risk",
-    severity: "warning",
-    title: "Marcus Thompson – medication adherence drop",
-    description:
-      "4 of last 7 days with missed doses recorded. Carer check-in recommended.",
-    confidence: 88,
-    actionLabel: "Flag for review",
-    isMock: true,
-    generatedAt: new Date().toISOString(),
-  },
-  {
-    id: "ai-bo-001",
-    category: "burnout",
-    severity: "warning",
-    title: "Sara Hill – burnout risk next 14 days",
-    description:
-      "54 h last week, 3 consecutive doubles. Consider redistributing load.",
-    confidence: 82,
-    actionLabel: "Review roster",
-    isMock: true,
-    generatedAt: new Date().toISOString(),
-  },
-  {
-    id: "ai-ba-001",
-    category: "billing_anomaly",
-    severity: "warning",
-    title: "Claim CL-2201 unusually high duration",
-    description:
-      "Billed 8 h for a client whose plan caps at 4 h/day. Verify before submitting.",
-    confidence: 90,
-    actionLabel: "Review claim",
-    isMock: true,
-    generatedAt: new Date().toISOString(),
-  },
-  {
-    id: "ai-cp-001",
-    category: "compliance_risk",
-    severity: "critical",
-    title: "3 police checks expire within 7 days",
-    description: "James M., Alana W., Tom R. – renewals not yet submitted.",
-    confidence: 100,
-    actionLabel: "Start renewals",
-    isMock: true,
-    generatedAt: new Date().toISOString(),
-  },
-  {
-    id: "ai-cg-001",
-    category: "care_gap",
-    severity: "warning",
-    title: "Eleanor R. – no physio visit in 28 days",
-    description:
-      "Care plan specifies fortnightly physio. Gap detected since last session.",
-    confidence: 96,
-    actionLabel: "Schedule visit",
-    isMock: true,
-    generatedAt: new Date().toISOString(),
-  },
-];
-
-/**
- * Swap this function's body to call a real AI API.
- * The shape returned must match AiInsight[].
- */
 async function fetchInsights(
   categories?: InsightCategory[],
 ): Promise<AiInsight[]> {
-  // TODO: replace with real API call, e.g.:
-  // const res = await fetch(`/api/v1/ai-insights?categories=${categories?.join(",") ?? ""}`);
-  // return (await res.json()).insights;
-  await new Promise((r) => window.setTimeout(r, 600)); // simulate latency
-  if (!categories || categories.length === 0) return MOCK_INSIGHTS;
-  return MOCK_INSIGHTS.filter((i) => categories.includes(i.category));
+  try {
+    const res = await apiClient.get<{ insights: AiInsight[] }>("/ai-insights", {
+      params: categories?.length
+        ? { categories: categories.join(",") }
+        : undefined,
+    });
+    const insights = res.insights ?? [];
+    if (!categories?.length) return insights;
+    return insights.filter((i) => categories.includes(i.category));
+  } catch {
+    return [];
+  }
 }
 
 // ─── Config ──────────────────────────────────────────────────────────────────

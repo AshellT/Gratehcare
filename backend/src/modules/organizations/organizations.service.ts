@@ -1,4 +1,5 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
 import { PrismaService } from "@/prisma/prisma.service";
 import { PaginationDto } from "@/common/dto/pagination.dto";
 import { AuthUser } from "@/common/types/auth-user.type";
@@ -25,8 +26,15 @@ export class OrganizationsService {
   }
 
   async create(dto: CreateTenantDto, user: AuthUser) {
-    const item = await this.prisma.tenant.create({ data: dto });
-    await this.prisma.auditLog.create({ data: { actorId: user.sub, action: "create", resource: "tenant", resourceId: item.id } });
-    return item;
+    try {
+      const item = await this.prisma.tenant.create({ data: dto });
+      await this.prisma.auditLog.create({ data: { actorId: user.sub, action: "create", resource: "tenant", resourceId: item.id } });
+      return item;
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+        throw new ConflictException("Organization slug already exists");
+      }
+      throw error;
+    }
   }
 }

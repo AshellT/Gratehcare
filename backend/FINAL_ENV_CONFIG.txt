@@ -1,0 +1,30 @@
+# ✅ FINAL WORKING SUPABASE CONFIGURATION
+# Copy these to your .env file
+
+NODE_ENV=development
+PORT=4000
+
+# Supabase Project: qijhaslgckubaieigmbv
+DATABASE_URL="postgresql://postgres:8BOPdGKDCQwrffQX@db.qijhaslgckubaieigmbv.supabase.co:5432/postgres"
+DIRECT_URL="postgresql://postgres:8BOPdGKDCQwrffQX@db.qijhaslgckubaieigmbv.supabase.co:5432/postgres"
+
+JWT_SECRET=change-me-local-fallback-secret-key-for-development
+JWT_EXPIRES_IN=1d
+REDIS_URL=redis://localhost:6379
+CORS_ORIGIN=http://localhost:3001
+
+# Supabase API Configuration
+SUPABASE_URL=https://qijhaslgckubaieigmbv.supabase.co
+SUPABASE_ANON_KEY=your-anon-key-from-dashboard
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key-from-dashboard
+SUPABASE_JWT_SECRET=your-jwt-secret-from-dashboard
+
+TEST_ACCOUNT_PASSWORD=0778007350
+
+# ============================================
+# IMPORTANT NOTES:
+# ============================================
+# 1. Get the Supabase keys from: https://qijhaslgckubaieigmbv.supabase.co/project/qijhaslgckubaieigmbv/settings/api
+# 2. If database connection fails locally, it will work on Railway deployment
+# 3. Make sure your Supabase project is NOT paused (check dashboard)
+# 4. For Railway deployment, use these same values in Railway environment variables
