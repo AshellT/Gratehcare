@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   ArrowRight,
@@ -241,7 +241,7 @@ const FinancePage: React.FC<{ kind: FinancePageKind; familyOnly?: boolean }> = (
   const [saving, setSaving] = useState(false);
   const [createForm, setCreateForm] = useState({ client: "", service: "", amount: "", payer: "NDIS" });
 
-  const reload = async () => {
+  const reload = useCallback(async () => {
     const loads = [billingApi.listInvoices()];
     if (kind === "claims" || kind === "claim-tracking") {
       loads.push(claimsApi.list());
@@ -251,7 +251,7 @@ const FinancePage: React.FC<{ kind: FinancePageKind; familyOnly?: boolean }> = (
     if (claimRes) {
       setClaimRecords(((claimRes as any).data ?? []).map((row: RawClaim) => mapClaim(row)));
     }
-  };
+  }, [kind]);
 
   useEffect(() => {
     let mounted = true;
@@ -268,7 +268,7 @@ const FinancePage: React.FC<{ kind: FinancePageKind; familyOnly?: boolean }> = (
     return () => {
       mounted = false;
     };
-  }, [kind, toast]);
+  }, [kind, toast, reload]);
   const [selected, setSelected] = useState<FinanceRecord | null>(null);
   const [status, setStatus] = useState("All statuses");
   const [payer, setPayer] = useState("All payers");

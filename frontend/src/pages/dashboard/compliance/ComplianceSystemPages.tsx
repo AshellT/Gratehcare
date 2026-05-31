@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   ArrowRight,
@@ -300,7 +300,7 @@ const ComplianceSystemPage: React.FC<{ pageKey: ComplianceKey }> = ({ pageKey })
   const [message, setMessage] = useState<string | null>(null);
   const canManage = managerRoles.has(user?.role || "");
 
-  const loadRecords = async () => {
+  const loadRecords = useCallback(async () => {
     try {
       setLoading(true);
       const useIncidents = pageKey === "incidents" || pageKey === "investigations";
@@ -316,11 +316,11 @@ const ComplianceSystemPage: React.FC<{ pageKey: ComplianceKey }> = ({ pageKey })
     } finally {
       setLoading(false);
     }
-  };
+  }, [pageKey, toast]);
 
   useEffect(() => {
     loadRecords();
-  }, [pageKey, toast]);
+  }, [loadRecords]);
 
   useActionQuery("create", () => setShowForm(true));
 

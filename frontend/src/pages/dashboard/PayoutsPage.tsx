@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { Loader2, Plus } from "lucide-react";
 import PageHeader from "@/components/dashboard/PageHeader";
 import Card from "@/components/dashboard/Card";
@@ -30,7 +30,7 @@ const PayoutsPage: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ payer: "NDIS", service: "", amount: "" });
 
-  const load = async () => {
+  const load = useCallback(async () => {
     try {
       setLoading(true);
       const res = await claimsApi.list({ status: "PAID", limit: 50 });
@@ -49,11 +49,11 @@ const PayoutsPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
   useEffect(() => {
     load();
-  }, [toast]);
+  }, [load]);
 
   useActionQuery("create", () => setShowCreate(true));
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { KeyRound, Loader2, Plus } from "lucide-react";
 import PageHeader from "@/components/dashboard/PageHeader";
 import Card from "@/components/dashboard/Card";
@@ -16,7 +16,7 @@ const PermissionsPage: React.FC = () => {
   const [assignForm, setAssignForm] = useState({ userId: "", role: "SUPER_ADMIN" as string });
   const [saving, setSaving] = useState(false);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     try {
       setLoading(true);
       const data = await rolesApi.listPermissions();
@@ -26,11 +26,11 @@ const PermissionsPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
   useEffect(() => {
     load();
-  }, [toast]);
+  }, [load]);
 
   useActionQuery("create", () => setAssignOpen(true));
 

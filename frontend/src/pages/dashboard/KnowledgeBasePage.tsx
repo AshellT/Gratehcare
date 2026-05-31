@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Loader2, Plus, Search } from "lucide-react";
 import PageHeader from "@/components/dashboard/PageHeader";
 import Card from "@/components/dashboard/Card";
@@ -17,7 +17,7 @@ const KnowledgeBasePage: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ title: "", category: "General", body: "" });
 
-  const load = async () => {
+  const load = useCallback(async () => {
     try {
       setLoading(true);
       const res = await knowledgeApi.list({ limit: 50 });
@@ -27,11 +27,11 @@ const KnowledgeBasePage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
   useEffect(() => {
     load();
-  }, [toast]);
+  }, [load]);
 
   useActionQuery("create", () => setShowCreate(true));
 
