@@ -51,11 +51,11 @@ eventSource.onmessage = (event) => {
 
 ## 🔧 Railway Deployment Steps
 
-### 1. Set Root Directory
+### 1. Root Directory
 In Railway dashboard:
 - Service → **Settings** → **Root directory**
-- Enter: `backend`
-- Required so `npm ci` finds `package-lock.json` and `railway.json` build commands run in the right folder
+- Leave **empty** (repo root). Railpack detects the monorepo and builds via `railway.json` at the repo root.
+- If you previously set `backend`, clear it — Railpack copies `backend/` as a subdirectory and runs `sh backend/scripts/railway-build.sh`.
 
 ### 2. Environment Variables
 Configure these in Railway dashboard → Variables (see `.env.railway.example`):
