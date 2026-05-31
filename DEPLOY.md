@@ -52,7 +52,7 @@ railway run npm run db:seed   # optional demo users *@gratehcare.test
 
 - Set `CORS_ORIGIN=https://gratehcare.vercel.app`
 - **Networking → Public domain:** copy this URL into Vercel `REACT_APP_API_URL`
-- **Health check:** `GET https://<railway-domain>/api/v1/system/health`
+- **Health check:** `GET https://<railway-domain>/api/v1/public/health`
 
 ## 3. Vercel (frontend)
 

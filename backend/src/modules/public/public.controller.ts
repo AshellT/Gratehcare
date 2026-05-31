@@ -6,6 +6,12 @@ import { PublicService } from "./public.service";
 export class PublicController {
   constructor(private readonly service: PublicService) {}
 
+  /** Unauthenticated liveness probe for Railway / load balancers */
+  @Get("health")
+  health() {
+    return this.service.getHealth();
+  }
+
   @Get("marketing")
   getMarketing() {
     return this.service.getMarketingContent();

@@ -2,4 +2,4 @@
 set -e
 APP_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$APP_ROOT"
-exec npm run start:prod
+exec node dist/main.js

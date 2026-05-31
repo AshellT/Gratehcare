@@ -9,6 +9,15 @@ const normalizePlanId = (planId?: string) =>
 export class PublicService {
   constructor(private readonly prisma: PrismaService) {}
 
+  async getHealth() {
+    try {
+      await this.prisma.$queryRaw`SELECT 1`;
+      return { status: "ok", db: "connected" };
+    } catch {
+      return { status: "ok", db: "unavailable" };
+    }
+  }
+
   async getMarketingContent() {
     const [testimonials, tenantCount, shiftStats] = await Promise.all([
       this.prisma.marketingTestimonial.findMany({
