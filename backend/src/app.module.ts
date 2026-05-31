@@ -16,6 +16,8 @@ import { IntegrationsModule } from "./modules/integrations/integrations.module";
 import { ClaimsModule } from "./modules/claims/claims.module";
 import { TicketsModule } from "./modules/tickets/tickets.module";
 import { PublicModule } from "./modules/public/public.module";
+import { SystemModule } from "./modules/system/system.module";
+import { KnowledgeModule } from "./modules/knowledge/knowledge.module";
 import { MedicationModule } from "./modules/medication/medication.module";
 import { MessagesModule } from "./modules/messages/messages.module";
 import { NotificationsModule } from "./modules/notifications/notifications.module";
@@ -65,6 +67,8 @@ import { SupabaseModule } from "./supabase/supabase.module";
     ClaimsModule,
     TicketsModule,
     PublicModule,
+    SystemModule,
+    KnowledgeModule,
   ],
 })
 export class AppModule implements NestModule {

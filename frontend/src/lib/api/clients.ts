@@ -22,5 +22,5 @@ export const clientsApi = {
   update: (id: string, data: Partial<Client>) =>
     apiClient.patch<Client>(`/clients/${id}`, data as any),
 
-  delete: (id: string) => apiClient.delete(`/clients/${id}`),
+  archive: (id: string) => apiClient.post(`/clients/${id}/archive`, {}),
 };

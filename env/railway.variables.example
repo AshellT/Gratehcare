@@ -1,0 +1,13 @@
+# Railway backend — generic template (see gratehcare-production.railway.txt for your project)
+
+NODE_ENV=production
+PORT=4000
+DATABASE_URL=postgresql://postgres.YOUR_REF:PASSWORD@aws-0-eu-west-1.pooler.supabase.com:6543/postgres?pgbouncer=true
+DIRECT_URL=postgresql://postgres.YOUR_REF:PASSWORD@aws-0-eu-west-1.pooler.supabase.com:5432/postgres
+JWT_SECRET=replace-with-long-random-secret
+JWT_EXPIRES_IN=1d
+CORS_ORIGIN=https://gratehcare.vercel.app
+SUPABASE_URL=https://qijhaslgckubaieigmbv.supabase.co
+SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+TEST_ACCOUNT_PASSWORD=0778007350

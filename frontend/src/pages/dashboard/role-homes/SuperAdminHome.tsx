@@ -49,7 +49,7 @@ const SuperAdminHome: React.FC = () => {
           {
             label: "Add user",
             icon: <Plus className="h-4 w-4" />,
-            onClick: () => navigate("/app/users"),
+            onClick: () => navigate("/app/users?action=create"),
           },
         ]}
       />
@@ -110,25 +110,25 @@ const SuperAdminHome: React.FC = () => {
               label: "New tenant",
               icon: <Plus className="h-4 w-4" />,
               tone: "indigo",
-              onClick: () => navigate("/app/tenants"),
+              onClick: () => navigate("/app/tenants?action=create"),
             },
             {
-              label: "Reset user",
-              icon: <KeyRound className="h-4 w-4" />,
-              tone: "amber",
-              onClick: () => openAction("Reset user workflow opened."),
-            },
-            {
-              label: "Re-sync tenant",
-              icon: <RefreshCcw className="h-4 w-4" />,
-              tone: "sky",
-              onClick: () => openAction("Tenant re-sync queued."),
+              label: "Add user",
+              icon: <Users className="h-4 w-4" />,
+              tone: "violet",
+              onClick: () => navigate("/app/users?action=create"),
             },
             {
               label: "Open audit log",
               icon: <Activity className="h-4 w-4" />,
               tone: "slate",
               onClick: () => navigate("/app/audit-logs"),
+            },
+            {
+              label: "Permissions",
+              icon: <KeyRound className="h-4 w-4" />,
+              tone: "amber",
+              onClick: () => navigate("/app/permissions"),
             },
           ]}
         />

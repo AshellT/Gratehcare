@@ -1,24 +1,104 @@
 import Badge from "@/components/dashboard/Badge";
 import Card from "@/components/dashboard/Card";
+import FormField from "@/components/dashboard/FormField";
 import { RowActionButton } from "@/components/dashboard/DataTable";
 import EmptyState from "@/components/dashboard/EmptyState";
 import LoadingState from "@/components/dashboard/LoadingState";
 import PageHeader from "@/components/dashboard/PageHeader";
 import { useToast } from "@/context/ToastContext";
+import { useActionQuery } from "@/hooks/useActionQuery";
 import { useClients } from "@/hooks/useClients";
-import { Filter, Plus, Search, Users } from "lucide-react";
+import type { Client } from "@/lib/api/types";
+import { toTenantRecord } from "@/lib/api/tenantRecord";
+import { Filter, Plus, Search, Users, X } from "lucide-react";
 import React, { useState } from "react";
 
 const ClientsPage: React.FC = () => {
   const [q, setQ] = useState("");
-  const { toast } = useToast();
-  const { data, loading, error } = useClients();
+  const { toast, success } = useToast();
+  const { data, loading, error, create, update, remove, refetch } = useClients();
   const clients = data?.data ?? [];
   const filtered = clients.filter(
     (c) =>
       c.fullName.toLowerCase().includes(q.toLowerCase()) ||
       (c.coordinator ?? "").toLowerCase().includes(q.toLowerCase()),
   );
+
+  const [createOpen, setCreateOpen] = useState(false);
+  const [selected, setSelected] = useState<Client | null>(null);
+  const [actionClient, setActionClient] = useState<Client | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({
+    fullName: "",
+    funding: "NDIS",
+    coordinator: "",
+    status: "active" as Client["status"],
+  });
+
+  useActionQuery("create", () => setCreateOpen(true));
+
+  const resetForm = () =>
+    setForm({
+      fullName: "",
+      funding: "NDIS",
+      coordinator: "",
+      status: "active",
+    });
+
+  const handleCreate = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!form.fullName.trim()) {
+      toast.warning("Name required", "Enter the client's full name.");
+      return;
+    }
+    setSaving(true);
+    try {
+      await create(
+        toTenantRecord(form.fullName.trim(), form.funding, {
+          coordinator: form.coordinator.trim() || undefined,
+          status: form.status.toUpperCase(),
+        }) as Partial<Client>,
+      );
+      success("Client added", `${form.fullName.trim()} has been created.`);
+      setCreateOpen(false);
+      resetForm();
+    } catch {
+      toast.error("Create failed", "Could not add client. Try again.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleArchive = async (client: Client) => {
+    if (!window.confirm(`Archive ${client.fullName}?`)) return;
+    try {
+      await remove(client.id);
+      success("Client archived", `${client.fullName} has been archived.`);
+      setActionClient(null);
+      if (selected?.id === client.id) setSelected(null);
+    } catch {
+      toast.error("Archive failed", "Could not archive client.");
+    }
+  };
+
+  const handleStatusChange = async (client: Client, status: Client["status"]) => {
+    try {
+      await update(client.id, {
+        ...toTenantRecord(client.fullName, client.funding, {
+          coordinator: client.coordinator,
+          status: status.toUpperCase(),
+        }),
+      } as Partial<Client>);
+      success("Status updated", `${client.fullName} is now ${status}.`);
+      setActionClient(null);
+      if (selected?.id === client.id) {
+        setSelected({ ...client, status });
+      }
+      await refetch();
+    } catch {
+      toast.error("Update failed", "Could not update client status.");
+    }
+  };
 
   if (loading) return <LoadingState rows={6} />;
 
@@ -43,15 +123,14 @@ const ClientsPage: React.FC = () => {
           {
             label: "Add client",
             icon: <Plus className="h-4 w-4" />,
-            onClick: () =>
-              toast({ tone: "info", title: "Add client coming soon." }),
+            onClick: () => setCreateOpen(true),
           },
         ]}
       />
 
       {error && (
         <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-800">
-          Could not load clients — showing demo data.
+          Could not load clients from the backend.
         </div>
       )}
 
@@ -59,27 +138,25 @@ const ClientsPage: React.FC = () => {
         {[
           {
             label: "Active clients",
-            value: "184",
-            change: "+3 this month",
-            tone: "indigo",
+            value: String(clients.filter((c) => c.status === "active").length),
+            change: `${clients.length} total`,
           },
           {
             label: "Onboarding",
-            value: "12",
-            change: "4 completing soon",
-            tone: "amber",
+            value: String(
+              clients.filter((c) => c.status === "onboarding").length,
+            ),
+            change: "Awaiting setup",
           },
           {
-            label: "Avg. hours/wk",
-            value: "21h",
-            change: "+1.4h vs last month",
-            tone: "sky",
+            label: "Paused",
+            value: String(clients.filter((c) => c.status === "paused").length),
+            change: "Currently inactive",
           },
           {
-            label: "Satisfaction",
-            value: "4.9★",
-            change: "Based on 142 reviews",
-            tone: "emerald",
+            label: "High risk",
+            value: String(clients.filter((c) => c.riskLevel === "high").length),
+            change: "Needs review",
           },
         ].map((s) => (
           <div
@@ -123,18 +200,14 @@ const ClientsPage: React.FC = () => {
             title={q ? "No clients match your search" : "No clients yet"}
             description={
               q
-                ? `Try a different name or clear the search.`
+                ? "Try a different name or clear the search."
                 : "Add your first client to get started."
             }
             icon={<Users className="h-8 w-8" />}
             action={
               q
                 ? { label: "Clear search", onClick: () => setQ("") }
-                : {
-                    label: "Add client",
-                    onClick: () =>
-                      toast({ tone: "info", title: "Add client coming soon." }),
-                  }
+                : { label: "Add client", onClick: () => setCreateOpen(true) }
             }
             compact
           />
@@ -160,13 +233,7 @@ const ClientsPage: React.FC = () => {
                     key={c.id}
                     data-testid={`client-row-${c.initial}`}
                     className="border-b border-slate-100 hover:bg-slate-50/60 transition-colors cursor-pointer"
-                    onClick={() =>
-                      toast({
-                        tone: "info",
-                        title: `${c.fullName}`,
-                        message: "Client detail view coming soon.",
-                      })
-                    }
+                    onClick={() => setSelected(c)}
                   >
                     <td className="px-5 py-3.5">
                       <div className="flex items-center gap-3">
@@ -212,19 +279,48 @@ const ClientsPage: React.FC = () => {
                       {c.hoursPerWeek != null ? `${c.hoursPerWeek}h/wk` : "—"}
                     </td>
                     <td
-                      className="px-5 py-3.5"
+                      className="px-5 py-3.5 relative"
                       onClick={(e) => e.stopPropagation()}
                     >
                       <RowActionButton
                         label={`Actions for ${c.fullName}`}
                         onClick={() =>
-                          toast({
-                            tone: "info",
-                            title: `${c.fullName}`,
-                            message: "Actions menu coming soon.",
-                          })
+                          setActionClient(actionClient?.id === c.id ? null : c)
                         }
                       />
+                      {actionClient?.id === c.id && (
+                        <div className="absolute right-5 top-full z-20 mt-1 w-44 rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
+                          <button
+                            type="button"
+                            className="block w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
+                            onClick={() => {
+                              setSelected(c);
+                              setActionClient(null);
+                            }}
+                          >
+                            View details
+                          </button>
+                          <button
+                            type="button"
+                            className="block w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
+                            onClick={() =>
+                              void handleStatusChange(
+                                c,
+                                c.status === "active" ? "paused" : "active",
+                              )
+                            }
+                          >
+                            {c.status === "active" ? "Pause client" : "Activate"}
+                          </button>
+                          <button
+                            type="button"
+                            className="block w-full px-3 py-2 text-left text-sm text-rose-600 hover:bg-rose-50"
+                            onClick={() => void handleArchive(c)}
+                          >
+                            Archive
+                          </button>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -233,6 +329,166 @@ const ClientsPage: React.FC = () => {
           </div>
         )}
       </Card>
+
+      {createOpen && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-900/40 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+            <div className="flex items-start justify-between">
+              <div>
+                <h2 className="font-display text-xl font-bold text-slate-900">
+                  Add client
+                </h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  Create a new client record for your organisation.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setCreateOpen(false);
+                  resetForm();
+                }}
+                className="rounded-lg p-2 text-slate-400 hover:bg-slate-100"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <form onSubmit={handleCreate} className="mt-5 space-y-4">
+              <FormField
+                label="Full name"
+                value={form.fullName}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, fullName: e.target.value }))
+                }
+                required
+              />
+              <FormField
+                label="Funding"
+                value={form.funding}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, funding: e.target.value }))
+                }
+              />
+              <FormField
+                label="Coordinator"
+                value={form.coordinator}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, coordinator: e.target.value }))
+                }
+              />
+              <label className="block text-sm font-semibold text-slate-700">
+                Status
+                <select
+                  value={form.status}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      status: e.target.value as Client["status"],
+                    }))
+                  }
+                  className="mt-1.5 h-10 w-full rounded-xl border border-slate-200 px-3 text-sm"
+                >
+                  <option value="active">Active</option>
+                  <option value="onboarding">Onboarding</option>
+                  <option value="paused">Paused</option>
+                </select>
+              </label>
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCreateOpen(false);
+                    resetForm();
+                  }}
+                  className="rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                >
+                  {saving ? "Saving…" : "Add client"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {selected && (
+        <div className="fixed inset-0 z-[80] flex justify-end bg-slate-900/30">
+          <button
+            type="button"
+            className="flex-1 cursor-default"
+            aria-label="Close details"
+            onClick={() => setSelected(null)}
+          />
+          <aside className="h-full w-full max-w-xl overflow-y-auto bg-white shadow-2xl">
+            <div className="sticky top-0 flex items-start justify-between border-b border-slate-200 bg-white px-6 py-5">
+              <div>
+                <div className="text-xs font-bold uppercase tracking-[0.2em] text-indigo-600">
+                  Client record
+                </div>
+                <h2 className="mt-1 font-display text-2xl font-bold text-slate-900">
+                  {selected.fullName}
+                </h2>
+                <p className="mt-1 font-mono text-xs text-slate-500">
+                  {selected.id}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelected(null)}
+                className="rounded-lg p-2 text-slate-400 hover:bg-slate-100"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="space-y-4 p-6">
+              <Badge
+                tone={
+                  selected.status === "active"
+                    ? "emerald"
+                    : selected.status === "onboarding"
+                      ? "indigo"
+                      : "slate"
+                }
+                dot
+              >
+                {selected.status}
+              </Badge>
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  ["Funding", selected.funding],
+                  ["Coordinator", selected.coordinator ?? "—"],
+                  ["Since", selected.since],
+                  [
+                    "Hours / week",
+                    selected.hoursPerWeek != null
+                      ? `${selected.hoursPerWeek}h`
+                      : "—",
+                  ],
+                  ["Risk", selected.riskLevel ?? "—"],
+                ].map(([label, value]) => (
+                  <div
+                    key={label}
+                    className="rounded-xl bg-slate-50 px-4 py-3 text-sm"
+                  >
+                    <div className="text-xs font-semibold text-slate-500">
+                      {label}
+                    </div>
+                    <div className="mt-1 font-semibold text-slate-900">
+                      {value}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </aside>
+        </div>
+      )}
     </div>
   );
 };

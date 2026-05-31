@@ -20,5 +20,7 @@ export const reportsApi = {
     } as any),
 
   download: (id: string) =>
-    apiClient.get<{ url: string }>(`/reports/${id}/download`),
+    apiClient.get<{ id: string; title: string; type: string; payload: unknown; generatedAt: string }>(
+      `/reports/${id}/download`,
+    ),
 };

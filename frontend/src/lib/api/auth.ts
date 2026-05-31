@@ -37,6 +37,12 @@ export const authApi = {
       null as unknown as User,
     ),
 
+  completeOAuth: (body: { organizationName?: string }, accessToken: string) =>
+    apiClient.post<AuthResponse>("/auth/oauth/complete", body as any, {
+      public: true,
+      headers: { Authorization: `Bearer ${accessToken}` },
+    }),
+
   /** Convenience: persist tokens after a successful login response */
   persistSession: (resp: AuthResponse) => {
     storeToken(resp.accessToken);

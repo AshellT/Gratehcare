@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "@/prisma/prisma.service";
 import { TenantCrudService } from "@/common/services/tenant-crud.service";
+import { AuthUser } from "@/common/types/auth-user.type";
 
 @Injectable()
 export class BillingService extends TenantCrudService {
@@ -9,6 +10,19 @@ export class BillingService extends TenantCrudService {
       createData: (dto, tenantId) => ({ tenantId, clientId: dto.metadata?.clientId as string | undefined, number: dto.title, amount: dto.metadata?.amount || 0, status: "DRAFT" }),
       updateData: (dto) => ({ number: dto.title }),
       archiveData: { status: "VOID" },
+    });
+  }
+
+  async markPaid(id: string, user: AuthUser) {
+    await this.get(id, user);
+    return this.prisma.invoice.update({ where: { id }, data: { status: "PAID" } });
+  }
+
+  async sendInvoice(id: string, user: AuthUser) {
+    await this.get(id, user);
+    return this.prisma.invoice.update({
+      where: { id },
+      data: { status: "SENT", issuedAt: new Date() },
     });
   }
 }

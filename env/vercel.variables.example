@@ -1,0 +1,5 @@
+# Vercel frontend — generic template (see gratehcare-production.vercel.txt for your project)
+
+REACT_APP_SUPABASE_URL=https://qijhaslgckubaieigmbv.supabase.co
+REACT_APP_SUPABASE_ANON_KEY=your-anon-key
+REACT_APP_API_URL=https://YOUR-SERVICE.up.railway.app

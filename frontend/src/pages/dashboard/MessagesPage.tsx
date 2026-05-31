@@ -38,6 +38,24 @@ const MessagesPage: React.FC = () => {
   );
   const messages = msgData?.data ?? [];
 
+  const handleCallRequest = async () => {
+    if (!activeConv) return;
+    const name = activeConv.participantNames[0] ?? "participant";
+    await sendMessage(
+      `Voice call requested with ${name}. Please reply when you are available.`,
+    );
+    notify(`Call request sent to ${name}.`);
+  };
+
+  const handleVideoRequest = async () => {
+    if (!activeConv) return;
+    const name = activeConv.participantNames[0] ?? "participant";
+    await sendMessage(
+      `Video meeting requested with ${name}. Please share availability.`,
+    );
+    notify(`Video request sent to ${name}.`);
+  };
+
   return (
     <div className="space-y-8">
       <PageHeader
@@ -132,22 +150,14 @@ const MessagesPage: React.FC = () => {
                 </div>
                 <div className="flex items-center gap-1">
                   <button
-                    onClick={() =>
-                      notify(
-                        `Calling ${activeConv.participantNames[0]} in demo mode.`,
-                      )
-                    }
+                    onClick={() => void handleCallRequest()}
                     aria-label={`Call ${activeConv.participantNames[0]}`}
                     className="h-8 w-8 inline-flex items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100"
                   >
                     <Phone className="h-4 w-4" />
                   </button>
                   <button
-                    onClick={() =>
-                      notify(
-                        `Video meeting with ${activeConv.participantNames[0]} opened in demo mode.`,
-                      )
-                    }
+                    onClick={() => void handleVideoRequest()}
                     aria-label={`Video call ${activeConv.participantNames[0]}`}
                     className="h-8 w-8 inline-flex items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100"
                   >

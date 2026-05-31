@@ -22,8 +22,12 @@ import Badge from "@/components/dashboard/Badge";
 import StatCard from "@/components/dashboard/StatCard";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
+import { useActionQuery } from "@/hooks/useActionQuery";
 import { billingApi } from "@/lib/api/billing";
 import { claimsApi } from "@/lib/api/claims";
+import { toTenantRecord } from "@/lib/api/tenantRecord";
+import Modal from "@/components/dashboard/Modal";
+import FormField from "@/components/dashboard/FormField";
 import type { Invoice } from "@/lib/api/types";
 
 type FinancePageKind =
@@ -41,6 +45,8 @@ type FinancePageKind =
 
 type FinanceRecord = {
   id: string;
+  backendId?: string;
+  recordType?: "invoice" | "claim";
   client: string;
   payer: string;
   service: string;
@@ -129,6 +135,8 @@ const invoiceStatusMap: Record<string, FinanceRecord['status']> = {
 
 const mapInvoice = (inv: Invoice): FinanceRecord => ({
   id: inv.invoiceNumber || inv.id,
+  backendId: inv.id,
+  recordType: "invoice",
   client: inv.clientName,
   payer: '—',
   service: 'Care services',
@@ -164,6 +172,8 @@ const claimStatusMap: Record<string, FinanceRecord["status"]> = {
 
 const mapClaim = (claim: RawClaim): FinanceRecord => ({
   id: claim.number || claim.id,
+  backendId: claim.id,
+  recordType: "claim",
   client: claim.client?.fullName ?? "—",
   payer: claim.payer ?? "—",
   service: claim.service ?? "Care services",
@@ -227,22 +237,28 @@ const FinancePage: React.FC<{ kind: FinancePageKind; familyOnly?: boolean }> = (
   const [records, setRecords] = useState<FinanceRecord[]>([]);
   const [claimRecords, setClaimRecords] = useState<FinanceRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showCreate, setShowCreate] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [createForm, setCreateForm] = useState({ client: "", service: "", amount: "", payer: "NDIS" });
+
+  const reload = async () => {
+    const loads = [billingApi.listInvoices()];
+    if (kind === "claims" || kind === "claim-tracking") {
+      loads.push(claimsApi.list());
+    }
+    const [invoiceRes, claimRes] = await Promise.all(loads);
+    setRecords(((invoiceRes as any).data ?? []).map(mapInvoice));
+    if (claimRes) {
+      setClaimRecords(((claimRes as any).data ?? []).map((row: RawClaim) => mapClaim(row)));
+    }
+  };
 
   useEffect(() => {
     let mounted = true;
     (async () => {
       try {
         setLoading(true);
-        const loads = [billingApi.listInvoices()];
-        if (kind === "claims" || kind === "claim-tracking") {
-          loads.push(claimsApi.list());
-        }
-        const [invoiceRes, claimRes] = await Promise.all(loads);
-        if (!mounted) return;
-        setRecords(((invoiceRes as any).data ?? []).map(mapInvoice));
-        if (claimRes) {
-          setClaimRecords(((claimRes as any).data ?? []).map((row: RawClaim) => mapClaim(row)));
-        }
+        await reload();
       } catch {
         if (mounted) toast.error("Failed to load billing data", "Could not fetch finance records from backend.");
       } finally {
@@ -287,6 +303,38 @@ const FinancePage: React.FC<{ kind: FinancePageKind; familyOnly?: boolean }> = (
     window.setTimeout(() => setActionMessage(null), 2600);
   };
 
+  useActionQuery("create", () => setShowCreate(true));
+
+  const handleCreate = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setSaving(true);
+    try {
+      if (kind === "claims" || kind === "claim-tracking") {
+        await claimsApi.create(
+          toTenantRecord(createForm.service.trim() || "Claim", undefined, {
+            payer: createForm.payer,
+            amount: Number(createForm.amount) || 0,
+            claimStatus: "SUBMITTED",
+          }) as any,
+        );
+      } else {
+        await billingApi.createInvoice(
+          toTenantRecord(createForm.client.trim() || "Invoice", undefined, {
+            amount: Number(createForm.amount) || 0,
+            clientId: createForm.client,
+          }) as any,
+        );
+      }
+      toast.success("Record created");
+      setShowCreate(false);
+      await reload();
+    } catch {
+      toast.error("Create failed", "Could not save finance record.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div className="space-y-8">
       <PageHeader
@@ -302,10 +350,56 @@ const FinancePage: React.FC<{ kind: FinancePageKind; familyOnly?: boolean }> = (
         actions={[
           { label: "Export", variant: "secondary", icon: <Download className="h-4 w-4" /> },
           ...(canManage
-            ? [{ label: primaryAction(kind), icon: <Plus className="h-4 w-4" /> }]
+            ? [{ label: primaryAction(kind), icon: <Plus className="h-4 w-4" />, onClick: () => setShowCreate(true) }]
             : []),
         ]}
       />
+
+      <Modal open={showCreate} onClose={() => setShowCreate(false)} title={primaryAction(kind)}>
+        <form onSubmit={handleCreate} className="space-y-4">
+          <FormField label={kind === "claims" || kind === "claim-tracking" ? "Service" : "Client / title"}>
+            <input
+              value={kind === "claims" || kind === "claim-tracking" ? createForm.service : createForm.client}
+              onChange={(e) =>
+                setCreateForm((f) =>
+                  kind === "claims" || kind === "claim-tracking"
+                    ? { ...f, service: e.target.value }
+                    : { ...f, client: e.target.value },
+                )
+              }
+              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+            />
+          </FormField>
+          {(kind === "claims" || kind === "claim-tracking") && (
+            <FormField label="Payer">
+              <select
+                value={createForm.payer}
+                onChange={(e) => setCreateForm((f) => ({ ...f, payer: e.target.value }))}
+                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+              >
+                {["NDIS", "Aged Care", "Private"].map((p) => (
+                  <option key={p}>{p}</option>
+                ))}
+              </select>
+            </FormField>
+          )}
+          <FormField label="Amount">
+            <input
+              type="number"
+              value={createForm.amount}
+              onChange={(e) => setCreateForm((f) => ({ ...f, amount: e.target.value }))}
+              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+            />
+          </FormField>
+          <button
+            type="submit"
+            disabled={saving}
+            className="rounded-full bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
+          >
+            {saving ? "Saving…" : "Create"}
+          </button>
+        </form>
+      </Modal>
 
       {actionMessage && (
         <div className="rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm font-semibold text-indigo-800">
@@ -359,7 +453,8 @@ const FinancePage: React.FC<{ kind: FinancePageKind; familyOnly?: boolean }> = (
           record={selected}
           canManage={canManage}
           onClose={() => setSelected(null)}
-          onAction={notify}
+          onRefresh={reload}
+          onNotify={notify}
         />
       )}
     </div>
@@ -535,8 +630,43 @@ const DetailDrawer: React.FC<{
   record: FinanceRecord;
   canManage: boolean;
   onClose: () => void;
-  onAction: (message: string) => void;
-}> = ({ record, canManage, onClose, onAction }) => (
+  onRefresh: () => Promise<void>;
+  onNotify: (message: string) => void;
+}> = ({ record, canManage, onClose, onRefresh, onNotify }) => {
+  const toast = useToast();
+
+  const exportPdf = () => {
+    const blob = new Blob([JSON.stringify(record, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${record.id}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    onNotify(`${record.id} exported.`);
+  };
+
+  const postAction = async () => {
+    if (!record.backendId) {
+      toast.error("Action failed", "Missing record ID from backend.");
+      return;
+    }
+    try {
+      if (record.recordType === "claim") {
+        await claimsApi.update(record.backendId, { status: "submitted" } as any);
+      } else if (record.status === "sent" || record.status === "ready") {
+        await billingApi.sendInvoice(record.backendId);
+      } else {
+        await billingApi.markPaid(record.backendId);
+      }
+      await onRefresh();
+      onNotify(`${record.id} updated.`);
+    } catch {
+      toast.error("Action failed", "Could not update this finance record.");
+    }
+  };
+
+  return (
   <div className="fixed inset-0 z-[80] flex justify-end bg-slate-900/30">
     <button className="flex-1 cursor-default" aria-label="Close details" onClick={onClose} />
     <aside className="h-full w-full max-w-xl overflow-y-auto bg-white shadow-2xl">
@@ -581,35 +711,27 @@ const DetailDrawer: React.FC<{
 
         <div className="flex flex-wrap gap-2">
           <button
-            onClick={() => onAction(`${record.id} PDF export prepared in demo mode.`)}
+            onClick={exportPdf}
             className="inline-flex items-center gap-2 rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
           >
             <Download className="h-4 w-4" />
-            Export PDF
+            Export
           </button>
           {canManage && (
-            <>
-              <button
-                onClick={() => onAction(`${record.id} opened for editing in demo mode.`)}
-                className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
-              >
-                <FileText className="h-4 w-4" />
-                Edit record
-              </button>
-              <button
-                onClick={() => onAction(`${record.id} action posted to the demo ledger.`)}
-                className="inline-flex items-center gap-2 rounded-full bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
-              >
-                <Banknote className="h-4 w-4" />
-                Post action
-              </button>
-            </>
+            <button
+              onClick={() => void postAction()}
+              className="inline-flex items-center gap-2 rounded-full bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
+            >
+              <Banknote className="h-4 w-4" />
+              {record.recordType === "claim" ? "Submit claim" : record.status === "paid" ? "Mark sent" : "Mark paid / send"}
+            </button>
           )}
         </div>
       </div>
     </aside>
   </div>
-);
+  );
+};
 
 const Info: React.FC<{ label: string; value: string }> = ({ label, value }) => (
   <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">

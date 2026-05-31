@@ -3,8 +3,7 @@ import {
   useNotifications,
   type NotificationSeverity,
 } from "@/hooks/useNotifications";
-import { canAccessPath, canUseActionForPath } from "@/lib/permissions";
-import { ROLE_GROUPS, ROLE_LABELS, type Role } from "@/lib/roles";
+import { canAccessPath } from "@/lib/permissions";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Bell,
@@ -12,11 +11,9 @@ import {
   Command,
   LogOut,
   Menu,
-  Plus,
   RotateCcw,
   Search,
   Settings,
-  Sparkles,
   User,
   Wifi,
   WifiOff,
@@ -42,17 +39,15 @@ function timeAgo(iso: string): string {
 }
 
 const Topbar: React.FC<Props> = ({ onOpenMobile }) => {
-  const { user, logout, switchRole } = useAuth();
+  const { user, logout } = useAuth();
   const { notifications, unreadCount, connected, markAllRead, markRead } =
     useNotifications();
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
-  const [roleSwitcherOpen, setRoleSwitcherOpen] = useState(false);
   const [search, setSearch] = useState("");
   const userMenuRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
-  const roleRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
 
   // Cmd+K / Ctrl+K focuses search bar
@@ -91,8 +86,6 @@ const Topbar: React.FC<Props> = ({ onOpenMobile }) => {
         setMenuOpen(false);
       if (notifRef.current && !notifRef.current.contains(e.target as Node))
         setNotifOpen(false);
-      if (roleRef.current && !roleRef.current.contains(e.target as Node))
-        setRoleSwitcherOpen(false);
     };
     document.addEventListener("mousedown", onClick);
     return () => document.removeEventListener("mousedown", onClick);
@@ -100,58 +93,36 @@ const Topbar: React.FC<Props> = ({ onOpenMobile }) => {
 
   if (!user) return null;
 
-  const routeByRole: Partial<Record<Role, string>> = {
-    billing_officer: "/app/invoice-builder",
-    org_owner: "/app/clients",
-    operations_admin: "/app/rostering",
-    care_coordinator: "/app/care-notes",
-    compliance_officer: "/app/compliance-events",
-    platform_owner: "/app/tenants",
-    super_admin: "/app/users",
-    platform_support: "/app/tickets",
-    support_worker: "/app/care-notes",
-    family: "/app/family-messages",
-    practitioner: "/app/practitioner-clinical-notes",
-  };
-
-  const handleCreate = () => {
-    const target = routeByRole[user.role] || "/app";
-    if (canAccessPath(user.role, target)) {
-      navigate(target);
-    }
+  const go = (path: string) => {
+    if (canAccessPath(user.role, path)) navigate(path);
   };
 
   const runSearch = () => {
     const q = search.trim().toLowerCase();
     if (!q) return;
-    if (q.includes("claim")) navigate("/app/claim-tracking");
-    else if (q.includes("invoice") || q.includes("billing"))
-      navigate("/app/invoices");
-    else if (q.includes("client") || q.includes("patient"))
-      navigate("/app/clients");
-    else if (q.includes("open shift")) navigate("/app/open-shifts");
-    else if (q.includes("conflict")) navigate("/app/shift-conflicts");
-    else if (
-      q.includes("shift") ||
-      q.includes("schedule") ||
-      q.includes("roster")
-    )
-      navigate("/app/rostering");
-    else if (q.includes("note")) navigate("/app/care-notes");
-    else if (q.includes("risk")) navigate("/app/risk-alerts");
-    else if (q.includes("credential")) navigate("/app/staff-credentials");
-    else if (q.includes("training")) navigate("/app/training-records");
-    else if (q.includes("expiry")) navigate("/app/expiry-tracking");
-    else if (q.includes("audit")) navigate("/app/audit-logs");
-    else if (q.includes("policy")) navigate("/app/policy-tracking");
-    else if (q.includes("corrective")) navigate("/app/corrective-actions");
-    else if (q.includes("alert")) navigate("/app/risk-alerts");
-    else if (q.includes("family")) navigate("/app/family-overview");
-    else if (q.includes("clinical"))
-      navigate("/app/practitioner-clinical-notes");
-    else if (q.includes("evaluation"))
-      navigate("/app/practitioner-evaluations");
-    else navigate("/app/live-activity");
+    if (q.includes("claim")) go("/app/claim-tracking");
+    else if (q.includes("invoice") || q.includes("billing")) go("/app/invoices");
+    else if (q.includes("client") || q.includes("patient")) go("/app/clients");
+    else if (q.includes("open shift")) go("/app/open-shifts");
+    else if (q.includes("conflict")) go("/app/shift-conflicts");
+    else if (q.includes("shift") || q.includes("schedule") || q.includes("roster"))
+      go("/app/rostering");
+    else if (q.includes("note")) go("/app/care-notes");
+    else if (q.includes("risk")) go("/app/risk-alerts");
+    else if (q.includes("credential")) go("/app/staff-credentials");
+    else if (q.includes("training")) go("/app/training-records");
+    else if (q.includes("expiry")) go("/app/expiry-tracking");
+    else if (q.includes("audit")) go("/app/audit-logs");
+    else if (q.includes("policy")) go("/app/policy-tracking");
+    else if (q.includes("corrective")) go("/app/corrective-actions");
+    else if (q.includes("alert")) go("/app/risk-alerts");
+    else if (q.includes("family")) go("/app/family-overview");
+    else if (q.includes("clinical")) go("/app/practitioner-clinical-notes");
+    else if (q.includes("evaluation")) go("/app/practitioner-evaluations");
+    else if (q.includes("ticket")) go("/app/tickets");
+    else if (q.includes("user")) go("/app/users");
+    else if (canAccessPath(user.role, "/app/live-activity")) go("/app/live-activity");
+    else if (canAccessPath(user.role, "/app/activity")) go("/app/activity");
   };
 
   return (
@@ -194,78 +165,7 @@ const Topbar: React.FC<Props> = ({ onOpenMobile }) => {
           </div>
         </div>
 
-        {canUseActionForPath(
-          user.role,
-          routeByRole[user.role] || "/app",
-          "Create",
-        ) && (
-          <button
-            onClick={handleCreate}
-            className="hidden md:inline-flex items-center gap-1.5 rounded-full bg-slate-900 px-3.5 py-2 text-xs font-semibold text-white hover:bg-slate-800 transition-colors"
-            data-testid="topbar-create-button"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            Create
-          </button>
-        )}
-
-        <div ref={roleRef} className="relative">
-          <button
-            onClick={() => setRoleSwitcherOpen((v) => !v)}
-            data-testid="topbar-role-switcher"
-            className="hidden md:inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-            title="Switch role (demo)"
-          >
-            <Sparkles className="h-3 w-3 text-indigo-600" />
-            {ROLE_LABELS[user.role]}
-            <ChevronDown className="h-3 w-3" />
-          </button>
-          <AnimatePresence>
-            {roleSwitcherOpen && (
-              <motion.div
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 6 }}
-                className="absolute right-0 mt-2 w-72 rounded-2xl border border-slate-200 bg-white shadow-xl shadow-slate-900/5 p-2 z-50 max-h-[480px] overflow-y-auto"
-              >
-                <div className="px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                  Preview as (UI only)
-                </div>
-                {ROLE_GROUPS.map((g) => (
-                  <div key={g.label} className="px-1 mb-1">
-                    <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                      {g.label}
-                    </div>
-                    {g.roles.map((r) => (
-                      <button
-                        key={r}
-                        onClick={() => {
-                          switchRole(r as Role);
-                          setRoleSwitcherOpen(false);
-                          navigate("/app");
-                        }}
-                        data-testid={`role-switch-${r}`}
-                        className={`w-full text-left px-2 py-1.5 rounded-lg text-xs font-medium hover:bg-slate-50 transition-colors flex items-center justify-between ${
-                          user.role === r
-                            ? "text-indigo-700 bg-indigo-50"
-                            : "text-slate-700"
-                        }`}
-                      >
-                        {ROLE_LABELS[r as Role]}
-                        {user.role === r && (
-                          <span className="text-[10px] font-bold text-indigo-600">
-                            Current
-                          </span>
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                ))}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-
+        <div className="ml-auto flex items-center gap-2 shrink-0">
         <div ref={notifRef} className="relative">
           <button
             onClick={() => setNotifOpen((v) => !v)}
@@ -391,9 +291,6 @@ const Topbar: React.FC<Props> = ({ onOpenMobile }) => {
                   <div className="text-xs text-slate-500 truncate">
                     {user.email}
                   </div>
-                  <div className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-indigo-50 text-indigo-700 px-2 py-0.5 text-[10px] font-bold">
-                    {ROLE_LABELS[user.role]}
-                  </div>
                 </div>
                 <div className="p-1.5">
                   <MenuItem
@@ -425,6 +322,7 @@ const Topbar: React.FC<Props> = ({ onOpenMobile }) => {
               </motion.div>
             )}
           </AnimatePresence>
+        </div>
         </div>
       </div>
     </header>

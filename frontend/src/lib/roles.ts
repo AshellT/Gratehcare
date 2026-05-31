@@ -74,3 +74,38 @@ export const ROLE_ACCENTS: Record<Role, string> = {
   family: "from-fuchsia-500 to-pink-500",
   practitioner: "from-teal-500 to-emerald-500",
 };
+
+/** Map UI role slug to Prisma Role enum value for API calls. */
+export const roleToPrisma = (role: Role): string => {
+  const map: Record<Role, string> = {
+    platform_owner: "PLATFORM_OWNER",
+    super_admin: "SUPER_ADMIN",
+    platform_support: "PLATFORM_SUPPORT",
+    org_owner: "ORGANIZATION_OWNER",
+    operations_admin: "OPERATIONS_ADMIN",
+    care_coordinator: "CARE_COORDINATOR",
+    support_worker: "SUPPORT_WORKER",
+    billing_officer: "BILLING_OFFICER",
+    compliance_officer: "COMPLIANCE_OFFICER",
+    family: "FAMILY_USER",
+    practitioner: "PRACTITIONER",
+  };
+  return map[role];
+};
+
+export const prismaRoleToUi = (prismaRole: string): Role | null => {
+  const map: Record<string, Role> = {
+    PLATFORM_OWNER: "platform_owner",
+    SUPER_ADMIN: "super_admin",
+    PLATFORM_SUPPORT: "platform_support",
+    ORGANIZATION_OWNER: "org_owner",
+    OPERATIONS_ADMIN: "operations_admin",
+    CARE_COORDINATOR: "care_coordinator",
+    SUPPORT_WORKER: "support_worker",
+    BILLING_OFFICER: "billing_officer",
+    COMPLIANCE_OFFICER: "compliance_officer",
+    FAMILY_USER: "family",
+    PRACTITIONER: "practitioner",
+  };
+  return map[prismaRole] ?? null;
+};

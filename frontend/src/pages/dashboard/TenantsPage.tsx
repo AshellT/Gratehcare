@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Plus, Search, MoreHorizontal, Tag, Building2, Users, Wallet, TrendingUp } from "lucide-react";
-import { useSearchParams } from "react-router-dom";
+import { useActionQuery } from "@/hooks/useActionQuery";
 import PageHeader from "@/components/dashboard/PageHeader";
 import Card from "@/components/dashboard/Card";
 import Badge from "@/components/dashboard/Badge";
@@ -30,7 +30,6 @@ const slugify = (value: string) =>
     .slice(0, 48);
 
 const TenantsPage: React.FC = () => {
-  const [searchParams, setSearchParams] = useSearchParams();
   const toast = useToast();
   const [rows, setRows] = useState<TenantRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -40,12 +39,7 @@ const TenantsPage: React.FC = () => {
   const [form, setForm] = useState({ name: "", slug: "", region: "AU" });
   const [selected, setSelected] = useState<TenantRow | null>(null);
 
-  useEffect(() => {
-    if (searchParams.get("action") === "create") {
-      setShowCreate(true);
-      setSearchParams({}, { replace: true });
-    }
-  }, [searchParams, setSearchParams]);
+  useActionQuery("create", () => setShowCreate(true));
 
   useEffect(() => {
     let mounted = true;

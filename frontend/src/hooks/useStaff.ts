@@ -33,7 +33,7 @@ export function useStaff(query?: PaginationQuery) {
 
   const remove = useCallback(
     async (id: string) => {
-      await staffApi.delete(id);
+      await staffApi.archive(id);
       state.refetch();
     },
     [state],

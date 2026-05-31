@@ -33,4 +33,9 @@ export class IncidentsService extends TenantCrudService {
     ]);
     return { items, total, page, limit };
   }
+
+  async close(id: string, user: AuthUser) {
+    await this.get(id, user);
+    return this.prisma.incident.update({ where: { id }, data: { status: "COMPLETED" } });
+  }
 }

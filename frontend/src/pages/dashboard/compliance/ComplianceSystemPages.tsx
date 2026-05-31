@@ -26,6 +26,8 @@ import StatCard from "@/components/dashboard/StatCard";
 import { useAuth } from "@/context/AuthContext";
 import { complianceApi } from "@/lib/api/compliance";
 import { incidentsApi } from "@/lib/api/incidents";
+import { toTenantRecord } from "@/lib/api/tenantRecord";
+import { useActionQuery } from "@/hooks/useActionQuery";
 import { useToast } from "@/context/ToastContext";
 import type { ComplianceEvent, Incident } from "@/lib/api/types";
 
@@ -298,33 +300,29 @@ const ComplianceSystemPage: React.FC<{ pageKey: ComplianceKey }> = ({ pageKey })
   const [message, setMessage] = useState<string | null>(null);
   const canManage = managerRoles.has(user?.role || "");
 
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        setLoading(true);
-        const useIncidents = pageKey === "incidents" || pageKey === "investigations";
-        if (useIncidents) {
-          const res = await incidentsApi.list();
-          if (!mounted) return;
-          setItems((res.data ?? []).map(mapIncident));
-        } else {
-          const res = await complianceApi.listEvents();
-          if (!mounted) return;
-          setItems((res.data ?? []).map(mapComplianceEvent));
-        }
-      } catch {
-        if (mounted) {
-          toast.error("Failed to load compliance data", "Could not fetch records from backend.");
-        }
-      } finally {
-        if (mounted) setLoading(false);
+  const loadRecords = async () => {
+    try {
+      setLoading(true);
+      const useIncidents = pageKey === "incidents" || pageKey === "investigations";
+      if (useIncidents) {
+        const res = await incidentsApi.list();
+        setItems((res.data ?? []).map(mapIncident));
+      } else {
+        const res = await complianceApi.listEvents();
+        setItems((res.data ?? []).map(mapComplianceEvent));
       }
-    })();
-    return () => {
-      mounted = false;
-    };
+    } catch {
+      toast.error("Failed to load compliance data", "Could not fetch records from backend.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadRecords();
   }, [pageKey, toast]);
+
+  useActionQuery("create", () => setShowForm(true));
 
   const notify = (text: string) => {
     setMessage(text);
@@ -350,23 +348,29 @@ const ComplianceSystemPage: React.FC<{ pageKey: ComplianceKey }> = ({ pageKey })
   const open = scopedItems.filter((item) => ["open", "review", "in progress"].includes(item.status)).length;
   const evidenceReady = scopedItems.length === 0 ? 0 : Math.max(0, 100 - open * 5);
 
-  const createRecord = (form: FormState) => {
-    const next = rec(
-      `CMP-${Math.floor(Math.random() * 8000) + 1200}`,
-      form.subject,
-      form.category,
-      form.owner,
-      form.severity,
-      "open",
-      form.due,
-      "Evidence pending",
-      form.summary,
-      ["Triage", "Evidence request", "Investigation", "Sign-off"],
-      form.action,
-    );
-    setItems((current) => [next, ...current]);
-    setShowForm(false);
-    notify(`${next.subject} created and assigned.`);
+  const createRecord = async (form: FormState) => {
+    try {
+      const useIncidents = pageKey === "incidents" || pageKey === "investigations";
+      if (useIncidents) {
+        await incidentsApi.create(
+          toTenantRecord(form.subject, form.summary, {
+            severity: form.severity.toUpperCase(),
+          }) as any,
+        );
+      } else {
+        await complianceApi.createEvent(
+          toTenantRecord(form.subject, form.summary, {
+            category: form.category,
+            severity: form.severity.toUpperCase(),
+          }) as any,
+        );
+      }
+      await loadRecords();
+      setShowForm(false);
+      notify(`${form.subject} created and assigned.`);
+    } catch {
+      toast.error("Create failed", "Could not save compliance record.");
+    }
   };
 
   const advanceWorkflow = (record: ComplianceRecord) => {

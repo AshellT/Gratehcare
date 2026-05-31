@@ -2,7 +2,9 @@ import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Eye, EyeOff, ArrowRight, Loader2, AlertCircle } from "lucide-react";
 import AuthLayout from "@/components/auth/AuthLayout";
+import OAuthButtons, { OAuthDivider } from "@/components/auth/OAuthButtons";
 import { useAuth } from "@/context/AuthContext";
+import { getAppHomePath } from "@/lib/appHome";
 
 const LoginPage: React.FC = () => {
   const { login } = useAuth();
@@ -22,8 +24,8 @@ const LoginPage: React.FC = () => {
     }
     setLoading(true);
     try {
-      await login({ email, password });
-      navigate("/app");
+      const user = await login({ email, password });
+      navigate(getAppHomePath(user.role));
     } catch (err: any) {
       setError(err?.message || "Could not sign you in. Try again.");
     } finally {
@@ -36,6 +38,9 @@ const LoginPage: React.FC = () => {
       title="Welcome back"
       subtitle="Sign in to your GRATEHCARE workspace to continue."
     >
+      <OAuthButtons mode="login" disabled={loading} onError={setError} />
+      <OAuthDivider />
+
       <form
         onSubmit={onSubmit}
         className="space-y-5"

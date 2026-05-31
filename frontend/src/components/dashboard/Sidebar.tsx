@@ -1,9 +1,8 @@
 import { useAuth } from "@/context/AuthContext";
 import { NAV_BY_ROLE } from "@/lib/nav";
 import { canAccessPath } from "@/lib/permissions";
-import { ROLE_LABELS } from "@/lib/roles";
 import { motion } from "framer-motion";
-import { ChevronsLeft, HeartPulse, LogOut, Settings } from "lucide-react";
+import { ChevronsLeft, HeartPulse, LogOut } from "lucide-react";
 import React, { useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 
@@ -27,8 +26,10 @@ const Sidebar: React.FC<Props> = ({
     ? NAV_BY_ROLE[user.role]
         .map((section) => ({
           ...section,
-          items: section.items.filter((item) =>
-            canAccessPath(user.role, item.to),
+          items: section.items.filter(
+            (item, index, items) =>
+              canAccessPath(user.role, item.to) &&
+              items.findIndex((entry) => entry.to === item.to) === index,
           ),
         }))
         .filter((section) => section.items.length > 0)
@@ -100,9 +101,6 @@ const Sidebar: React.FC<Props> = ({
                   <div className="text-xs font-semibold text-slate-900 truncate">
                     {user.organization}
                   </div>
-                  <div className="text-[10px] text-slate-500">
-                    {ROLE_LABELS[user.role]}
-                  </div>
                 </div>
               </button>
             </div>
@@ -158,25 +156,6 @@ const Sidebar: React.FC<Props> = ({
               </div>
             ))}
           </nav>
-
-          {/* Settings shortcut */}
-          <div className="px-3 pb-2">
-            <NavLink
-              to="/app/settings"
-              onClick={onCloseMobile}
-              data-testid="sidebar-nav-settings"
-              className={({ isActive }) =>
-                `relative flex items-center gap-3 rounded-xl px-2.5 py-2 text-sm font-medium transition-colors ${
-                  isActive
-                    ? "bg-indigo-50 text-indigo-700"
-                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
-                }`
-              }
-            >
-              <Settings className="h-[18px] w-[18px] flex-shrink-0" />
-              {!visuallyCollapsed && <span className="truncate">Settings</span>}
-            </NavLink>
-          </div>
 
           {/* User footer */}
           {user && (

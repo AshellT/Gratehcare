@@ -4,6 +4,8 @@ import PageHeader from "@/components/dashboard/PageHeader";
 import StatCard from "@/components/dashboard/StatCard";
 import { useAuth } from "@/context/AuthContext";
 import { useActionQuery } from "@/hooks/useActionQuery";
+import { createModuleRecord } from "@/lib/api/moduleCreate";
+import { useToast } from "@/context/ToastContext";
 import { useCareNotes, useCarePlans } from "@/hooks/useCare";
 import { useClients } from "@/hooks/useClients";
 import { useIncidents } from "@/hooks/useIncidents";
@@ -39,7 +41,7 @@ import {
   Users,
   X,
 } from "lucide-react";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 
 type ModuleKey =
   | "staff"
@@ -286,7 +288,7 @@ const managerRoles = new Set([
 
 // ─── API → OperationRecord adapter hook ─────────────────────────────────────
 
-function useModuleRecords(moduleKey: ModuleKey): OperationRecord[] {
+function useModuleRecords(moduleKey: ModuleKey) {
   const staffQ = useStaff();
   const clientsQ = useClients();
   const allShiftsQ = useRostering();
@@ -296,7 +298,7 @@ function useModuleRecords(moduleKey: ModuleKey): OperationRecord[] {
   const notesQ = useCareNotes();
   const incidentsQ = useIncidents();
 
-  return useMemo((): OperationRecord[] => {
+  const records = useMemo((): OperationRecord[] => {
     const fromShifts = (shifts: Shift[]): OperationRecord[] =>
       shifts.map((s) => {
         const d = new Date(s.startTime).toLocaleString("en-AU", {
@@ -499,6 +501,49 @@ function useModuleRecords(moduleKey: ModuleKey): OperationRecord[] {
     notesQ.data,
     incidentsQ.data,
   ]);
+
+  const refetch = useCallback(async () => {
+    switch (moduleKey) {
+      case "staff":
+        await staffQ.refetch();
+        break;
+      case "clients":
+        await clientsQ.refetch();
+        break;
+      case "rostering":
+        await allShiftsQ.refetch();
+        break;
+      case "open-shifts":
+        await openShiftsQ.refetch();
+        break;
+      case "timesheets":
+        await timesheetsQ.refetch();
+        break;
+      case "care-plans":
+        await plansQ.refetch();
+        break;
+      case "care-notes":
+        await notesQ.refetch();
+        break;
+      case "incidents":
+        await incidentsQ.refetch();
+        break;
+      default:
+        break;
+    }
+  }, [
+    moduleKey,
+    staffQ,
+    clientsQ,
+    allShiftsQ,
+    openShiftsQ,
+    timesheetsQ,
+    plansQ,
+    notesQ,
+    incidentsQ,
+  ]);
+
+  return { records, refetch };
 }
 
 const canManageModule = (role: string | undefined, module: ModuleKey) => {
@@ -520,8 +565,9 @@ const OperationModulePage: React.FC<{ moduleKey: ModuleKey }> = ({
   moduleKey,
 }) => {
   const { user } = useAuth();
+  const toast = useToast();
   const meta = moduleMeta[moduleKey];
-  const liveRecords = useModuleRecords(moduleKey);
+  const { records: liveRecords, refetch } = useModuleRecords(moduleKey);
   const [records, setRecords] = useState<OperationRecord[]>(() => liveRecords);
   useEffect(() => {
     setRecords(liveRecords);
@@ -532,6 +578,7 @@ const OperationModulePage: React.FC<{ moduleKey: ModuleKey }> = ({
   const [selected, setSelected] = useState<OperationRecord | null>(null);
   const [editing, setEditing] = useState<OperationRecord | null>(null);
   const [showCreate, setShowCreate] = useState(false);
+  const [creating, setCreating] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const canManage = canManageModule(user?.role, moduleKey);
 
@@ -561,27 +608,18 @@ const OperationModulePage: React.FC<{ moduleKey: ModuleKey }> = ({
     (record) => record.priority === "critical" || record.status === "critical",
   ).length;
 
-  const createRecord = (form: FormState) => {
-    const next = row(
-      `${moduleKey.slice(0, 3).toUpperCase()}-${Math.floor(Math.random() * 8000) + 1200}`,
-      form.primary,
-      form.secondary,
-      form.owner,
-      form.status,
-      form.priority,
-      form.date,
-      form.location,
-      form.detail,
-      {
-        Owner: form.owner,
-        Location: form.location,
-        Source: "Manual",
-        Review: "Pending",
-      },
-    );
-    setRecords((items) => [next, ...items]);
-    setShowCreate(false);
-    notify(`${next.primary} created.`);
+  const createRecord = async (form: FormState) => {
+    try {
+      setCreating(true);
+      await createModuleRecord(moduleKey, form);
+      await refetch();
+      setShowCreate(false);
+      notify(`${form.primary} created.`);
+    } catch {
+      toast.error("Create failed", `Could not create ${meta.title.toLowerCase()} record.`);
+    } finally {
+      setCreating(false);
+    }
   };
 
   const updateRecord = (form: FormState) => {

@@ -38,4 +38,12 @@ export class RosteringService extends TenantCrudService {
     ]);
     return { items, total, page, limit };
   }
+
+  async assignWorker(id: string, staffId: string, user: AuthUser) {
+    await this.get(id, user);
+    return this.prisma.shift.update({
+      where: { id },
+      data: { staffId: staffId || undefined, status: staffId ? "FILLED" : "OPEN" },
+    });
+  }
 }

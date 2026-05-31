@@ -48,6 +48,7 @@ export interface User extends BaseEntity {
   role: string;
   status: "active" | "inactive" | "pending";
   avatarColor?: string;
+  avatarUrl?: string;
   organizationId?: string;
 }
 

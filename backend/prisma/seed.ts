@@ -448,6 +448,63 @@ async function seedDemoData(tenantId: string) {
       },
     ],
   });
+
+  await prisma.knowledgeArticle.deleteMany({});
+  await prisma.knowledgeArticle.createMany({
+    data: [
+      {
+        title: "Reset tenant admin password",
+        category: "Account",
+        body: "Verify tenant identity, open Users, send invite or reset via Supabase admin.",
+        tags: ["password", "tenant"],
+      },
+      {
+        title: "Roster sync troubleshooting",
+        category: "Operations",
+        body: "Check integration status, confirm mobile app version, re-sync shifts from Rostering.",
+        tags: ["roster", "mobile"],
+      },
+      {
+        title: "Claim export CSV layout",
+        category: "Finance",
+        body: "Use Finance → Claims → Export. Columns match insurer remittance: number, payer, service, amount, status.",
+        tags: ["claims", "export"],
+      },
+    ],
+  });
+
+  const orgOwner = await prisma.user.findUnique({ where: { email: "org.owner@gratehcare.test" } });
+  const familyUser = await prisma.user.findUnique({ where: { email: "family@gratehcare.test" } });
+  if (coordinator && orgOwner) {
+    const threadId = "00000000-0000-4000-8000-000000000901";
+    await prisma.message.deleteMany({ where: { threadId } });
+    await prisma.message.createMany({
+      data: [
+        {
+          tenantId,
+          threadId,
+          senderId: coordinator.id,
+          subject: "Care update",
+          body: "Eleanor's visit went well this morning. Medications administered on schedule.",
+          status: "SENT",
+        },
+        {
+          tenantId,
+          threadId,
+          senderId: orgOwner.id,
+          body: "Thanks — please note this in the care plan review.",
+          status: "READ",
+        },
+        {
+          tenantId,
+          threadId,
+          senderId: familyUser?.id ?? coordinator.id,
+          body: "Could we schedule an extra visit on Thursday?",
+          status: "SENT",
+        },
+      ],
+    });
+  }
 }
 
 async function main() {

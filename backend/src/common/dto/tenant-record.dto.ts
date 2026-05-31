@@ -2,8 +2,9 @@ import { IsEnum, IsObject, IsOptional, IsString, IsUUID } from "class-validator"
 import { RecordStatus, Severity } from "@prisma/client";
 
 export class CreateTenantRecordDto {
+  @IsOptional()
   @IsUUID()
-  tenantId!: string;
+  tenantId?: string;
 
   @IsString()
   title!: string;

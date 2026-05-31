@@ -137,6 +137,7 @@ model User {
   passwordHash    String?         @map("password_hash")
   fullName        String
   avatarColor     String?         @map("avatar_color")
+  avatarUrl       String?         @map("avatar_url")
   isTestAccount   Boolean         @default(false) @map("is_test_account")
   isActive        Boolean         @default(true)
   createdAt       DateTime        @default(now())
@@ -416,6 +417,20 @@ model MarketingTestimonial {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("marketing_testimonials")
+}
+
+model KnowledgeArticle {
+  id        String       @id @default(uuid()) @db.Uuid
+  title     String
+  category  String       @default("General")
+  body      String
+  tags      String[]     @default([])
+  published Boolean      @default(true)
+  status    RecordStatus @default(ACTIVE)
+  createdAt DateTime     @default(now()) @map("created_at")
+  updatedAt DateTime     @updatedAt @map("updated_at")
+
+  @@map("knowledge_articles")
 }
 
 model ComplianceEvent {

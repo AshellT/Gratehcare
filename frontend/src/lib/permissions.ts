@@ -100,6 +100,7 @@ export const ROLE_PERMISSIONS: Record<Role, RolePermissionConfig> = {
   org_owner: {
     resources: {
       dashboard: ["view"],
+      platform: readOnly,
       operations: manage,
       staff: manage,
       clients: manage,
@@ -201,7 +202,7 @@ export const ROLE_PERMISSIONS: Record<Role, RolePermissionConfig> = {
 
 export const RESOURCE_BY_PATH: Array<{ match: RegExp; resource: Resource }> = [
   { match: /^\/app\/?$/, resource: "dashboard" },
-  { match: /^\/app\/(tenants|network|revenue|plans)/, resource: "platform" },
+  { match: /^\/app\/(tenants|network|revenue|plans|integrations)/, resource: "platform" },
   { match: /^\/app\/(users|permissions|system)/, resource: "system" },
   { match: /^\/app\/(tickets|knowledge)/, resource: "support" },
   { match: /^\/app\/(staff|team)/, resource: "staff" },

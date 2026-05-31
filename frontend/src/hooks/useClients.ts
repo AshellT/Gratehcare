@@ -33,7 +33,7 @@ export function useClients(query?: PaginationQuery) {
 
   const remove = useCallback(
     async (id: string) => {
-      await clientsApi.delete(id);
+      await clientsApi.archive(id);
       state.refetch();
     },
     [state],

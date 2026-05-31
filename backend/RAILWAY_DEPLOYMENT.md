@@ -1,5 +1,9 @@
 # Railway Deployment Guide - GRATEHCARE Backend
 
+**Architecture:** Supabase = Postgres + Auth. Railway = NestJS API layer.  
+**Env template:** copy [`/.env.railway.example`](./.env.railway.example) into Railway Variables.  
+**Full guide:** [`../DEPLOY.md`](../DEPLOY.md)
+
 ## ✅ Deployment Status
 
 The backend is now **ready for Railway deployment** with the following configurations:
@@ -54,31 +58,26 @@ In Railway dashboard:
 - This ensures Railway builds from the correct subdirectory
 
 ### 2. Environment Variables
-Configure these in Railway dashboard → Variables:
+Configure these in Railway dashboard → Variables (see `.env.railway.example`):
 
-**Required:**
+**Required (Supabase-backed):**
 ```env
 NODE_ENV=production
 PORT=4000
-DATABASE_URL=postgresql://...
-DIRECT_URL=postgresql://...
-JWT_SECRET=your-production-secret
+DATABASE_URL=postgresql://postgres.<ref>:<pass>@...pooler.supabase.com:6543/postgres?pgbouncer=true
+DIRECT_URL=postgresql://postgres.<ref>:<pass>@...pooler.supabase.com:5432/postgres
+JWT_SECRET=<long-random-secret>
 JWT_EXPIRES_IN=1d
-CORS_ORIGIN=https://your-frontend-domain.com
-```
-
-**Supabase (Required):**
-```env
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_ANON_KEY=your-anon-key
-SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
-SUPABASE_JWT_SECRET=your-jwt-secret
+CORS_ORIGIN=https://your-app.vercel.app
+SUPABASE_URL=https://<ref>.supabase.co
+SUPABASE_ANON_KEY=<anon-key>
+SUPABASE_SERVICE_ROLE_KEY=<service-role-key>
 ```
 
 **Optional:**
 ```env
 REDIS_URL=redis://...
-TEST_ACCOUNT_PASSWORD=your-test-password
+TEST_ACCOUNT_PASSWORD=<seed-password-for-demo-accounts>
 ```
 
 ### 3. Build Configuration
@@ -138,9 +137,11 @@ Once deployed, verify:
    - Railway dashboard → Deployments → View logs
    - Look for: "🚀 GRATEHCARE Backend running on port..."
 
-3. **Update Frontend**:
-   - Update API base URL to Railway domain
-   - Configure SSE endpoint for real-time notifications
+3. **Update Frontend (Vercel)**:
+   - Copy [`frontend/.env.vercel.example`](../frontend/.env.vercel.example) into Vercel env vars
+   - Set `REACT_APP_API_URL` to your Railway domain
+   - Set `REACT_APP_SUPABASE_URL` + `REACT_APP_SUPABASE_ANON_KEY` (same Supabase project)
+   - Redeploy Vercel after env changes
 
 ---
 

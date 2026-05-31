@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { Download, Calendar } from "lucide-react";
 import { motion } from "framer-motion";
 import PageHeader from "@/components/dashboard/PageHeader";
 import Card from "@/components/dashboard/Card";
 import StatCard from "@/components/dashboard/StatCard";
 import { TrendingUp, Wallet, Users, Activity } from "lucide-react";
+import { useActionQuery } from "@/hooks/useActionQuery";
 import { clientsApi } from "@/lib/api/clients";
 import { billingApi } from "@/lib/api/billing";
 import { staffApi } from "@/lib/api/staff";
@@ -50,6 +51,30 @@ const ReportsPage: React.FC = () => {
     };
   }, [toast]);
 
+  const handleExport = useCallback(async () => {
+    try {
+      const report = await reportsApi.generate("operational", {
+        title: `Organisation report ${new Date().toISOString().slice(0, 10)}`,
+      });
+      const payload = await reportsApi.download(report.id);
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `report-${report.id}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("Report exported");
+      setReportCount((c) => c + 1);
+    } catch {
+      toast.error("Export failed", "Could not generate or download report.");
+    }
+  }, [toast]);
+
+  useActionQuery("export", () => {
+    void handleExport();
+  });
+
   const revenueLabel = loading ? "..." : `$${revenue.toLocaleString()}`;
 
   return (
@@ -60,7 +85,7 @@ const ReportsPage: React.FC = () => {
         description="Operational, financial and clinical analytics for the whole organisation."
         actions={[
           { label: "Last 90 days", variant: "secondary", icon: <Calendar className="h-4 w-4" /> },
-          { label: "Export", icon: <Download className="h-4 w-4" /> },
+          { label: "Export", icon: <Download className="h-4 w-4" />, onClick: () => void handleExport() },
         ]}
       />
 

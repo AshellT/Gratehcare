@@ -9,15 +9,21 @@ import NotFoundPage from "@/pages/NotFoundPage";
 import PricingPage from "@/pages/PricingPage";
 import ForgotPasswordPage from "@/pages/auth/ForgotPasswordPage";
 import LoginPage from "@/pages/auth/LoginPage";
+import AuthCallbackPage from "@/pages/auth/AuthCallbackPage";
 import RegisterPage from "@/pages/auth/RegisterPage";
 import BillingPage from "@/pages/dashboard/BillingPage";
 import ClaimsPage from "@/pages/dashboard/ClaimsPage";
 import DashboardHome from "@/pages/dashboard/DashboardHome";
+import ClientsPage from "@/pages/dashboard/ClientsPage";
 import DocumentsPage from "@/pages/dashboard/DocumentsPage";
 import IntegrationsPage from "@/pages/dashboard/IntegrationsPage";
 import MessagesPage from "@/pages/dashboard/MessagesPage";
 import NetworkPage from "@/pages/dashboard/NetworkPage";
-import PlaceholderPage from "@/pages/dashboard/PlaceholderPage";
+import PermissionsPage from "@/pages/dashboard/PermissionsPage";
+import SystemHealthPage from "@/pages/dashboard/SystemHealthPage";
+import KnowledgeBasePage from "@/pages/dashboard/KnowledgeBasePage";
+import PayoutsPage from "@/pages/dashboard/PayoutsPage";
+import OutcomesPage from "@/pages/dashboard/OutcomesPage";
 import ReportsPage from "@/pages/dashboard/ReportsPage";
 import RevenuePage from "@/pages/dashboard/RevenuePage";
 import SchedulePage from "@/pages/dashboard/SchedulePage";
@@ -61,7 +67,6 @@ import {
   LiveActivityPage,
   MedicationPage,
   OpenShiftsPage,
-  OperationalClientsPage,
   RosteringPage,
   ShiftConflictsPage,
   StaffPage,
@@ -97,6 +102,7 @@ function App() {
               <Route path="/" element={<LandingPage />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
+              <Route path="/auth/callback" element={<AuthCallbackPage />} />
               <Route path="/forgot-password" element={<ForgotPasswordPage />} />
               <Route path="/pricing" element={<PricingPage />} />
               <Route path="/403" element={<ForbiddenPage />} />
@@ -114,7 +120,7 @@ function App() {
                 <Route index element={<DashboardHome />} />
                 <Route path="schedule" element={<SchedulePage />} />
                 <Route path="staff" element={<StaffPage />} />
-                <Route path="clients" element={<OperationalClientsPage />} />
+                <Route path="clients" element={<ClientsPage />} />
                 <Route path="rostering" element={<RosteringPage />} />
                 <Route path="open-shifts" element={<OpenShiftsPage />} />
                 <Route
@@ -265,61 +271,16 @@ function App() {
                 {/* Subscription management */}
                 <Route path="plans" element={<SubscriptionPage />} />
                 <Route path="integrations" element={<IntegrationsPage />} />
-                <Route
-                  path="permissions"
-                  element={
-                    <PlaceholderPage
-                      eyebrow="System"
-                      title="Roles & permissions"
-                      description="Configure granular access for every role and tenant."
-                    />
-                  }
-                />
-                <Route
-                  path="system"
-                  element={
-                    <PlaceholderPage
-                      eyebrow="System"
-                      title="System health"
-                      description="Live status across infrastructure and services."
-                    />
-                  }
-                />
-                <Route
-                  path="knowledge"
-                  element={
-                    <PlaceholderPage
-                      eyebrow="Support"
-                      title="Knowledge base"
-                      description="Macros, articles and runbooks for support agents."
-                    />
-                  }
-                />
+                <Route path="permissions" element={<PermissionsPage />} />
+                <Route path="system" element={<SystemHealthPage />} />
+                <Route path="knowledge" element={<KnowledgeBasePage />} />
                 <Route path="team" element={<StaffPage />} />
-                <Route
-                  path="payouts"
-                  element={
-                    <PlaceholderPage
-                      eyebrow="Finance"
-                      title="Payouts"
-                      description="Insurer & client payouts, reconciliation and remittance."
-                    />
-                  }
-                />
+                <Route path="payouts" element={<PayoutsPage />} />
                 <Route path="policies" element={<PolicyTrackingPage />} />
                 <Route path="training" element={<TrainingRecordsPage />} />
                 <Route path="documents" element={<DocumentsPage />} />
                 <Route path="family-billing" element={<FamilyBillingPage />} />
-                <Route
-                  path="outcomes"
-                  element={
-                    <PlaceholderPage
-                      eyebrow="Clinical"
-                      title="Outcomes"
-                      description="Track goals, outcome measures and evidence."
-                    />
-                  }
-                />
+                <Route path="outcomes" element={<OutcomesPage />} />
               </Route>
 
               <Route path="*" element={<NotFoundPage />} />

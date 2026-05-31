@@ -4,6 +4,7 @@ import FormField from "@/components/dashboard/FormField";
 import PageHeader from "@/components/dashboard/PageHeader";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
+import { usersApi } from "@/lib/api/users";
 import { usePlanCatalog } from "@/hooks/usePlanCatalog";
 import { useSubscription } from "@/hooks/useSubscription";
 import { PLAN_FEATURES } from "@/lib/plans";
@@ -23,7 +24,7 @@ import {
   User,
   Users,
 } from "lucide-react";
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 const TABS = [
@@ -57,11 +58,13 @@ const Toggle: React.FC<{
 );
 
 const SettingsPage: React.FC = () => {
-  const { user } = useAuth();
+  const { user, updateProfile } = useAuth();
   const navigate = useNavigate();
   const sub = useSubscription();
   const { plans } = usePlanCatalog();
   const { success, toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [active, setActive] = useState("profile");
   const [notificationPrefs, setNotificationPrefs] = useState({
     roster: true,
@@ -72,9 +75,50 @@ const SettingsPage: React.FC = () => {
     billing: true,
     marketing: false,
   });
+  const [profileName, setProfileName] = useState(user?.name ?? "");
 
-  const handleSave = (section: string) =>
+  const handleSave = async (section: string) => {
+    if (section === "Profile" && user?.id) {
+      try {
+        await usersApi.update(user.id, { fullName: profileName.trim() || user.name });
+        updateProfile({ name: profileName.trim() || user.name });
+        success(`${section} saved`, "Your profile has been updated.");
+        return;
+      } catch {
+        toast.error("Save failed", "Could not update profile.");
+        return;
+      }
+    }
     success(`${section} saved`, "Your changes have been applied.");
+  };
+
+  const handlePhotoSelect = async (file: File) => {
+    if (!user?.id) return;
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("File too large", "Profile photos must be 2 MB or smaller.");
+      return;
+    }
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+      toast.error("Invalid format", "Use PNG, JPG, or WebP.");
+      return;
+    }
+    setUploadingPhoto(true);
+    try {
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result));
+        reader.onerror = () => reject(new Error("Could not read file"));
+        reader.readAsDataURL(file);
+      });
+      await usersApi.update(user.id, { avatarUrl: dataUrl });
+      updateProfile({ avatarUrl: dataUrl });
+      success("Photo updated", "Your profile photo has been saved.");
+    } catch {
+      toast.error("Upload failed", "Could not save profile photo.");
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
 
   return (
     <div className="space-y-8">
@@ -145,27 +189,43 @@ const SettingsPage: React.FC = () => {
             {active === "profile" && (
               <>
                 <Card title="Profile photo">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) void handlePhotoSelect(file);
+                      e.target.value = "";
+                    }}
+                  />
                   <div className="flex items-center gap-5">
                     <div className="relative group">
-                      <div
-                        className="h-20 w-20 rounded-full text-white text-2xl font-bold flex items-center justify-center shadow-md"
-                        style={{ background: user?.avatarColor }}
-                      >
-                        {user?.name
-                          .split(" ")
-                          .map((p) => p[0])
-                          .slice(0, 2)
-                          .join("")}
-                      </div>
+                      {user?.avatarUrl ? (
+                        <img
+                          src={user.avatarUrl}
+                          alt=""
+                          className="h-20 w-20 rounded-full object-cover shadow-md"
+                        />
+                      ) : (
+                        <div
+                          className="h-20 w-20 rounded-full text-white text-2xl font-bold flex items-center justify-center shadow-md"
+                          style={{ background: user?.avatarColor }}
+                        >
+                          {user?.name
+                            .split(" ")
+                            .map((p) => p[0])
+                            .slice(0, 2)
+                            .join("")}
+                        </div>
+                      )}
                       <button
-                        className="absolute inset-0 flex items-center justify-center rounded-full bg-slate-900/50 opacity-0 group-hover:opacity-100 transition-opacity"
+                        type="button"
+                        className="absolute inset-0 flex items-center justify-center rounded-full bg-slate-900/50 opacity-0 group-hover:opacity-100 transition-opacity disabled:cursor-wait"
                         aria-label="Change photo"
-                        onClick={() =>
-                          toast({
-                            tone: "info",
-                            title: "Photo upload coming soon.",
-                          })
-                        }
+                        disabled={uploadingPhoto}
+                        onClick={() => fileInputRef.current?.click()}
                       >
                         <Camera className="h-5 w-5 text-white" />
                       </button>
@@ -178,15 +238,14 @@ const SettingsPage: React.FC = () => {
                         {user?.email}
                       </p>
                       <button
-                        className="mt-2 text-xs font-semibold text-indigo-600 hover:text-indigo-700"
-                        onClick={() =>
-                          toast({
-                            tone: "info",
-                            title: "Photo upload coming soon.",
-                          })
-                        }
+                        type="button"
+                        className="mt-2 text-xs font-semibold text-indigo-600 hover:text-indigo-700 disabled:opacity-50"
+                        disabled={uploadingPhoto}
+                        onClick={() => fileInputRef.current?.click()}
                       >
-                        Upload new photo · PNG or JPG, max 2 MB
+                        {uploadingPhoto
+                          ? "Uploading…"
+                          : "Upload new photo · PNG or JPG, max 2 MB"}
                       </button>
                     </div>
                   </div>
@@ -198,7 +257,8 @@ const SettingsPage: React.FC = () => {
                   <div className="grid sm:grid-cols-2 gap-4">
                     <FormField
                       label="Full name"
-                      defaultValue={user?.name}
+                      value={profileName}
+                      onChange={(e) => setProfileName(e.target.value)}
                       required
                     />
                     <FormField

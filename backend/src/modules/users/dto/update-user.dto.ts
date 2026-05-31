@@ -6,6 +6,14 @@ export class UpdateUserDto {
   fullName?: string;
 
   @IsOptional()
+  @IsString()
+  avatarColor?: string;
+
+  @IsOptional()
+  @IsString()
+  avatarUrl?: string;
+
+  @IsOptional()
   @IsBoolean()
   isActive?: boolean;
 }

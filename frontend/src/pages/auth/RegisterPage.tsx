@@ -2,7 +2,9 @@ import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowRight, Loader2, Eye, EyeOff, Check, AlertCircle, MailCheck } from "lucide-react";
 import AuthLayout from "@/components/auth/AuthLayout";
+import OAuthButtons, { OAuthDivider } from "@/components/auth/OAuthButtons";
 import { useAuth } from "@/context/AuthContext";
+import { getAppHomePath } from "@/lib/appHome";
 
 const RegisterPage: React.FC = () => {
   const { register } = useAuth();
@@ -37,7 +39,7 @@ const RegisterPage: React.FC = () => {
     try {
       const u = await register({ name, email, password, role: "org_owner", organization });
       if (u) {
-        navigate("/app");
+        navigate(getAppHomePath(u.role));
       } else {
         // Email confirmation required
         setEmailSent(true);
@@ -109,6 +111,14 @@ const RegisterPage: React.FC = () => {
             testId="register-org-input"
           />
         </div>
+
+        <OAuthButtons
+          mode="register"
+          organization={organization}
+          disabled={loading}
+          onError={setError}
+        />
+        <OAuthDivider />
 
         <Field
           label="Work email"

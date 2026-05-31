@@ -42,5 +42,5 @@ export const documentsApi = {
       { url: "" },
     ),
 
-  delete: (id: string) => apiClient.delete(`/documents/${id}`),
+  archive: (id: string) => apiClient.post(`/documents/${id}/archive`, {}),
 };

@@ -44,7 +44,7 @@ export function useRostering(
 
   const remove = useCallback(
     async (id: string) => {
-      await rosteringApi.deleteShift(id);
+      await rosteringApi.archiveShift(id);
       state.refetch();
     },
     [state],

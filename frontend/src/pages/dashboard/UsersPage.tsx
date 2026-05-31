@@ -1,12 +1,12 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Plus, Search, MoreHorizontal } from "lucide-react";
 import PageHeader from "@/components/dashboard/PageHeader";
 import Card from "@/components/dashboard/Card";
 import Badge from "@/components/dashboard/Badge";
-import { ROLE_LABELS, type Role } from "@/lib/roles";
+import { useActionQuery } from "@/hooks/useActionQuery";
+import { ROLE_LABELS, prismaRoleToUi, roleToPrisma, type Role } from "@/lib/roles";
 import { usersApi } from "@/lib/api/users";
 import { useToast } from "@/context/ToastContext";
-import type { User } from "@/lib/api/types";
 
 type UserRow = {
   id: string;
@@ -18,52 +18,60 @@ type UserRow = {
   color: string;
 };
 
+const INVITE_ROLES: Role[] = [
+  "super_admin",
+  "platform_support",
+  "org_owner",
+  "operations_admin",
+  "care_coordinator",
+  "support_worker",
+  "billing_officer",
+  "compliance_officer",
+];
+
 const statusTone = (status: UserRow["status"]) =>
   status === "active" ? "emerald" : status === "invited" ? "amber" : "slate";
 
-const mapUser = (user: User): UserRow => ({
-  id: user.id,
-  name: user.fullName,
-  email: user.email,
-  role: (user.role as Role) || "org_owner",
-  tenant: user.organizationId ?? "—",
-  status:
-    user.status === "pending"
-      ? "invited"
-      : user.status === "inactive"
-        ? "disabled"
-        : "active",
-  color: user.avatarColor ? `from-[${user.avatarColor}]` : "from-indigo-500 to-sky-500",
-});
+const mapUser = (user: any): UserRow => {
+  const prismaRole = user.roles?.[0]?.role ?? user.role;
+  const uiRole = prismaRoleToUi(String(prismaRole)) ?? (user.role as Role) ?? "org_owner";
+  return {
+    id: user.id,
+    name: user.fullName,
+    email: user.email,
+    role: uiRole,
+    tenant: user.tenantId ?? user.organizationId ?? "—",
+    status: user.isActive === false ? "disabled" : user.status === "pending" ? "invited" : "active",
+    color: user.avatarColor ? `from-[${user.avatarColor}]` : "from-indigo-500 to-sky-500",
+  };
+};
 
 const UsersPage: React.FC = () => {
   const toast = useToast();
   const [rows, setRows] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
-  const [message, setMessage] = useState<string | null>(null);
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({ fullName: "", email: "", role: "super_admin" as Role });
+
+  const load = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await usersApi.list();
+      setRows((res.data ?? []).map(mapUser));
+    } catch {
+      toast.error("Failed to load users", "Could not fetch users from backend.");
+    } finally {
+      setLoading(false);
+    }
+  }, [toast]);
 
   useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        setLoading(true);
-        const res = await usersApi.list();
-        if (!mounted) return;
-        setRows((res.data ?? []).map(mapUser));
-      } catch {
-        if (mounted) {
-          toast.error("Failed to load users", "Could not fetch users from backend.");
-        }
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    })();
-    return () => {
-      mounted = false;
-    };
-  }, [toast]);
+    load();
+  }, [load]);
+
+  useActionQuery("create", () => setInviteOpen(true));
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -76,12 +84,31 @@ const UsersPage: React.FC = () => {
     );
   }, [query, rows]);
 
-  const notify = (text: string) => {
-    setMessage(text);
-    window.setTimeout(() => setMessage(null), 2400);
-  };
-
   const tenantCount = new Set(rows.map((u) => u.tenant).filter((t) => t !== "—")).size;
+
+  const handleInvite = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!form.fullName.trim() || !form.email.trim()) {
+      toast.warning("Name and email required");
+      return;
+    }
+    setSaving(true);
+    try {
+      await usersApi.create({
+        fullName: form.fullName.trim(),
+        email: form.email.trim().toLowerCase(),
+        role: roleToPrisma(form.role),
+      });
+      toast.success("User invited", `${form.fullName} has been created.`);
+      setInviteOpen(false);
+      setForm({ fullName: "", email: "", role: "super_admin" });
+      await load();
+    } catch {
+      toast.error("Invite failed", "Could not create user. Check the email and try again.");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div className="space-y-8">
@@ -93,47 +120,46 @@ const UsersPage: React.FC = () => {
           {
             label: "Invite user",
             icon: <Plus className="h-4 w-4" />,
-            onClick: () => {
-              setInviteOpen(true);
-              notify("Invite user workflow opened.");
-            },
+            onClick: () => setInviteOpen(true),
           },
         ]}
       />
 
-      {message && (
-        <div className="rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm font-semibold text-indigo-800">
-          {message}
-        </div>
-      )}
-
       {inviteOpen && (
-        <Card title="Invite user" description="Create an invitation for a platform or tenant user.">
-          <div className="grid gap-3 md:grid-cols-[1fr_1fr_180px_auto]">
+        <Card title="Invite user" description="Create a platform or tenant user account.">
+          <form onSubmit={handleInvite} className="grid gap-3 md:grid-cols-[1fr_1fr_180px_auto]">
             <input
+              value={form.fullName}
+              onChange={(e) => setForm((f) => ({ ...f, fullName: e.target.value }))}
               placeholder="Full name"
               className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
             />
             <input
+              type="email"
+              value={form.email}
+              onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
               placeholder="Email address"
               className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
             />
-            <select className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm">
-              <option>Super Admin</option>
-              <option>Platform Support</option>
-              <option>Organization Owner</option>
-              <option>Operations Admin</option>
+            <select
+              value={form.role}
+              onChange={(e) => setForm((f) => ({ ...f, role: e.target.value as Role }))}
+              className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm"
+            >
+              {INVITE_ROLES.map((role) => (
+                <option key={role} value={role}>
+                  {ROLE_LABELS[role]}
+                </option>
+              ))}
             </select>
             <button
-              onClick={() => {
-                setInviteOpen(false);
-                notify("User invitation queued.");
-              }}
-              className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+              type="submit"
+              disabled={saving}
+              className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
             >
-              Send invite
+              {saving ? "Sending…" : "Send invite"}
             </button>
-          </div>
+          </form>
         </Card>
       )}
 
@@ -208,7 +234,6 @@ const UsersPage: React.FC = () => {
                     </td>
                     <td className="px-5 py-3.5">
                       <button
-                        onClick={() => notify(`${u.name} user actions opened.`)}
                         aria-label={`Open actions for ${u.name}`}
                         className="inline-flex items-center justify-center h-8 w-8 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100"
                       >

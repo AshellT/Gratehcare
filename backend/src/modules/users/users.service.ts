@@ -30,11 +30,17 @@ export class UsersService {
   }
 
   async create(dto: CreateUserDto, user: AuthUser) {
+    const { role, ...rest } = dto;
     const item = await this.prisma.user.create({
-      data: { ...dto, tenantId: user.tenantId || dto.tenantId },
+      data: { ...rest, tenantId: user.tenantId || dto.tenantId },
     });
+    if (role) {
+      await this.prisma.roleAssignment.create({
+        data: { userId: item.id, role, tenantId: item.tenantId || user.tenantId },
+      });
+    }
     await this.audit(user, "create", item.id);
-    return item;
+    return this.get(item.id, user);
   }
 
   async update(id: string, dto: UpdateUserDto, user: AuthUser) {

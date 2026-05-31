@@ -18,13 +18,20 @@ export type AuthUser = {
   organization: string;
   organization_id: string | null;
   avatarColor: string;
+  avatarUrl?: string | null;
 };
 
 type AuthContextValue = {
   user: AuthUser | null;
   loading: boolean;
   error: string | null;
+  updateProfile: (patch: Partial<Pick<AuthUser, "name" | "avatarColor" | "avatarUrl">>) => void;
   login: (data: { email: string; password: string }) => Promise<AuthUser>;
+  loginWithOAuth: (
+    provider: "google",
+    options?: { organization?: string },
+  ) => Promise<void>;
+  completeOAuthCallback: () => Promise<AuthUser>;
   register: (data: {
     name: string;
     email: string;
@@ -58,6 +65,15 @@ const accentForRole: Record<Role, string> = {
 
 const PREVIEW_ROLE_KEY = "gratehcare.preview.role";
 const DEMO_USER_KEY = "gratehcare.demo.user";
+const OAUTH_PENDING_KEY = "gratehcare.oauth.pending";
+
+function clearPreviewRole() {
+  try {
+    localStorage.removeItem(PREVIEW_ROLE_KEY);
+  } catch {
+    // ignore
+  }
+}
 
 const demoUsers: Record<string, Omit<AuthUser, "id" | "email">> = {
   "platform.owner@gratehcare.test": {
@@ -165,11 +181,8 @@ const getDemoUser = (email: string, password: string): AuthUser | null => {
   };
 };
 
-const profileToAuthUser = (
-  profile: Profile,
-  previewRole: Role | null,
-): AuthUser => {
-  const role = (previewRole as Role) || (profile.role as Role);
+const profileToAuthUser = (profile: Profile): AuthUser => {
+  const role = profile.role as Role;
   return {
     id: profile.id,
     name: profile.full_name || profile.email,
@@ -178,6 +191,27 @@ const profileToAuthUser = (
     organization: profile.organization_name || "—",
     organization_id: profile.organization_id,
     avatarColor: profile.avatar_color || accentForRole[role],
+  };
+};
+
+const userFromBackendSession = (
+  backendUser: any,
+  email: string,
+  fallbackOrg?: string,
+): AuthUser => {
+  const role = prismaRoleToUiRole[backendUser.roles?.[0]] || "org_owner";
+  return {
+    id: backendUser.sub || backendUser.id,
+    email: backendUser.email || email,
+    name:
+      backendUser.fullName ||
+      backendUser.email?.split("@")[0] ||
+      email.split("@")[0],
+    role,
+    organization: fallbackOrg || "My Organization",
+    organization_id: backendUser.tenantId || null,
+    avatarColor: backendUser.avatarColor || accentForRole[role],
+    avatarUrl: backendUser.avatarUrl ?? null,
   };
 };
 
@@ -260,13 +294,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [previewRole, setPreviewRole] = useState<Role | null>(() => {
-    try {
-      return (localStorage.getItem(PREVIEW_ROLE_KEY) as Role) || null;
-    } catch {
-      return null;
-    }
-  });
 
   const loadProfile = useCallback(
     async (
@@ -281,14 +308,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           .maybeSingle();
 
         if (data) {
-          return profileToAuthUser(data as Profile, previewRole);
+          return profileToAuthUser(data as Profile);
         }
 
         if (profileError) {
           console.warn("[Auth] profile fetch error", profileError.message);
         }
 
-        // Profile row not yet visible (trigger lag, or schema not run) — fallback
         const meta = fallback?.meta || {};
         const role = ((meta.role as Role) || "org_owner") as Role;
         return {
@@ -297,17 +323,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             (meta.full_name as string) ||
             (fallback?.email ? fallback.email.split("@")[0] : "GRATEHCARE User"),
           email: fallback?.email || "",
-          role: previewRole || role,
+          role,
           organization: (meta.organization_name as string) || "My Organization",
           organization_id: null,
-          avatarColor: accentForRole[previewRole || role],
+          avatarColor: accentForRole[role],
         };
       } catch (e) {
         console.error("[Auth] loadProfile failed", e);
         return null;
       }
     },
-    [previewRole],
+    [],
   );
 
   // Hydrate from existing session and listen for changes
@@ -316,6 +342,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
     (async () => {
       try {
+        clearPreviewRole();
         const storedDemoUser = localStorage.getItem(DEMO_USER_KEY);
         if (storedDemoUser) {
           setUser(JSON.parse(storedDemoUser) as AuthUser);
@@ -358,32 +385,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Reapply preview role override on user
-  useEffect(() => {
-    setUser((prev) => {
-      if (!prev) return prev;
-      const role = previewRole || prev.role;
-      return { ...prev, role, avatarColor: accentForRole[role] };
-    });
-  }, [previewRole]);
-
   const login: AuthContextValue["login"] = async ({ email, password }) => {
     setError(null);
+    clearPreviewRole();
     try {
       const backendSession = await authApi.login({ email, password });
       authApi.persistSession(backendSession);
 
       const backendUser = backendSession.user as any;
-      const role = prismaRoleToUiRole[backendUser.roles?.[0]] || "org_owner";
       const demoUser = getDemoUser(email, password);
       const u: AuthUser = {
-        id: backendUser.sub || backendUser.id,
-        email: backendUser.email || email,
-        name: demoUser?.name || backendUser.email?.split("@")[0] || email.split("@")[0],
-        role: previewRole || role,
-        organization: demoUser?.organization || "GRATEHCARE",
-        organization_id: backendUser.tenantId || null,
-        avatarColor: accentForRole[previewRole || role],
+        ...userFromBackendSession(backendUser, email, demoUser?.organization),
+        organization: demoUser?.organization || "GRATEHCARE Demo Organization",
       };
       if (u) setUser(u);
       return u;
@@ -393,6 +406,85 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       throw new Error(msg);
     }
   };
+
+  const loginWithOAuth: AuthContextValue["loginWithOAuth"] = async (
+    provider,
+    options,
+  ) => {
+    setError(null);
+    clearPreviewRole();
+    try {
+      if (options?.organization) {
+        sessionStorage.setItem(
+          OAUTH_PENDING_KEY,
+          JSON.stringify({ organization: options.organization }),
+        );
+      } else {
+        sessionStorage.removeItem(OAUTH_PENDING_KEY);
+      }
+
+      const redirectTo = `${window.location.origin}/auth/callback`;
+      const { error: oauthError } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo,
+          queryParams: { prompt: "select_account" },
+        },
+      });
+      if (oauthError) throw new Error(oauthError.message);
+    } catch (e: any) {
+      const msg = e?.message || "Could not start social sign-in.";
+      setError(msg);
+      throw new Error(msg);
+    }
+  };
+
+  const completeOAuthCallback: AuthContextValue["completeOAuthCallback"] =
+    async () => {
+      setError(null);
+      clearPreviewRole();
+
+      const {
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession();
+      if (sessionError || !session) {
+        throw new Error("No active session after social sign-in.");
+      }
+
+      let organizationName: string | undefined;
+      try {
+        const raw = sessionStorage.getItem(OAUTH_PENDING_KEY);
+        if (raw) {
+          organizationName = JSON.parse(raw).organization;
+        }
+        sessionStorage.removeItem(OAUTH_PENDING_KEY);
+      } catch {
+        sessionStorage.removeItem(OAUTH_PENDING_KEY);
+      }
+
+      const backendSession = await authApi.completeOAuth(
+        { organizationName },
+        session.access_token,
+      );
+
+      authApi.persistSession({
+        accessToken: session.access_token,
+        refreshToken: session.refresh_token,
+        user: backendSession.user,
+        tenantId: backendSession.tenantId,
+      });
+
+      const email = backendSession.user?.email || session.user.email || "";
+      const u = userFromBackendSession(
+        backendSession.user,
+        email,
+        organizationName ||
+          (session.user.user_metadata?.organization_name as string | undefined),
+      );
+      setUser(u);
+      return u;
+    };
 
   const register: AuthContextValue["register"] = async ({
     name,
@@ -446,17 +538,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     } catch {
       // ignore
     }
-    setPreviewRole(null);
     setUser(null);
   };
 
-  const switchRole = (role: Role) => {
-    setPreviewRole(role);
-    try {
-      localStorage.setItem(PREVIEW_ROLE_KEY, role);
-    } catch {
-      // ignore
-    }
+  const switchRole = (_role: Role) => {
+    // Role preview removed — navigation always reflects the signed-in account.
   };
 
   const refreshProfile = async () => {
@@ -470,10 +556,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
+  const updateProfile = useCallback(
+    (patch: Partial<Pick<AuthUser, "name" | "avatarColor" | "avatarUrl">>) => {
+      setUser((prev) => (prev ? { ...prev, ...patch } : prev));
+    },
+    [],
+  );
+
   const value = useMemo<AuthContextValue>(
-    () => ({ user, loading, error, login, register, logout, switchRole, refreshProfile }),
+    () => ({
+      user,
+      loading,
+      error,
+      updateProfile,
+      login,
+      loginWithOAuth,
+      completeOAuthCallback,
+      register,
+      logout,
+      switchRole,
+      refreshProfile,
+    }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [user, loading, error, previewRole],
+    [user, loading, error],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

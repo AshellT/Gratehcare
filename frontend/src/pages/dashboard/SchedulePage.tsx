@@ -2,7 +2,11 @@ import Badge from "@/components/dashboard/Badge";
 import Card from "@/components/dashboard/Card";
 import PageHeader from "@/components/dashboard/PageHeader";
 import { useToast } from "@/context/ToastContext";
+import { useActionQuery } from "@/hooks/useActionQuery";
 import { rosteringApi } from "@/lib/api/rostering";
+import { toTenantRecord } from "@/lib/api/tenantRecord";
+import Modal from "@/components/dashboard/Modal";
+import FormField from "@/components/dashboard/FormField";
 import { motion } from "framer-motion";
 import { ChevronLeft, ChevronRight, Filter, Loader2, Plus } from "lucide-react";
 import React, { useEffect, useMemo, useState } from "react";
@@ -88,9 +92,19 @@ const SchedulePage: React.FC = () => {
   const [weekOffset, setWeekOffset] = useState(0);
   const [rawShifts, setRawShifts] = useState<RawShift[]>([]);
   const [loading, setLoading] = useState(true);
-  const { toast } = useToast();
+  const [showCreate, setShowCreate] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [shiftTitle, setShiftTitle] = useState("");
+  const { success, error, toast } = useToast();
 
   const weekStart = useMemo(() => weekStartForOffset(weekOffset), [weekOffset]);
+
+  useActionQuery("create", () => setShowCreate(true));
+
+  const loadShifts = async () => {
+    const res = await rosteringApi.listShifts({ limit: 100 });
+    setRawShifts((res.data ?? []) as unknown as RawShift[]);
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -110,6 +124,26 @@ const SchedulePage: React.FC = () => {
       mounted = false;
     };
   }, [toast]);
+
+  const handleCreateShift = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!shiftTitle.trim()) {
+      error("Title required", "Enter a service or client name for the shift.");
+      return;
+    }
+    setSaving(true);
+    try {
+      await rosteringApi.createShift(toTenantRecord(shiftTitle.trim(), "Scheduled from calendar") as any);
+      success("Shift created");
+      setShowCreate(false);
+      setShiftTitle("");
+      await loadShifts();
+    } catch {
+      error("Create failed", "Could not create shift.");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const shifts = useMemo(
     () =>
@@ -146,8 +180,7 @@ const SchedulePage: React.FC = () => {
           {
             label: "New shift",
             icon: <Plus className="h-4 w-4" />,
-            onClick: () =>
-              toast({ tone: "info", title: "New shift form coming soon." }),
+            onClick: () => setShowCreate(true),
           },
         ]}
       />
@@ -322,6 +355,24 @@ const SchedulePage: React.FC = () => {
           </div>
         </Card>
       )}
+      <Modal open={showCreate} onClose={() => setShowCreate(false)} title="New shift">
+        <form onSubmit={handleCreateShift} className="space-y-4">
+          <FormField label="Service / client">
+            <input
+              value={shiftTitle}
+              onChange={(e) => setShiftTitle(e.target.value)}
+              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+            />
+          </FormField>
+          <button
+            type="submit"
+            disabled={saving}
+            className="rounded-full bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
+          >
+            {saving ? "Creating…" : "Create shift"}
+          </button>
+        </form>
+      </Modal>
     </div>
   );
 };

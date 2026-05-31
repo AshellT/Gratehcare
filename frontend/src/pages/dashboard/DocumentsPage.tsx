@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { documentsApi } from "@/lib/api/documents";
+import { useActionQuery } from "@/hooks/useActionQuery";
 import { useToast } from "@/context/ToastContext";
 import type { Document } from "@/lib/api/types";
 
@@ -171,6 +172,8 @@ const DocumentsPage: React.FC = () => {
   const [dragOver, setDragOver] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useActionQuery("upload", () => fileInputRef.current?.click());
 
   useEffect(() => {
     let mounted = true;

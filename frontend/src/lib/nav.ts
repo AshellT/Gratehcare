@@ -89,6 +89,7 @@ export const NAV_BY_ROLE: Record<Role, NavSection[]> = {
         { label: "Permissions", to: "/app/permissions", icon: KeyRound },
         { label: "System health", to: "/app/system", icon: ServerCog },
         { label: "Activity", to: "/app/activity", icon: Activity },
+        { label: "Audit logs", to: "/app/audit-logs", icon: FileBadge },
       ],
     },
     settingsSection,

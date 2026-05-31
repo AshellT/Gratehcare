@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Injectable, BadRequestException, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "@/prisma/prisma.service";
 import { CreateTenantRecordDto, UpdateTenantRecordDto } from "../dto/tenant-record.dto";
 import { PaginationDto } from "../dto/pagination.dto";
@@ -53,6 +53,7 @@ export class TenantCrudService {
 
   async create(dto: CreateTenantRecordDto, user: AuthUser) {
     const tenantId = user.tenantId || dto.tenantId;
+    if (!tenantId) throw new BadRequestException("Tenant required");
     const item = await this.delegate().create({
       data: this.toCreateData(dto, tenantId),
     });

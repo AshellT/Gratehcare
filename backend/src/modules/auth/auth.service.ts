@@ -11,6 +11,7 @@ import { PrismaService } from "@/prisma/prisma.service";
 import { SupabaseService } from "@/supabase/supabase.service";
 import { AuthUser } from "@/common/types/auth-user.type";
 import { LoginDto } from "./dto/login.dto";
+import { OAuthCompleteDto } from "./dto/oauth-complete.dto";
 import { RegisterDto } from "./dto/register.dto";
 import { prismaRoleToSupabase, supabaseRoleToPrisma } from "./role-map";
 
@@ -95,6 +96,58 @@ export class AuthService {
     } catch {
       throw new UnauthorizedException("Invalid bearer token");
     }
+  }
+
+  async completeOAuthSession(accessToken: string, dto: OAuthCompleteDto) {
+    const supabaseUser = await this.supabase.getUserFromAccessToken(accessToken);
+    if (!supabaseUser) {
+      throw new UnauthorizedException("Invalid OAuth session");
+    }
+
+    const email = (supabaseUser.email || "").toLowerCase();
+    const existing = await this.prisma.user.findFirst({
+      where: {
+        OR: [{ supabaseId: supabaseUser.id }, { email }],
+      },
+      include: { roles: true },
+    });
+
+    if (dto.organizationName?.trim() && !existing) {
+      const orgName = dto.organizationName.trim();
+      const fullName =
+        typeof supabaseUser.user_metadata?.full_name === "string"
+          ? supabaseUser.user_metadata.full_name
+          : typeof supabaseUser.user_metadata?.name === "string"
+            ? supabaseUser.user_metadata.name
+            : email.split("@")[0];
+
+      await this.supabase.updateUserMetadata(supabaseUser.id, {
+        organization_name: orgName,
+        role: prismaRoleToSupabase[Role.ORGANIZATION_OWNER],
+        full_name: fullName,
+      });
+
+      supabaseUser.user_metadata = {
+        ...supabaseUser.user_metadata,
+        organization_name: orgName,
+        role: prismaRoleToSupabase[Role.ORGANIZATION_OWNER],
+        full_name: fullName,
+      };
+    }
+
+    const user = await this.syncFromSupabaseUser(supabaseUser);
+    const payload = {
+      ...this.toAuthPayload(user),
+      fullName: user.fullName,
+      avatarColor: user.avatarColor,
+      avatarUrl: user.avatarUrl ?? null,
+    };
+
+    return {
+      accessToken,
+      user: payload,
+      tenantId: user.tenantId,
+    };
   }
 
   private async loginTestAccount(email: string, password: string) {
@@ -201,12 +254,20 @@ export class AuthService {
   private async issueLocalToken(user: {
     id: string;
     email: string;
+    fullName: string;
     tenantId: string | null;
+    avatarColor?: string | null;
+    avatarUrl?: string | null;
     roles: { role: Role }[];
   }) {
-    const payload = this.toAuthPayload(user);
+    const payload = {
+      ...this.toAuthPayload(user),
+      fullName: user.fullName,
+      avatarColor: user.avatarColor ?? null,
+      avatarUrl: user.avatarUrl ?? null,
+    };
     return {
-      accessToken: await this.jwt.signAsync(payload, {
+      accessToken: await this.jwt.signAsync(this.toAuthPayload(user), {
         secret: this.config.get<string>("JWT_SECRET"),
         expiresIn: this.config.get<string>("JWT_EXPIRES_IN") || "1d",
       }),

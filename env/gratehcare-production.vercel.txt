@@ -1,0 +1,12 @@
+# Paste into Vercel → gratehcare → Settings → Environment Variables
+# Apply to: Production (+ Preview if you test branch deploys)
+# Frontend: https://gratehcare.vercel.app/
+#
+# Redeploy Vercel after saving (REACT_APP_* are baked in at build time)
+
+REACT_APP_SUPABASE_URL=https://qijhaslgckubaieigmbv.supabase.co
+REACT_APP_SUPABASE_ANON_KEY=<same anon key as Railway SUPABASE_ANON_KEY>
+
+# Railway → your backend service → Settings → Networking → Public domain
+# Example shape: https://something-production.up.railway.app
+REACT_APP_API_URL=<paste Railway public domain here — no trailing slash>

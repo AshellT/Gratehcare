@@ -1,9 +1,13 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Plus, Loader2 } from "lucide-react";
 import PageHeader from "@/components/dashboard/PageHeader";
 import Card from "@/components/dashboard/Card";
 import Badge from "@/components/dashboard/Badge";
+import Modal from "@/components/dashboard/Modal";
+import FormField from "@/components/dashboard/FormField";
+import { useActionQuery } from "@/hooks/useActionQuery";
 import { ticketsApi } from "@/lib/api/tickets";
+import { toTenantRecord } from "@/lib/api/tenantRecord";
 import { useToast } from "@/context/ToastContext";
 
 type RawTicket = {
@@ -43,25 +47,27 @@ const TicketsPage: React.FC = () => {
   const toast = useToast();
   const [tickets, setTickets] = useState<RawTicket[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showCreate, setShowCreate] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({ subject: "", description: "", priority: "MEDIUM" });
+
+  const load = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await ticketsApi.list({ limit: 50 });
+      setTickets((res.data ?? []) as unknown as RawTicket[]);
+    } catch {
+      toast.error("Failed to load tickets", "Could not fetch support queue.");
+    } finally {
+      setLoading(false);
+    }
+  }, [toast]);
 
   useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        setLoading(true);
-        const res = await ticketsApi.list({ limit: 50 });
-        if (!mounted) return;
-        setTickets((res.data ?? []) as unknown as RawTicket[]);
-      } catch {
-        if (mounted) toast.error("Failed to load tickets", "Could not fetch support queue.");
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    })();
-    return () => {
-      mounted = false;
-    };
-  }, [toast]);
+    load();
+  }, [load]);
+
+  useActionQuery("create", () => setShowCreate(true));
 
   const stats = useMemo(() => {
     const open = tickets.filter((t) => t.status === "OPEN" || t.status === "IN_PROGRESS").length;
@@ -84,13 +90,43 @@ const TicketsPage: React.FC = () => {
     ];
   }, [tickets]);
 
+  const handleCreate = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!form.subject.trim()) {
+      toast.warning("Subject required");
+      return;
+    }
+    setSaving(true);
+    try {
+      await ticketsApi.create(
+        toTenantRecord(form.subject.trim(), form.description.trim(), {
+          priority: form.priority,
+        }) as any,
+      );
+      toast.success("Ticket created");
+      setShowCreate(false);
+      setForm({ subject: "", description: "", priority: "MEDIUM" });
+      await load();
+    } catch {
+      toast.error("Create failed", "Could not create support ticket.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div className="space-y-8">
       <PageHeader
         eyebrow="Support"
         title="Tickets"
         description="Tenant support queue, routing and resolution metrics."
-        actions={[{ label: "New ticket", icon: <Plus className="h-4 w-4" /> }]}
+        actions={[
+          {
+            label: "New ticket",
+            icon: <Plus className="h-4 w-4" />,
+            onClick: () => setShowCreate(true),
+          },
+        ]}
       />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -140,6 +176,46 @@ const TicketsPage: React.FC = () => {
           </ul>
         )}
       </Card>
+
+      <Modal open={showCreate} onClose={() => setShowCreate(false)} title="New ticket">
+        <form onSubmit={handleCreate} className="space-y-4">
+          <FormField label="Subject">
+            <input
+              value={form.subject}
+              onChange={(e) => setForm((f) => ({ ...f, subject: e.target.value }))}
+              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+            />
+          </FormField>
+          <FormField label="Description">
+            <textarea
+              value={form.description}
+              onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+              rows={4}
+              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+            />
+          </FormField>
+          <FormField label="Priority">
+            <select
+              value={form.priority}
+              onChange={(e) => setForm((f) => ({ ...f, priority: e.target.value }))}
+              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+            >
+              {["LOW", "MEDIUM", "HIGH", "URGENT"].map((p) => (
+                <option key={p} value={p}>
+                  {p.toLowerCase()}
+                </option>
+              ))}
+            </select>
+          </FormField>
+          <button
+            type="submit"
+            disabled={saving}
+            className="rounded-full bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
+          >
+            {saving ? "Creating…" : "Create ticket"}
+          </button>
+        </form>
+      </Modal>
     </div>
   );
 };

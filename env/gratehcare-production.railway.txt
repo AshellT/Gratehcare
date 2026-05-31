@@ -1,0 +1,28 @@
+# Paste into Railway → service → Variables
+# https://railway.com/project/0353c539-e71f-441a-8e6b-86fd14d04a56/service/b873f3cb-3453-4a27-9aa6-aad1111941e1/variables
+#
+# Supabase = Postgres + Auth (same project for DB and SUPABASE_* below)
+# Copy DATABASE_URL + DIRECT_URL from your local backend/.env (already configured)
+
+NODE_ENV=production
+PORT=4000
+
+DATABASE_URL=<paste from local backend/.env>
+DIRECT_URL=<paste from local backend/.env>
+
+JWT_SECRET=<generate NEW 64-char secret for production — do not reuse local value>
+JWT_EXPIRES_IN=1d
+
+# Frontend (Vercel)
+CORS_ORIGIN=https://gratehcare.vercel.app
+
+# Supabase → Project Settings → API (project: qijhaslgckubaieigmbv)
+SUPABASE_URL=https://qijhaslgckubaieigmbv.supabase.co
+SUPABASE_ANON_KEY=<paste anon public key from Supabase dashboard>
+SUPABASE_SERVICE_ROLE_KEY=<paste service_role key from Supabase dashboard>
+
+TEST_ACCOUNT_PASSWORD=0778007350
+
+# After saving variables, run once from Railway shell / CLI:
+#   npx prisma migrate deploy
+#   npm run db:seed

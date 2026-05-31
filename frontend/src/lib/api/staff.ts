@@ -22,5 +22,5 @@ export const staffApi = {
   update: (id: string, data: Partial<StaffMember>) =>
     apiClient.patch<StaffMember>(`/staff/${id}`, data as any),
 
-  delete: (id: string) => apiClient.delete(`/staff/${id}`),
+  archive: (id: string) => apiClient.post(`/staff/${id}/archive`, {}),
 };

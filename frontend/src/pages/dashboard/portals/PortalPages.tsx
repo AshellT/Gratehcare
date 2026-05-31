@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ArrowRight,
   CalendarCheck,
@@ -27,6 +27,11 @@ import { careApi } from "@/lib/api/care";
 import { documentsApi } from "@/lib/api/documents";
 import { billingApi } from "@/lib/api/billing";
 import { rosteringApi } from "@/lib/api/rostering";
+import { reportsApi } from "@/lib/api/reports";
+import { toTenantRecord } from "@/lib/api/tenantRecord";
+import { useActionQuery } from "@/hooks/useActionQuery";
+import { useConversations, useMessages } from "@/hooks/useMessages";
+import { useToast } from "@/context/ToastContext";
 
 type Tone = "emerald" | "amber" | "rose" | "indigo" | "sky" | "slate" | "violet";
 type FamilyPageKind =
@@ -255,16 +260,20 @@ const PortalShell: React.FC<{
   allowMessage?: boolean;
 }> = ({ pageTitle, eyebrow, description, portalKind, portalCategory, icon, readOnly, practitioner, canCreate, createLabel, allowMessage }) => {
   const { user } = useAuth();
+  const toast = useToast();
   const [items, setItems] = useState<PortalRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const reload = useCallback(async () => {
+    const records = await loadPortalRecords(Boolean(practitioner));
+    setItems(filterRecords(records, portalCategory, portalKind));
+  }, [practitioner, portalCategory, portalKind]);
+
   useEffect(() => {
     let mounted = true;
-    loadPortalRecords(Boolean(practitioner))
-      .then((records) => {
-        if (!mounted) return;
-        setItems(filterRecords(records, portalCategory, portalKind));
-        setLoading(false);
+    reload()
+      .then(() => {
+        if (mounted) setLoading(false);
       })
       .catch(() => {
         if (mounted) setLoading(false);
@@ -272,12 +281,18 @@ const PortalShell: React.FC<{
     return () => {
       mounted = false;
     };
-  }, [practitioner, portalCategory, portalKind]);
+  }, [reload]);
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("All statuses");
   const [selected, setSelected] = useState<PortalRecord | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+
+  const { data: convData } = useConversations();
+  const messageThreadId = convData?.data?.[0]?.id ?? null;
+  const { send: sendPortalMessage } = useMessages(
+    allowMessage ? messageThreadId : null,
+  );
 
   const notify = (text: string) => {
     setMessage(text);
@@ -293,21 +308,40 @@ const PortalShell: React.FC<{
     [items, query, status],
   );
 
-  const createRecord = (form: PortalFormState) => {
-    const next: PortalRecord = {
-      id: `${form.category.slice(0, 3).toUpperCase()}-${Math.floor(Math.random() * 8000) + 1200}`,
-      title: form.title,
-      subtitle: form.subtitle,
-      person: form.person,
-      date: "Today",
-      status: "draft",
-      category: form.category,
-      detail: form.detail,
-      sharedBy: user?.name || "Practitioner",
-    };
-    setItems((current) => [next, ...current]);
-    setShowForm(false);
-    notify(`${next.category} created.`);
+  useActionQuery("create", () => {
+    if (canCreate) setShowForm(true);
+  });
+
+  const createRecord = async (form: PortalFormState) => {
+    try {
+      if (portalKind === "clinical-notes") {
+        await careApi.createNote(
+          toTenantRecord(form.title, form.detail, {
+            clientName: form.person,
+            workerName: user?.name,
+          }) as any,
+        );
+      } else if (portalKind === "reports") {
+        await reportsApi.generate("clinical", {
+          title: form.title,
+          metadata: JSON.stringify({ detail: form.detail, person: form.person }),
+        });
+      } else if (portalKind === "evaluations") {
+        await careApi.createPlan(
+          toTenantRecord(`${form.person} evaluation`, form.detail, {
+            goals: [form.title],
+          }) as any,
+        );
+      } else {
+        toast.warning("Create not supported", "This portal view is read-only.");
+        return;
+      }
+      await reload();
+      setShowForm(false);
+      notify(`${form.category} created.`);
+    } catch {
+      toast.error("Create failed", "Could not save portal record.");
+    }
   };
 
   return (
@@ -333,7 +367,23 @@ const PortalShell: React.FC<{
 
       {allowMessage && (
         <Card title="Quick message" description={readOnly ? "Send a simple message to the care team." : "Send a coordination message."}>
-          <MessageComposer onSend={(text) => notify(`Message sent: ${text}`)} />
+          <MessageComposer
+            onSend={async (text) => {
+              if (!messageThreadId) {
+                toast.warning(
+                  "No conversation",
+                  "No message thread is available yet.",
+                );
+                return;
+              }
+              try {
+                await sendPortalMessage(text);
+                notify("Message sent to the care team.");
+              } catch {
+                toast.error("Send failed", "Could not deliver your message.");
+              }
+            }}
+          />
         </Card>
       )}
 

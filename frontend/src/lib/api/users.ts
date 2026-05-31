@@ -12,11 +12,11 @@ export const usersApi = {
   get: (id: string) =>
     apiClient.get<User>(`/users/${id}`),
 
-  create: (data: { fullName: string; email: string; tenantId?: string }) =>
+  create: (data: { fullName: string; email: string; tenantId?: string; role?: string }) =>
     apiClient.post<User>("/users", data as any),
 
   update: (id: string, data: Partial<User>) =>
     apiClient.patch<User>(`/users/${id}`, data as any),
 
-  delete: (id: string) => apiClient.delete(`/users/${id}`),
+  archive: (id: string) => apiClient.post(`/users/${id}/archive`, {}),
 };

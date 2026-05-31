@@ -25,5 +25,5 @@ export const rosteringApi = {
   assignWorker: (shiftId: string, workerId: string) =>
     apiClient.patch<Shift>(`/rostering/${shiftId}/assign`, { workerId } as any),
 
-  deleteShift: (id: string) => apiClient.delete(`/rostering/${id}`),
+  archiveShift: (id: string) => apiClient.post(`/rostering/${id}/archive`, {}),
 };
