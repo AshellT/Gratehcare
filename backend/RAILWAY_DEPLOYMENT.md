@@ -53,9 +53,9 @@ eventSource.onmessage = (event) => {
 
 ### 1. Set Root Directory
 In Railway dashboard:
-- Click **"Set root directory"** button
+- Service → **Settings** → **Root directory**
 - Enter: `backend`
-- This ensures Railway builds from the correct subdirectory
+- Required so `npm ci` finds `package-lock.json` and `railway.json` build commands run in the right folder
 
 ### 2. Environment Variables
 Configure these in Railway dashboard → Variables (see `.env.railway.example`):

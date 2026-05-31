@@ -2,11 +2,11 @@
   "$schema": "https://railway.com/railway.schema.json",
   "build": {
     "builder": "RAILPACK",
-    "buildCommand": "npm ci --include=dev --prefix backend && npm exec --prefix backend -- prisma generate && npm run build --prefix backend",
+    "buildCommand": "npm ci --include=dev && npx prisma generate && npm run build",
     "watchPatterns": ["backend/**"]
   },
   "deploy": {
-    "startCommand": "npm run start:prod --prefix backend",
+    "startCommand": "npm run start:prod",
     "healthcheckPath": "/api/v1/system/health",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10
