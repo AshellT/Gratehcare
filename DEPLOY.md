@@ -27,8 +27,8 @@ In [Supabase Dashboard](https://supabase.com/dashboard) → your project:
 
 | Where | What |
 |-------|------|
-| **Settings → Database** | Copy **Transaction** pooler → `DATABASE_URL` (Railway) |
-| **Settings → Database** | Copy **Session** pooler → `DIRECT_URL` (Railway, migrations) |
+| **Settings → Database** | **Transaction** pooler → `DATABASE_URL` (port **6543**, `?pgbouncer=true`) |
+| **Settings → Database** | **Session** pooler → `DIRECT_URL` (port **5432**, same pooler host — used by `prisma migrate deploy`) |
 | **Settings → API** | `SUPABASE_URL`, **anon** key, **service_role** key → Railway |
 | **Settings → API** | **anon** key + URL → Vercel (`REACT_APP_*`) |
 | **Authentication → URL configuration** | Site URL: `https://gratehcare.vercel.app` — see [`env/supabase-auth-urls.txt`](./env/supabase-auth-urls.txt) |

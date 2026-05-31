@@ -1,14 +1,16 @@
 # Paste into Railway → service → Variables
 # https://railway.com/project/0353c539-e71f-441a-8e6b-86fd14d04a56/service/b873f3cb-3453-4a27-9aa6-aad1111941e1/variables
 #
-# Supabase = Postgres + Auth (same project for DB and SUPABASE_* below)
-# Copy DATABASE_URL + DIRECT_URL from your local backend/.env (already configured)
+# Supabase = Postgres + Auth (project: qijhaslgckubaieigmbv)
+# Dashboard → Settings → Database → copy both connection strings:
+#   DATABASE_URL  = Transaction pooler, port 6543, ?pgbouncer=true
+#   DIRECT_URL    = Session pooler, port 5432 (same aws-0-eu-west-1.pooler host)
 
 NODE_ENV=production
 PORT=4000
 
-DATABASE_URL=<paste from local backend/.env>
-DIRECT_URL=<paste from local backend/.env>
+DATABASE_URL=postgresql://postgres.qijhaslgckubaieigmbv:YOUR_PASSWORD@aws-0-eu-west-1.pooler.supabase.com:6543/postgres?pgbouncer=true
+DIRECT_URL=postgresql://postgres.qijhaslgckubaieigmbv:YOUR_PASSWORD@aws-0-eu-west-1.pooler.supabase.com:5432/postgres
 
 JWT_SECRET=<generate NEW 64-char secret for production — do not reuse local value>
 JWT_EXPIRES_IN=1d

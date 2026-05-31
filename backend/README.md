@@ -22,7 +22,8 @@ cp .env.example .env
 
 Edit `backend/.env`:
 
-- `DATABASE_URL` — Supabase Postgres connection string (Project Settings → Database)
+- `DATABASE_URL` — Supabase **transaction pooler** (port 6543, `?pgbouncer=true`) for app runtime
+- `DIRECT_URL` — Supabase **session pooler** (port 5432, same host) for `prisma migrate deploy`
 - `SUPABASE_URL` — `https://<project-ref>.supabase.co`
 - `SUPABASE_ANON_KEY` — Project API anon key
 - `SUPABASE_SERVICE_ROLE_KEY` — Required for seeding test auth users
