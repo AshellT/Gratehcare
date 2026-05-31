@@ -1,6 +1,16 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { createClient, SupabaseClient, User as SupabaseUser } from "@supabase/supabase-js";
+import type { RealtimeClientOptions } from "@supabase/realtime-js";
+import ws from "ws";
+
+function supabaseClientOptions() {
+  return {
+    auth: { persistSession: false },
+    // Node 20 (Railway Docker) has no native WebSocket — required by @supabase/realtime-js
+    realtime: { transport: ws as NonNullable<RealtimeClientOptions["transport"]> },
+  };
+}
 
 @Injectable()
 export class SupabaseService {
@@ -13,8 +23,8 @@ export class SupabaseService {
     const serviceKey = this.config.get<string>("SUPABASE_SERVICE_ROLE_KEY");
     const anonKey = this.config.get<string>("SUPABASE_ANON_KEY");
 
-    this.admin = url && serviceKey ? createClient(url, serviceKey, { auth: { persistSession: false } }) : null;
-    this.public = url && anonKey ? createClient(url, anonKey, { auth: { persistSession: false } }) : null;
+    this.admin = url && serviceKey ? createClient(url, serviceKey, supabaseClientOptions()) : null;
+    this.public = url && anonKey ? createClient(url, anonKey, supabaseClientOptions()) : null;
 
     if (!this.admin) {
       this.logger.warn("SUPABASE_SERVICE_ROLE_KEY missing — admin auth operations disabled");

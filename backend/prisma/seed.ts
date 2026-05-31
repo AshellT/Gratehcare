@@ -1,5 +1,7 @@
 import { ClaimStatus, PrismaClient, Role, TicketPriority, TicketStatus } from "@prisma/client";
 import { createClient } from "@supabase/supabase-js";
+import type { RealtimeClientOptions } from "@supabase/realtime-js";
+import ws from "ws";
 import * as bcrypt from "bcrypt";
 
 const prisma = new PrismaClient();
@@ -34,7 +36,10 @@ async function seedSupabaseAuthUsers() {
     return;
   }
 
-  const admin = createClient(url, serviceKey, { auth: { persistSession: false } });
+  const admin = createClient(url, serviceKey, {
+    auth: { persistSession: false },
+    realtime: { transport: ws as NonNullable<RealtimeClientOptions["transport"]> },
+  });
   const { data: existingList } = await admin.auth.admin.listUsers({ perPage: 200 });
 
   for (const account of TEST_USERS) {
