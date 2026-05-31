@@ -5,8 +5,19 @@ import { PrismaClient } from "@prisma/client";
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
   async onModuleInit() {
     this.registerAuditHook();
+    // Do not block HTTP startup on a slow/unreachable database (Railway healthcheck).
+    void this.connectWithTimeout();
+  }
+
+  private async connectWithTimeout() {
+    const timeoutMs = 8_000;
     try {
-      await this.$connect();
+      await Promise.race([
+        this.$connect(),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error(`timed out after ${timeoutMs}ms`)), timeoutMs),
+        ),
+      ]);
     } catch (error) {
       console.error(
         "Prisma failed to connect — API will start but DB routes may fail:",

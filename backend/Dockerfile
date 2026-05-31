@@ -17,13 +17,18 @@ WORKDIR /app
 ENV NODE_ENV=production
 
 COPY backend/package.json backend/package-lock.json ./
-RUN npm ci --omit=dev
+# bcrypt needs native build tools on Alpine
+RUN apk add --no-cache --virtual .build-deps python3 make g++ \
+  && npm ci --omit=dev \
+  && apk del .build-deps
 
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=build /app/node_modules/@prisma ./node_modules/@prisma
 COPY backend/prisma ./prisma
+COPY backend/scripts/docker-start.sh ./scripts/docker-start.sh
+RUN chmod +x ./scripts/docker-start.sh
 
 EXPOSE 4000
 
-CMD ["node", "dist/src/main.js"]
+CMD ["sh", "scripts/docker-start.sh"]
