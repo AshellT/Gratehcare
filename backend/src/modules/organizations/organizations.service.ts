@@ -25,6 +25,13 @@ export class OrganizationsService {
     return item;
   }
 
+  async getCurrent(user: AuthUser) {
+    if (!user.tenantId) {
+      throw new NotFoundException("No organization linked to this account");
+    }
+    return this.get(user.tenantId);
+  }
+
   async create(dto: CreateTenantDto, user: AuthUser) {
     try {
       const item = await this.prisma.tenant.create({ data: dto });

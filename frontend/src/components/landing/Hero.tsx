@@ -1,6 +1,7 @@
 import React from "react";
 import { motion, Variants } from "framer-motion";
 import { Link } from "react-router-dom";
+import { buildDemoPath } from "@/lib/signupPlan";
 import {
   ArrowRight,
   PlayCircle,
@@ -103,14 +104,14 @@ const Hero: React.FC = () => {
                 Start Free Trial
                 <ArrowRight className="h-4 w-4" />
               </Link>
-              <a
-                href="mailto:sales@gratehcare.care?subject=Book%20a%20GRATEHCARE%20demo"
+              <Link
+                to={buildDemoPath({ source: "hero" })}
                 data-testid="hero-secondary-cta"
                 className="inline-flex items-center justify-center gap-2 rounded-full border border-slate-300 bg-white px-6 py-3.5 text-sm font-semibold text-slate-800 hover:border-slate-400 hover:bg-slate-50 transition-all"
               >
                 <PlayCircle className="h-4 w-4 text-indigo-600" />
                 Book a Demo
-              </a>
+              </Link>
             </motion.div>
 
             <motion.div

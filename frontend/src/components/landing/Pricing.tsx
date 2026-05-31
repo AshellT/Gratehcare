@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { Check, Sparkles } from "lucide-react";
 import React from "react";
 import { Link } from "react-router-dom";
+import { buildRegisterPath } from "@/lib/signupPlan";
 
 const CARD_HIGHLIGHTS: Record<PlanId, string[]> = {
   start: [
@@ -167,7 +168,7 @@ const Pricing: React.FC = () => {
               </div>
 
               <Link
-                to="/register"
+                to={buildRegisterPath(plan.id)}
                 data-testid={`pricing-cta-${plan.id}`}
                 className={`mt-8 inline-flex items-center justify-center rounded-full px-5 py-3 text-sm font-semibold transition-all ${
                   plan.popular

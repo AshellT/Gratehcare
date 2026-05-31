@@ -12,16 +12,30 @@ export interface LoginPayload {
   email: string;
   password: string;
 }
+export interface RegisterPayload {
+  email: string;
+  password: string;
+  fullName: string;
+  role: string;
+  organizationName?: string;
+  planId?: string;
+}
 export interface AuthResponse {
   accessToken: string;
   refreshToken?: string;
   user: User;
   tenantId?: string;
 }
+export type RegisterResponse =
+  | AuthResponse
+  | { message: string; userId: string };
 
 export const authApi = {
   login: (payload: LoginPayload) =>
     apiClient.post<AuthResponse>("/auth/login", payload as any, { public: true }),
+
+  register: (payload: RegisterPayload) =>
+    apiClient.post<RegisterResponse>("/auth/register", payload as any, { public: true }),
 
   logout: () =>
     withFallback(() => apiClient.post("/auth/logout", {}), undefined),
@@ -37,7 +51,7 @@ export const authApi = {
       null as unknown as User,
     ),
 
-  completeOAuth: (body: { organizationName?: string }, accessToken: string) =>
+  completeOAuth: (body: { organizationName?: string; planId?: string }, accessToken: string) =>
     apiClient.post<AuthResponse>("/auth/oauth/complete", body as any, {
       public: true,
       headers: { Authorization: `Bearer ${accessToken}` },

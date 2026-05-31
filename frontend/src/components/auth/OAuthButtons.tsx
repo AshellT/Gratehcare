@@ -24,9 +24,12 @@ const GoogleIcon = () => (
 
 export type OAuthProvider = "google";
 
+import type { PlanId } from "@/lib/plans";
+
 type OAuthButtonsProps = {
   mode: "login" | "register";
   organization?: string;
+  planId?: PlanId;
   disabled?: boolean;
   onStart?: (provider: OAuthProvider) => void;
   onError?: (message: string) => void;
@@ -35,6 +38,7 @@ type OAuthButtonsProps = {
 const OAuthButtons: React.FC<OAuthButtonsProps> = ({
   mode,
   organization,
+  planId,
   disabled,
   onStart,
   onError,
@@ -52,6 +56,7 @@ const OAuthButtons: React.FC<OAuthButtonsProps> = ({
     try {
       await loginWithOAuth("google", {
         organization: organization?.trim() || undefined,
+        planId,
       });
     } catch (err: any) {
       onError?.(err?.message || "Could not start Google sign-in.");

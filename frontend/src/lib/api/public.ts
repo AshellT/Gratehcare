@@ -18,6 +18,22 @@ export interface MarketingContent {
   stats: MarketingStat[];
 }
 
+export interface CreateLeadPayload {
+  type: "demo" | "enterprise";
+  name: string;
+  email: string;
+  organization?: string;
+  phone?: string;
+  message?: string;
+  planId?: string;
+  source?: string;
+}
+
+export interface CreateLeadResponse {
+  id: string;
+  message: string;
+}
+
 const defaultContent: MarketingContent = {
   testimonials: [],
   stats: [
@@ -34,4 +50,7 @@ export const publicApi = {
       () => apiClient.get<MarketingContent>("/public/marketing", { public: true }),
       defaultContent,
     ),
+
+  createLead: (payload: CreateLeadPayload) =>
+    apiClient.post<CreateLeadResponse>("/public/leads", payload as any, { public: true }),
 };

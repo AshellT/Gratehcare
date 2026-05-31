@@ -2,6 +2,7 @@ import React from "react";
 import { motion } from "framer-motion";
 import { ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
+import { buildDemoPath } from "@/lib/signupPlan";
 
 const FinalCTA: React.FC = () => {
   return (
@@ -57,13 +58,13 @@ const FinalCTA: React.FC = () => {
                 Start your free trial
                 <ArrowRight className="h-4 w-4" />
               </Link>
-              <a
-                href="mailto:sales@gratehcare.care?subject=Book%20a%20GRATEHCARE%20demo"
+              <Link
+                to={buildDemoPath({ source: "final-cta" })}
                 data-testid="final-cta-secondary"
                 className="inline-flex items-center justify-center gap-2 rounded-full border border-white/20 bg-white/5 px-6 py-4 text-sm font-semibold text-white hover:bg-white/10 transition-all"
               >
                 Book a personal demo
-              </a>
+              </Link>
               <p className="text-xs text-slate-400 text-center mt-1">
                 14-day free trial · No credit card · Cancel any time
               </p>

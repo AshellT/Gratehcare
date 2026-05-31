@@ -11,6 +11,7 @@ import ForgotPasswordPage from "@/pages/auth/ForgotPasswordPage";
 import LoginPage from "@/pages/auth/LoginPage";
 import AuthCallbackPage from "@/pages/auth/AuthCallbackPage";
 import RegisterPage from "@/pages/auth/RegisterPage";
+import BookDemoPage from "@/pages/BookDemoPage";
 import BillingPage from "@/pages/dashboard/BillingPage";
 import ClaimsPage from "@/pages/dashboard/ClaimsPage";
 import DashboardHome from "@/pages/dashboard/DashboardHome";
@@ -102,6 +103,7 @@ function App() {
               <Route path="/" element={<LandingPage />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
+              <Route path="/book-demo" element={<BookDemoPage />} />
               <Route path="/auth/callback" element={<AuthCallbackPage />} />
               <Route path="/forgot-password" element={<ForgotPasswordPage />} />
               <Route path="/pricing" element={<PricingPage />} />

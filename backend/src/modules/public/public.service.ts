@@ -1,6 +1,10 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "@/prisma/prisma.service";
+import { CreateLeadDto } from "./dto/create-lead.dto";
 
+const VALID_PLAN_IDS = new Set(["start", "pro", "elite"]);
+const normalizePlanId = (planId?: string) =>
+  planId && VALID_PLAN_IDS.has(planId) ? planId : "pro";
 @Injectable()
 export class PublicService {
   constructor(private readonly prisma: PrismaService) {}
@@ -66,6 +70,26 @@ export class PublicService {
         { value: `${avgPayoutDays} days`, label: "Faster claim payouts" },
         { value: `${fillRate}%`, label: "Roster fill rate" },
       ],
+    };
+  }
+
+  async createLead(dto: CreateLeadDto) {
+    const lead = await this.prisma.marketingLead.create({
+      data: {
+        type: dto.type,
+        name: dto.name.trim(),
+        email: dto.email.trim().toLowerCase(),
+        organization: dto.organization?.trim() || null,
+        phone: dto.phone?.trim() || null,
+        message: dto.message?.trim() || null,
+        planId: dto.planId ? normalizePlanId(dto.planId) : null,
+        source: dto.source?.trim() || null,
+      },
+    });
+
+    return {
+      id: lead.id,
+      message: "Thanks — our team will be in touch shortly.",
     };
   }
 }

@@ -90,13 +90,16 @@ enum TicketPriority {
 }
 
 model Tenant {
-  id             String          @id @default(uuid()) @db.Uuid
-  name           String
-  slug           String          @unique
-  region         String?
-  status         RecordStatus    @default(ACTIVE)
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
+  id                 String          @id @default(uuid()) @db.Uuid
+  name               String
+  slug               String          @unique
+  region             String?
+  status             RecordStatus    @default(ACTIVE)
+  planId             String          @default("pro") @map("plan_id")
+  subscriptionStatus String          @default("trial") @map("subscription_status")
+  trialEndsAt        DateTime?       @map("trial_ends_at")
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
   users          User[]
   roles          RoleAssignment[]
   staff          Staff[]
@@ -417,6 +420,23 @@ model MarketingTestimonial {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("marketing_testimonials")
+}
+
+model MarketingLead {
+  id           String   @id @default(uuid()) @db.Uuid
+  type         String
+  name         String
+  email        String
+  organization String?
+  phone        String?
+  message      String?
+  planId       String?  @map("plan_id")
+  source       String?
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@index([type])
+  @@index([email])
+  @@map("marketing_leads")
 }
 
 model KnowledgeArticle {

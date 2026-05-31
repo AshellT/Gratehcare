@@ -9,6 +9,9 @@ import React, {
 import { authApi } from "@/lib/api/auth";
 import { supabase, type Profile } from "@/lib/supabase";
 import type { Role } from "@/lib/roles";
+import { roleToPrisma } from "@/lib/roles";
+import type { PlanId } from "@/lib/plans";
+import { persistSignupPlan } from "@/lib/signupPlan";
 
 export type AuthUser = {
   id: string;
@@ -29,7 +32,7 @@ type AuthContextValue = {
   login: (data: { email: string; password: string }) => Promise<AuthUser>;
   loginWithOAuth: (
     provider: "google",
-    options?: { organization?: string },
+    options?: { organization?: string; planId?: PlanId },
   ) => Promise<void>;
   completeOAuthCallback: () => Promise<AuthUser>;
   register: (data: {
@@ -38,6 +41,7 @@ type AuthContextValue = {
     password: string;
     role: Role;
     organization: string;
+    planId?: PlanId;
   }) => Promise<AuthUser | null>;
   logout: () => Promise<void>;
   switchRole: (role: Role) => void;
@@ -414,10 +418,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     setError(null);
     clearPreviewRole();
     try {
-      if (options?.organization) {
+      if (options?.organization || options?.planId) {
         sessionStorage.setItem(
           OAUTH_PENDING_KEY,
-          JSON.stringify({ organization: options.organization }),
+          JSON.stringify({
+            organization: options.organization,
+            planId: options.planId,
+          }),
         );
       } else {
         sessionStorage.removeItem(OAUTH_PENDING_KEY);
@@ -453,10 +460,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       }
 
       let organizationName: string | undefined;
+      let planId: PlanId | undefined;
       try {
         const raw = sessionStorage.getItem(OAUTH_PENDING_KEY);
         if (raw) {
-          organizationName = JSON.parse(raw).organization;
+          const parsed = JSON.parse(raw);
+          organizationName = parsed.organization;
+          planId = parsed.planId;
         }
         sessionStorage.removeItem(OAUTH_PENDING_KEY);
       } catch {
@@ -464,7 +474,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       }
 
       const backendSession = await authApi.completeOAuth(
-        { organizationName },
+        { organizationName, planId },
         session.access_token,
       );
 
@@ -482,6 +492,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         organizationName ||
           (session.user.user_metadata?.organization_name as string | undefined),
       );
+      if (planId) persistSignupPlan(planId);
       setUser(u);
       return u;
     };
@@ -492,31 +503,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     password,
     role,
     organization,
+    planId,
   }) => {
     setError(null);
     try {
-      const meta = {
-        full_name: name,
-        role,
-        organization_name: organization,
-        avatar_color: accentForRole[role],
-      };
-      const result = await authRest.signUp(email, password, meta);
+      const response = await authApi.register({
+        email,
+        password,
+        fullName: name,
+        role: roleToPrisma(role),
+        organizationName: organization,
+        planId,
+      });
 
-      // If the project has email confirmation off, signup returns access_token
-      if (result.access_token && result.refresh_token) {
-        await supabase.auth.setSession({
-          access_token: result.access_token,
-          refresh_token: result.refresh_token,
-        });
-        const u = await loadProfile(result.user.id, {
-          email: result.user.email,
-          meta,
-        });
-        if (u) setUser(u);
+      if ("accessToken" in response && response.accessToken) {
+        if (response.refreshToken) {
+          await supabase.auth.setSession({
+            access_token: response.accessToken,
+            refresh_token: response.refreshToken,
+          });
+        }
+        authApi.persistSession(response);
+        const u: AuthUser = {
+          ...userFromBackendSession(response.user, email, organization),
+          organization,
+        };
+        if (planId) persistSignupPlan(planId);
+        setUser(u);
         return u;
       }
-      // Email confirmation required
+
+      if (planId) persistSignupPlan(planId);
       return null;
     } catch (e: any) {
       const msg = e?.message || "Sign up failed.";

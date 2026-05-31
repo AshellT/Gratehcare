@@ -16,6 +16,16 @@ import { RegisterDto } from "./dto/register.dto";
 import { prismaRoleToSupabase, supabaseRoleToPrisma } from "./role-map";
 
 const TEST_EMAIL_DOMAIN = "@gratehcare.test";
+const VALID_PLAN_IDS = new Set(["start", "pro", "elite"]);
+
+const normalizePlanId = (planId?: string) =>
+  planId && VALID_PLAN_IDS.has(planId) ? planId : "pro";
+
+const trialEndsAtFromNow = () => {
+  const date = new Date();
+  date.setDate(date.getDate() + 14);
+  return date;
+};
 
 @Injectable()
 export class AuthService {
@@ -45,6 +55,7 @@ export class AuthService {
       role: dto.role,
       tenantId: dto.tenantId,
       fullName: dto.fullName,
+      planId: dto.planId,
     });
 
     if (data.session?.access_token) {
@@ -52,6 +63,7 @@ export class AuthService {
         accessToken: data.session.access_token,
         refreshToken: data.session.refresh_token,
         user: this.toAuthPayload(user),
+        tenantId: user.tenantId,
       };
     }
 
@@ -78,6 +90,7 @@ export class AuthService {
       accessToken: data.session.access_token,
       refreshToken: data.session.refresh_token,
       user: this.toAuthPayload(user),
+      tenantId: user.tenantId,
     };
   }
 
@@ -135,7 +148,9 @@ export class AuthService {
       };
     }
 
-    const user = await this.syncFromSupabaseUser(supabaseUser);
+    const user = await this.syncFromSupabaseUser(supabaseUser, {
+      planId: dto.planId,
+    });
     const payload = {
       ...this.toAuthPayload(user),
       fullName: user.fullName,
@@ -169,7 +184,12 @@ export class AuthService {
 
   private async syncFromSupabaseUser(
     supabaseUser: { id: string; email?: string; user_metadata?: Record<string, unknown> },
-    overrides?: { role?: Role; tenantId?: string | null; fullName?: string },
+    overrides?: {
+      role?: Role;
+      tenantId?: string | null;
+      fullName?: string;
+      planId?: string;
+    },
   ) {
     const email = (supabaseUser.email || "").toLowerCase();
     const meta = supabaseUser.user_metadata ?? {};
@@ -230,6 +250,9 @@ export class AuthService {
             (typeof meta.organization_name === "string" && meta.organization_name) ||
             "My Organization",
           slug: `org-${supabaseUser.id.slice(0, 8)}`,
+          planId: normalizePlanId(overrides?.planId),
+          subscriptionStatus: "trial",
+          trialEndsAt: trialEndsAtFromNow(),
         },
       });
       tenantId = tenant.id;

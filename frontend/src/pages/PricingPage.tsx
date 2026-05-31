@@ -20,6 +20,8 @@ import {
   Zap,
 } from "lucide-react";
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { buildDemoPath, buildRegisterPath } from "@/lib/signupPlan";
 
 // ─── Feature icon map ─────────────────────────────────────────────────────────
 
@@ -475,6 +477,7 @@ const PlanCard: React.FC<PlanCardProps> = ({
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 const PricingPage: React.FC = () => {
+  const navigate = useNavigate();
   const { plans } = usePlanCatalog();
   const [cycle, setCycle] = useState<BillingCycle>("monthly");
   const [selected, setSelected] = useState<PlanId>("pro");
@@ -487,9 +490,7 @@ const PricingPage: React.FC = () => {
 
   const handleCta = (planId: PlanId) => {
     setSelected(planId);
-    notify(
-      `Starting 14-day free trial on ${plans.find((p) => p.id === planId)?.name} — redirecting to signup…`,
-    );
+    navigate(buildRegisterPath(planId));
   };
 
   return (
@@ -582,7 +583,7 @@ const PricingPage: React.FC = () => {
               </p>
             </div>
             <button
-              onClick={() => notify("Enterprise enquiry form opened.")}
+              onClick={() => navigate(buildDemoPath({ type: "enterprise", source: "pricing-enterprise" }))}
               className="flex-shrink-0 rounded-full border border-white/20 bg-white/10 px-6 py-3 text-sm font-bold text-white hover:bg-white/20 transition-colors"
             >
               Talk to sales
@@ -656,7 +657,7 @@ const PricingPage: React.FC = () => {
               Get started free
             </button>
             <button
-              onClick={() => notify("Demo booking form opened.")}
+              onClick={() => navigate(buildDemoPath({ plan: "pro", source: "pricing-bottom" }))}
               className="rounded-full border border-white/30 bg-white/10 px-8 py-3.5 text-sm font-bold text-white hover:bg-white/20 transition-colors"
             >
               Book a demo

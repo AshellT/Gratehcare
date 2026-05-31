@@ -1,14 +1,23 @@
-import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import React, { useMemo, useState } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowRight, Loader2, Eye, EyeOff, Check, AlertCircle, MailCheck } from "lucide-react";
 import AuthLayout from "@/components/auth/AuthLayout";
 import OAuthButtons, { OAuthDivider } from "@/components/auth/OAuthButtons";
 import { useAuth } from "@/context/AuthContext";
 import { getAppHomePath } from "@/lib/appHome";
+import { usePlanCatalog } from "@/hooks/usePlanCatalog";
+import { parseSignupPlan } from "@/lib/signupPlan";
 
 const RegisterPage: React.FC = () => {
   const { register } = useAuth();
   const navigate = useNavigate();
+  const [params] = useSearchParams();
+  const { plans } = usePlanCatalog();
+  const planId = parseSignupPlan(params.get("plan"));
+  const selectedPlan = useMemo(
+    () => (planId ? plans.find((plan) => plan.id === planId) : null),
+    [planId, plans],
+  );
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -37,7 +46,14 @@ const RegisterPage: React.FC = () => {
     }
     setLoading(true);
     try {
-      const u = await register({ name, email, password, role: "org_owner", organization });
+      const u = await register({
+        name,
+        email,
+        password,
+        role: "org_owner",
+        organization,
+        planId: planId || undefined,
+      });
       if (u) {
         navigate(getAppHomePath(u.role));
       } else {
@@ -85,9 +101,18 @@ const RegisterPage: React.FC = () => {
   return (
     <AuthLayout
       title="Start your free trial"
-      subtitle="14 days. No credit card. Cancel any time."
+      subtitle={
+        selectedPlan
+          ? `14-day trial on ${selectedPlan.name}. No credit card. Cancel any time.`
+          : "14 days. No credit card. Cancel any time."
+      }
       side="right"
     >
+      {selectedPlan && (
+        <div className="mb-5 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-900">
+          You&apos;re starting a free trial on <strong>{selectedPlan.name}</strong>.
+        </div>
+      )}
       <form
         onSubmit={onSubmit}
         className="space-y-5"
@@ -115,6 +140,7 @@ const RegisterPage: React.FC = () => {
         <OAuthButtons
           mode="register"
           organization={organization}
+          planId={planId || undefined}
           disabled={loading}
           onError={setError}
         />
