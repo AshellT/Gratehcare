@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.railpack.com",
   "deploy": {
-    "startCommand": "sh scripts/railway-start.sh",
+    "startCommand": "npm run start:prod",
     "paths": ["node_modules/.bin"]
   }
 }

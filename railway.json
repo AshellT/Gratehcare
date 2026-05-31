@@ -2,11 +2,11 @@
   "$schema": "https://railway.com/railway.schema.json",
   "build": {
     "builder": "RAILPACK",
-    "buildCommand": "(test -f scripts/railway-build.sh && sh scripts/railway-build.sh) || sh backend/scripts/railway-build.sh",
+    "buildCommand": "sh scripts/railway-build.sh",
     "watchPatterns": ["backend/**"]
   },
   "deploy": {
-    "startCommand": "(test -f scripts/railway-start.sh && sh scripts/railway-start.sh) || sh backend/scripts/railway-start.sh",
+    "startCommand": "npm run start:prod",
     "healthcheckPath": "/api/v1/system/health",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10
