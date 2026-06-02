@@ -90,7 +90,21 @@ import {
   PractitionerOverviewPage,
   PractitionerReportsPage,
 } from "@/pages/dashboard/portals/PortalPages";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
+
+/**
+ * Supabase falls back to the project's Site URL (often "/") when the exact
+ * redirect path is not allow-listed, so an OAuth ?code= can land on any route.
+ * Forward it to the dedicated callback handler so sign-in still completes.
+ */
+function OAuthCodeRedirect() {
+  const location = useLocation();
+  const hasCode = new URLSearchParams(location.search).has("code");
+  if (hasCode && location.pathname !== "/auth/callback") {
+    return <Navigate to={`/auth/callback${location.search}`} replace />;
+  }
+  return null;
+}
 
 function App() {
   return (
@@ -98,6 +112,7 @@ function App() {
       <ToastProvider>
         <AuthProvider>
           <BrowserRouter>
+            <OAuthCodeRedirect />
             <Routes>
               {/* Public */}
               <Route path="/" element={<LandingPage />} />
