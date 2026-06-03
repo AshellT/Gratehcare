@@ -14,6 +14,8 @@ import type { PaginatedResponse } from "./types";
 
 export { API_BASE };
 
+const API_REQUEST_TIMEOUT_MS = 30_000;
+
 const TOKEN_STORE_KEY = "gratehcare.api.access_token";
 const TENANT_STORE_KEY = "gratehcare.api.tenant_id";
 const REFRESH_LOCK_KEY = "gratehcare.api.refreshing";
@@ -174,6 +176,7 @@ async function request<T>(
         ...((fetchOpts.headers as Record<string, string>) ?? {}),
       },
       body: serialisedBody,
+      signal: AbortSignal.timeout(API_REQUEST_TIMEOUT_MS),
     });
   } catch {
     // Network / CORS / server down — bubble up as a typed offline error

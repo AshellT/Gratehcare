@@ -3,6 +3,7 @@ import React, {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   useCallback,
 } from "react";
@@ -12,6 +13,10 @@ import type { Role } from "@/lib/roles";
 import { roleToPrisma } from "@/lib/roles";
 import type { PlanId } from "@/lib/plans";
 import { persistSignupPlan } from "@/lib/signupPlan";
+import { withTimeout } from "@/lib/asyncTimeout";
+
+const SESSION_BOOT_TIMEOUT_MS = 8_000;
+const PROFILE_LOAD_TIMEOUT_MS = 6_000;
 
 export type AuthUser = {
   id: string;
@@ -298,6 +303,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const oauthCompletingRef = useRef(false);
 
   const loadProfile = useCallback(
     async (
@@ -305,11 +311,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       fallback?: { email?: string; meta?: Record<string, any> },
     ): Promise<AuthUser | null> => {
       try {
-        const { data, error: profileError } = await supabase
-          .from("profiles_with_org")
-          .select("*")
-          .eq("id", userId)
-          .maybeSingle();
+        const { data, error: profileError } = await withTimeout(
+          supabase
+            .from("profiles_with_org")
+            .select("*")
+            .eq("id", userId)
+            .maybeSingle(),
+          PROFILE_LOAD_TIMEOUT_MS,
+          { data: null, error: { message: "Profile load timed out" } },
+        );
 
         if (data) {
           return profileToAuthUser(data as Profile);
@@ -353,7 +363,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           return;
         }
 
-        const { data } = await supabase.auth.getSession();
+        const { data } = await withTimeout(
+          supabase.auth.getSession(),
+          SESSION_BOOT_TIMEOUT_MS,
+          { data: { session: null }, error: null },
+        );
         const session = data.session;
         if (mounted && session?.user) {
           const u = await loadProfile(session.user.id, {
@@ -370,6 +384,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     const { data: sub } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         if (!mounted) return;
+        // The OAuth callback resolves the user via the backend; skip the
+        // redundant remote profile query so it doesn't compete for network.
+        if (oauthCompletingRef.current) return;
         if (session?.user) {
           const u = await loadProfile(session.user.id, {
             email: session.user.email,
@@ -450,14 +467,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     async () => {
       setError(null);
       clearPreviewRole();
+      oauthCompletingRef.current = true;
 
-      const {
-        data: { session },
-        error: sessionError,
-      } = await supabase.auth.getSession();
-      if (sessionError || !session) {
-        throw new Error("No active session after social sign-in.");
-      }
+      try {
+        const {
+          data: { session },
+          error: sessionError,
+        } = await supabase.auth.getSession();
+        if (sessionError || !session) {
+          throw new Error("No active session after social sign-in.");
+        }
 
       let organizationName: string | undefined;
       let planId: PlanId | undefined;
@@ -485,16 +504,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         tenantId: backendSession.tenantId,
       });
 
-      const email = backendSession.user?.email || session.user.email || "";
-      const u = userFromBackendSession(
-        backendSession.user,
-        email,
-        organizationName ||
-          (session.user.user_metadata?.organization_name as string | undefined),
-      );
-      if (planId) persistSignupPlan(planId);
-      setUser(u);
-      return u;
+        const email = backendSession.user?.email || session.user.email || "";
+        const u = userFromBackendSession(
+          backendSession.user,
+          email,
+          organizationName ||
+            (session.user.user_metadata?.organization_name as string | undefined),
+        );
+        if (planId) persistSignupPlan(planId);
+        setUser(u);
+        return u;
+      } finally {
+        oauthCompletingRef.current = false;
+      }
     };
 
   const register: AuthContextValue["register"] = async ({

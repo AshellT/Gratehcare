@@ -36,6 +36,20 @@ h6,
   letter-spacing: -0.01em;
 }
 
+@keyframes app-splash-progress {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(250%);
+  }
+}
+
+.app-splash-bar {
+  width: 40%;
+  animation: app-splash-progress 1.4s ease-in-out infinite;
+}
+
 code {
   font-family:
     source-code-pro, Menlo, Monaco, Consolas, "Courier New", monospace;

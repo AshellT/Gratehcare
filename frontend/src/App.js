@@ -1,4 +1,5 @@
 import "@/App.css";
+import AppBootGate from "@/components/AppBootGate";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import AppShell from "@/components/dashboard/AppShell";
 import { AuthProvider } from "@/context/AuthContext";
@@ -111,9 +112,10 @@ function App() {
     <div className="App bg-white text-slate-900">
       <ToastProvider>
         <AuthProvider>
-          <BrowserRouter>
-            <OAuthCodeRedirect />
-            <Routes>
+          <AppBootGate>
+            <BrowserRouter>
+              <OAuthCodeRedirect />
+              <Routes>
               {/* Public */}
               <Route path="/" element={<LandingPage />} />
               <Route path="/login" element={<LoginPage />} />
@@ -301,8 +303,9 @@ function App() {
               </Route>
 
               <Route path="*" element={<NotFoundPage />} />
-            </Routes>
-          </BrowserRouter>
+              </Routes>
+            </BrowserRouter>
+          </AppBootGate>
         </AuthProvider>
       </ToastProvider>
     </div>
