@@ -3,7 +3,6 @@ import {
   ArrowRight,
   CalendarCheck,
   CheckCircle2,
-  Download,
   FileText,
   Filter,
   HeartPulse,
@@ -352,7 +351,6 @@ const PortalShell: React.FC<{
         title={pageTitle}
         description={description}
         actions={[
-          { label: "Export", variant: "secondary", icon: <Download className="h-4 w-4" />, onClick: () => notify(`${pageTitle} exported.`) },
           ...(canCreate ? [{ label: createLabel || "Create", icon: <Plus className="h-4 w-4" />, onClick: () => setShowForm(true) }] : []),
         ]}
       />
@@ -459,7 +457,7 @@ const PortalShell: React.FC<{
         )}
       </Card>
 
-      {selected && <PortalDrawer record={selected} readOnly={readOnly} canEdit={Boolean(canCreate)} onClose={() => setSelected(null)} onNotify={notify} />}
+      {selected && <PortalDrawer record={selected} readOnly={readOnly} onClose={() => setSelected(null)} />}
       {showForm && <PortalForm title={createLabel || "Create"} kind={portalKind} onClose={() => setShowForm(false)} onSubmit={createRecord} />}
     </div>
   );
@@ -550,7 +548,7 @@ const Field: React.FC<{ label: string; value: string; onChange: (value: string) 
   </label>
 );
 
-const PortalDrawer: React.FC<{ record: PortalRecord; readOnly?: boolean; canEdit?: boolean; onClose: () => void; onNotify: (message: string) => void }> = ({ record, readOnly, canEdit, onClose, onNotify }) => (
+const PortalDrawer: React.FC<{ record: PortalRecord; readOnly?: boolean; onClose: () => void }> = ({ record, readOnly, onClose }) => (
   <div className="fixed inset-0 z-[80] flex justify-end bg-slate-900/30">
     <button className="flex-1 cursor-default" aria-label="Close details" onClick={onClose} />
     <aside className="h-full w-full max-w-xl overflow-y-auto bg-white shadow-2xl">
@@ -588,10 +586,6 @@ const PortalDrawer: React.FC<{ record: PortalRecord; readOnly?: boolean; canEdit
             ))}
           </ol>
         </Card>
-        <div className="flex flex-wrap gap-2">
-          <button onClick={() => onNotify(`${record.id} downloaded.`)} className="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Download</button>
-          {canEdit && <button onClick={() => onNotify(`${record.id} opened for editing.`)} className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">Edit</button>}
-        </div>
       </div>
     </aside>
   </div>

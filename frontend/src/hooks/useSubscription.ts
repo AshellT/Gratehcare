@@ -45,7 +45,7 @@ const mapOrganizationToState = (
     ? new Date(org.currentPeriodEnd).toISOString().slice(0, 10)
     : trialEndsAt
       ? trialEndsAt.slice(0, 10)
-      : DEMO_SUBSCRIPTION.currentPeriodEnd;
+      : new Date().toISOString().slice(0, 10);
 
   return {
     planId,
@@ -53,8 +53,8 @@ const mapOrganizationToState = (
     status,
     trialEndsAt,
     currentPeriodEnd: periodEnd,
-    seats: DEMO_SUBSCRIPTION.seats,
-    storageGb: DEMO_SUBSCRIPTION.storageGb,
+    seats: { used: 0, total: 0 },
+    storageGb: { used: 0, total: 0 },
     isTrialActive: subscription?.isTrialActive ?? false,
     isTrialExpired: subscription?.isTrialExpired ?? false,
     isReadOnly: subscription?.isReadOnly ?? false,

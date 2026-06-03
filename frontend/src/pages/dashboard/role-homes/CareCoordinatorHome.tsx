@@ -12,16 +12,17 @@ import {
   HeartPulse,
   MessageSquare,
   Plus,
-  Sparkles,
   Users,
 } from "lucide-react";
 import React from "react";
 import { formatCurrency, useRoleHomeData } from "@/hooks/useRoleHomeData";
 import RoleGreeting from "./RoleGreeting";
+import { useNavigate } from "react-router-dom";
 
 const CareCoordinatorHome: React.FC = () => {
   const data = useRoleHomeData();
   const loading = data.loading ? "..." : undefined;
+  const navigate = useNavigate();
   return (
   <div className="space-y-8">
     <RoleGreeting
@@ -30,8 +31,9 @@ const CareCoordinatorHome: React.FC = () => {
           label: "Open schedule",
           variant: "secondary",
           icon: <CalendarRange className="h-4 w-4" />,
+          onClick: () => navigate("/app/schedule"),
         },
-        { label: "New shift", icon: <Plus className="h-4 w-4" /> },
+        { label: "New shift", icon: <Plus className="h-4 w-4" />, onClick: () => navigate("/app/rostering?action=create") },
       ]}
     />
 
@@ -61,31 +63,31 @@ const CareCoordinatorHome: React.FC = () => {
             label: "New shift",
             icon: <Plus className="h-4 w-4" />,
             tone: "indigo",
+            onClick: () => navigate("/app/rostering?action=create"),
           },
           {
             label: "Roster builder",
             icon: <CalendarRange className="h-4 w-4" />,
             tone: "sky",
+            onClick: () => navigate("/app/rostering"),
           },
           {
             label: "New care plan",
             icon: <HeartPulse className="h-4 w-4" />,
             tone: "rose",
+            onClick: () => navigate("/app/care-plans?action=create"),
           },
           {
             label: "Care note",
             icon: <ClipboardList className="h-4 w-4" />,
             tone: "emerald",
-          },
-          {
-            label: "AI auto-fill",
-            icon: <Sparkles className="h-4 w-4" />,
-            tone: "violet",
+            onClick: () => navigate("/app/care-notes?action=create"),
           },
           {
             label: "Message family",
             icon: <MessageSquare className="h-4 w-4" />,
             tone: "amber",
+            onClick: () => navigate("/app/messages"),
           },
         ]}
         columns={3}

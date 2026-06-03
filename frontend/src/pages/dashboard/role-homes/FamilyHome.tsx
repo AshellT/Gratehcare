@@ -17,6 +17,7 @@ import WorkQueue from "@/components/dashboard/widgets/WorkQueue";
 import Card from "@/components/dashboard/Card";
 import { careApi } from "@/lib/api/care";
 import { rosteringApi } from "@/lib/api/rostering";
+import { useNavigate } from "react-router-dom";
 
 type RawNote = {
   id: string;
@@ -50,6 +51,7 @@ const FamilyHome: React.FC = () => {
   const [notes, setNotes] = useState<RawNote[]>([]);
   const [shifts, setShifts] = useState<RawShift[]>([]);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     let mounted = true;
@@ -130,8 +132,8 @@ const FamilyHome: React.FC = () => {
     <div className="space-y-8">
       <RoleGreeting
         actions={[
-          { label: "Documents", variant: "secondary", icon: <Folder className="h-4 w-4" /> },
-          { label: "Message care team", icon: <MessageSquare className="h-4 w-4" /> },
+          { label: "Documents", variant: "secondary", icon: <Folder className="h-4 w-4" />, onClick: () => navigate("/app/family-documents") },
+          { label: "Message care team", icon: <MessageSquare className="h-4 w-4" />, onClick: () => navigate("/app/family-messages") },
         ]}
       />
 
@@ -177,12 +179,11 @@ const FamilyHome: React.FC = () => {
       <div className="grid lg:grid-cols-3 gap-6">
         <QuickActions
           actions={[
-            { label: "Message team", icon: <MessageSquare className="h-4 w-4" />, tone: "indigo" },
-            { label: "Care plan", icon: <Heart className="h-4 w-4" />, tone: "rose" },
-            { label: "Schedule", icon: <CalendarCheck className="h-4 w-4" />, tone: "sky" },
-            { label: "Documents", icon: <Folder className="h-4 w-4" />, tone: "amber" },
-            { label: "Billing", icon: <Receipt className="h-4 w-4" />, tone: "emerald" },
-            { label: "Send thanks", icon: <HandHeart className="h-4 w-4" />, tone: "violet" },
+            { label: "Message team", icon: <MessageSquare className="h-4 w-4" />, tone: "indigo", onClick: () => navigate("/app/family-messages") },
+            { label: "Care plan", icon: <Heart className="h-4 w-4" />, tone: "rose", onClick: () => navigate("/app/family-care-notes") },
+            { label: "Schedule", icon: <CalendarCheck className="h-4 w-4" />, tone: "sky", onClick: () => navigate("/app/family-upcoming-visits") },
+            { label: "Documents", icon: <Folder className="h-4 w-4" />, tone: "amber", onClick: () => navigate("/app/family-documents") },
+            { label: "Billing", icon: <Receipt className="h-4 w-4" />, tone: "emerald", onClick: () => navigate("/app/family-billing") },
           ]}
           columns={3}
         />

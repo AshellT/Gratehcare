@@ -5,11 +5,9 @@ import {
   BookOpen,
   CheckCircle2,
   ClipboardCheck,
-  Download,
   FileBadge,
   FileCheck2,
   FileClock,
-  Filter,
   GraduationCap,
   History,
   Plus,
@@ -191,18 +189,6 @@ const subjectLabelForPage: Record<ComplianceKey, string> = {
 const isIncidentPage = (key: ComplianceKey) =>
   key === "incidents" || key === "investigations";
 
-const records: ComplianceRecord[] = [
-  rec("CMP-910", "Medication authority missing", "Medication", "Sara Hill", "critical", "open", "Today 17:00", "2 files pending", "Onboarding medication authority is missing for Maya Krishnan before first support visit.", ["Triage", "Evidence requested", "Coordinator assigned", "Awaiting verification"], "Upload signed medication authority"),
-  rec("CRD-804", "James McGuire first aid renewal", "Credential", "Compliance", "high", "in progress", "Apr 30", "Certificate requested", "First aid certificate expires in 4 days and blocks high-intensity support assignments.", ["Detected", "Worker notified", "Renewal booked", "Evidence pending"], "Verify renewed certificate"),
-  rec("TRN-612", "Medication competency refresher", "Training", "Olivia Grant", "medium", "scheduled", "May 03", "LMS record", "Seven support workers need annual medication competency refresher.", ["Assigned", "Worker reminders sent", "Completion tracking", "Manager sign-off"], "Confirm completion rate"),
-  rec("INC-620", "Late attendance escalation", "Incident", "Daniel Wu", "medium", "review", "Today", "Visit log attached", "Worker arrived late due to traffic; family notified and service completed.", ["Incident logged", "Family notified", "Coordinator review", "Close-out pending"], "Complete incident review"),
-  rec("POL-144", "Medication management policy", "Policy", "Clinical Governance", "medium", "review", "May 12", "Version 4.2", "Policy requires annual review and acknowledgement refresh.", ["Draft reviewed", "Clinical sign-off", "Staff acknowledgement", "Publish"], "Send acknowledgement campaign"),
-  rec("AUD-301", "Quarterly quality audit", "Audit", "Quality Team", "high", "open", "May 08", "Evidence pack 72%", "Quarterly audit has three evidence gaps in training and incident close-out.", ["Scope confirmed", "Evidence collection", "Sample testing", "Management response"], "Close evidence gaps"),
-  rec("CAPA-220", "Reduce missed clock-in events", "Corrective action", "Operations", "high", "in progress", "May 15", "Dashboard trend", "Attendance monitor found repeated missed clock-ins across two regions.", ["Root cause confirmed", "Action plan approved", "Implementation", "Effectiveness check"], "Run mobile check-in coaching"),
-  rec("EXP-510", "NDIS clearance batch", "Expiry", "Compliance", "high", "open", "May 01", "Renewal list", "Four NDIS worker screenings expire within 14 days.", ["Expiry detected", "Renewals requested", "Escalation window", "Verification"], "Escalate renewals"),
-];
-
-
 const categoryLabel = (value: string) => {
   const map: Record<string, string> = {
     credential: 'Credential',
@@ -230,7 +216,6 @@ const mapComplianceEvent = (event: ComplianceEvent): ComplianceRecord =>
     '—',
     event.title,
     ['Triage', 'Evidence', 'Review', 'Close'],
-    'Review record',
   );
 
 const mapIncident = (incident: Incident): ComplianceRecord =>
@@ -245,7 +230,6 @@ const mapIncident = (incident: Incident): ComplianceRecord =>
     '—',
     incident.summary,
     ['Logged', 'Investigation', 'Review', 'Close'],
-    'Complete review',
   );
 
 function rec(
@@ -259,7 +243,6 @@ function rec(
   evidence: string,
   summary: string,
   workflow: string[],
-  actionTask: string,
 ): ComplianceRecord {
   return {
     id,
@@ -272,21 +255,9 @@ function rec(
     evidence,
     summary,
     workflow,
-    timeline: [
-      { when: "09:10", title: "Record created", detail: `${category} record opened and assigned to ${owner}.` },
-      { when: "10:35", title: "Evidence reviewed", detail: "Evidence checklist was compared with policy requirements." },
-      { when: "12:20", title: "Investigation note", detail: "Initial risk assessment completed and workflow advanced." },
-    ],
-    actions: [
-      { task: actionTask, owner, due, status: status === "open" ? "not started" : "in progress" },
-      { task: "Attach supporting evidence", owner: "Quality Team", due: "Tomorrow", status: "pending" },
-      { task: "Manager verification", owner: "Operations Lead", due: "This week", status: "pending" },
-    ],
-    audit: [
-      { when: "Today 09:10", actor: "System", event: "Record created from compliance rules engine" },
-      { when: "Today 10:35", actor: owner, event: "Severity and workflow owner confirmed" },
-      { when: "Today 12:20", actor: "Quality Team", event: "Evidence checklist updated" },
-    ],
+    timeline: [],
+    actions: [],
+    audit: [],
   };
 }
 
@@ -430,12 +401,6 @@ const ComplianceSystemPage: React.FC<{ pageKey: ComplianceKey }> = ({ pageKey })
         title={page.title}
         description={canManage ? page.description : `${page.description} View-only access for your role.`}
         actions={[
-          {
-            label: "Export evidence",
-            variant: "secondary",
-            icon: <Download className="h-4 w-4" />,
-            onClick: () => notify(`${page.title} evidence pack exported.`),
-          },
           ...(canManage
             ? [{ label: page.createLabel, icon: <Plus className="h-4 w-4" />, onClick: () => setShowForm(true) }]
             : []),
@@ -472,7 +437,7 @@ const ComplianceSystemPage: React.FC<{ pageKey: ComplianceKey }> = ({ pageKey })
           </button>
         }
       >
-        <div className="mb-5 grid gap-3 lg:grid-cols-[1fr_180px_180px_auto]">
+        <div className="mb-5 grid gap-3 lg:grid-cols-[1fr_180px_180px]">
           <label className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <input
@@ -492,13 +457,6 @@ const ComplianceSystemPage: React.FC<{ pageKey: ComplianceKey }> = ({ pageKey })
               <option key={option}>{option}</option>
             ))}
           </select>
-          <button
-            onClick={() => notify("Saved compliance views opened in demo mode.")}
-            className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-          >
-            <Filter className="h-4 w-4" />
-            Saved views
-          </button>
         </div>
 
         {loading ? (
@@ -557,7 +515,6 @@ const ComplianceSystemPage: React.FC<{ pageKey: ComplianceKey }> = ({ pageKey })
           record={selected}
           canManage={canManage}
           onClose={() => setSelected(null)}
-          onNotify={notify}
           onAdvance={() => advanceWorkflow(selected)}
         />
       )}
@@ -668,9 +625,8 @@ const ComplianceDrawer: React.FC<{
   record: ComplianceRecord;
   canManage: boolean;
   onClose: () => void;
-  onNotify: (message: string) => void;
   onAdvance: () => void;
-}> = ({ record, canManage, onClose, onNotify, onAdvance }) => (
+}> = ({ record, canManage, onClose, onAdvance }) => (
   <div className="fixed inset-0 z-[80] flex justify-end bg-slate-900/30">
     <button className="flex-1 cursor-default" aria-label="Close details" onClick={onClose} />
     <aside className="h-full w-full max-w-2xl overflow-y-auto bg-white shadow-2xl">
@@ -702,8 +658,9 @@ const ComplianceDrawer: React.FC<{
         </Card>
 
         <Card title="Investigation timeline" description="Evidence-backed timeline of investigation activity.">
-          <ol className="space-y-4">
-            {record.timeline.map((event) => (
+          {record.timeline.length ? (
+            <ol className="space-y-4">
+              {record.timeline.map((event) => (
               <li key={`${event.when}-${event.title}`} className="flex gap-3">
                 <span className="mt-1 h-2.5 w-2.5 rounded-full bg-indigo-500" />
                 <div>
@@ -712,26 +669,38 @@ const ComplianceDrawer: React.FC<{
                   <p className="text-xs text-slate-500">{event.detail}</p>
                 </div>
               </li>
-            ))}
-          </ol>
+              ))}
+            </ol>
+          ) : (
+            <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
+              No investigation timeline recorded yet.
+            </div>
+          )}
         </Card>
 
         <Card title="Corrective actions" description="CAPA workflow with owners and due dates.">
-          <div className="divide-y divide-slate-100">
-            {record.actions.map((action) => (
+          {record.actions.length ? (
+            <div className="divide-y divide-slate-100">
+              {record.actions.map((action) => (
               <div key={action.task} className="grid gap-3 py-3 first:pt-0 last:pb-0 md:grid-cols-[1fr_120px_100px_110px]">
                 <div className="text-sm font-semibold text-slate-900">{action.task}</div>
                 <div className="text-xs text-slate-500">{action.owner}</div>
                 <div className="text-xs text-slate-500">{action.due}</div>
                 <Badge tone={statusTone(action.status)}>{action.status}</Badge>
               </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
+              No corrective actions recorded yet.
+            </div>
+          )}
         </Card>
 
         <Card title="Audit trail" description="Immutable-style activity log for evidence review.">
-          <div className="space-y-3">
-            {record.audit.map((event) => (
+          {record.audit.length ? (
+            <div className="space-y-3">
+              {record.audit.map((event) => (
               <div key={`${event.when}-${event.event}`} className="rounded-xl border border-slate-200 px-4 py-3">
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-xs font-bold text-slate-400">{event.when}</span>
@@ -739,18 +708,16 @@ const ComplianceDrawer: React.FC<{
                 </div>
                 <div className="mt-1 text-sm text-slate-800">{event.event}</div>
               </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
+              No audit events recorded yet.
+            </div>
+          )}
         </Card>
 
         <div className="flex flex-wrap gap-2">
-          <button onClick={() => onNotify(`${record.id} evidence exported.`)} className="inline-flex items-center gap-2 rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
-            <Download className="h-4 w-4" />
-            Export evidence
-          </button>
-          <button onClick={() => onNotify(`${record.id} audit trail exported.`)} className="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
-            Export audit trail
-          </button>
           {canManage && (
             <button onClick={onAdvance} className="rounded-full bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">
               Advance workflow

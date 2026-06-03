@@ -5,11 +5,18 @@
  * - development, no env → same-origin /api/v1 (CRA proxy → backend :4000)
  * - production fallback → same-origin /api/v1
  */
+function normalizeApiOrigin(raw: string): string {
+  const trimmed = raw.trim().replace(/\/$/, "");
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  return `https://${trimmed}`;
+}
+
 export function resolveApiBase(): string {
-  const raw = process.env.REACT_APP_API_URL?.trim().replace(/\/$/, "");
+  const raw = process.env.REACT_APP_API_URL?.trim();
   if (raw) {
-    if (raw.endsWith("/api/v1")) return raw;
-    return `${raw}/api/v1`;
+    const origin = normalizeApiOrigin(raw);
+    if (origin.endsWith("/api/v1")) return origin;
+    return `${origin}/api/v1`;
   }
 
   if (process.env.NODE_ENV === "development") {

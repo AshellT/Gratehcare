@@ -45,10 +45,10 @@ export const authApi = {
       refreshToken: token,
     } as any),
 
-  me: () =>
-    withFallback(
+  me: (): Promise<User | null> =>
+    withFallback<User | null>(
       () => apiClient.get<User>("/auth/me"),
-      null as unknown as User,
+      null,
     ),
 
   completeOAuth: (body: { organizationName?: string; planId?: string }, accessToken: string) =>

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Plus, Search, MoreHorizontal, Tag, Building2, Users, Wallet, TrendingUp } from "lucide-react";
+import { Plus, Search, MoreHorizontal, Building2 } from "lucide-react";
 import { useActionQuery } from "@/hooks/useActionQuery";
 import PageHeader from "@/components/dashboard/PageHeader";
 import Card from "@/components/dashboard/Card";
@@ -15,9 +15,9 @@ type TenantRow = {
   id: string;
   name: string;
   plan: string;
-  staff: number;
+  staff: string;
   mrr: string;
-  health: "healthy" | "watch" | "at-risk";
+  health: string;
   region: string;
 };
 
@@ -53,10 +53,10 @@ const TenantsPage: React.FC = () => {
           const mapped: TenantRow[] = res.data.map((t: Tenant) => ({
             id: t.id,
             name: t.name,
-            plan: "Starter",
-            staff: 0,
-            mrr: "$0",
-            health: "healthy" as const,
+            plan: "—",
+            staff: "—",
+            mrr: "—",
+            health: "—",
             region: t.region || "AU",
           }));
           setRows(mapped);
@@ -104,10 +104,10 @@ const TenantsPage: React.FC = () => {
       const row: TenantRow = {
         id: created.id || `local-${Date.now()}`,
         name: created.name || form.name.trim(),
-        plan: "Starter",
-        staff: 0,
-        mrr: "$0",
-        health: "healthy",
+        plan: "—",
+        staff: "—",
+        mrr: "—",
+        health: "—",
         region: form.region || "AU",
       };
       setRows((prev) => [row, ...prev]);
@@ -128,16 +128,12 @@ const TenantsPage: React.FC = () => {
         title="Tenants"
         description="Every organisation running on GRATEHCARE."
         actions={[
-          { label: "Plans", variant: "secondary", icon: <Tag className="h-4 w-4" /> },
           { label: "Add tenant", icon: <Plus className="h-4 w-4" />, onClick: openCreate },
         ]}
       />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard label="Total tenants" value={loading ? "..." : String(rows.length)} tone="indigo" icon={<Building2 className="h-5 w-5" />} index={0} />
-        <StatCard label="Active users" value={loading ? "..." : "0"} tone="sky" icon={<Users className="h-5 w-5" />} index={1} />
-        <StatCard label="Combined MRR" value={loading ? "..." : "$0"} tone="emerald" icon={<Wallet className="h-5 w-5" />} index={2} />
-        <StatCard label="NRR" value={loading ? "..." : "0%"} tone="amber" icon={<TrendingUp className="h-5 w-5" />} index={3} />
       </div>
 
       <Card>
@@ -194,13 +190,13 @@ const TenantsPage: React.FC = () => {
                       </div>
                     </td>
                     <td className="px-5 py-3.5">
-                      <Badge tone={t.plan === "Enterprise" ? "violet" : t.plan === "Growth" ? "indigo" : "slate"}>{t.plan}</Badge>
+                      <Badge tone="slate">{t.plan}</Badge>
                     </td>
                     <td className="px-5 py-3.5 text-sm font-semibold text-slate-900">{t.staff}</td>
                     <td className="px-5 py-3.5 text-sm font-semibold text-slate-900">{t.mrr}</td>
                     <td className="px-5 py-3.5 text-sm text-slate-700">{t.region}</td>
                     <td className="px-5 py-3.5">
-                      <Badge tone={t.health === "healthy" ? "emerald" : t.health === "watch" ? "amber" : "rose"} dot>
+                      <Badge tone="slate">
                         {t.health}
                       </Badge>
                     </td>

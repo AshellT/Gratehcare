@@ -85,7 +85,7 @@ const TicketsPage: React.FC = () => {
     return [
       { label: "Open", value: String(open), tone: "bg-amber-50 text-amber-700" },
       { label: "Resolved today", value: String(resolvedToday), tone: "bg-emerald-50 text-emerald-700" },
-      { label: "Avg. response", value: tickets.length ? "< 4h" : "—", tone: "bg-indigo-50 text-indigo-700" },
+      { label: "Avg. response", value: "—", tone: "bg-indigo-50 text-indigo-700" },
       { label: "CSAT (30d)", value: avgCsat === "—" ? "—" : `${avgCsat}/5`, tone: "bg-sky-50 text-sky-700" },
     ];
   }, [tickets]);

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { AlertCircle, Loader2 } from "lucide-react";
 import AuthLayout from "@/components/auth/AuthLayout";
@@ -10,11 +10,15 @@ const AuthCallbackPage: React.FC = () => {
   const { completeOAuthCallback } = useAuth();
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
+  const hasHandledCallback = useRef(false);
 
   useEffect(() => {
     let active = true;
 
     (async () => {
+      if (hasHandledCallback.current) return;
+      hasHandledCallback.current = true;
+
       try {
         const params = new URLSearchParams(window.location.search);
         const code = params.get("code");
@@ -28,13 +32,26 @@ const AuthCallbackPage: React.FC = () => {
           const { error: exchangeError } =
             await supabase.auth.exchangeCodeForSession(code);
           if (exchangeError) throw exchangeError;
+          window.history.replaceState({}, document.title, "/auth/callback");
         } else {
-          // PKCE / implicit: let supabase-js read tokens from the URL hash if present
           const { error: sessionError } = await supabase.auth.getSession();
           if (sessionError) throw sessionError;
         }
 
-        const user = await completeOAuthCallback();
+        const user = await Promise.race([
+          completeOAuthCallback(),
+          new Promise<never>((_, reject) =>
+            window.setTimeout(
+              () =>
+                reject(
+                  new Error(
+                    "Sign-in is taking too long. Please confirm the backend is running on localhost:4000 and try again.",
+                  ),
+                ),
+              20000,
+            ),
+          ),
+        ]);
         if (!active) return;
         navigate(getAppHomePath(user.role), { replace: true });
       } catch (err: any) {

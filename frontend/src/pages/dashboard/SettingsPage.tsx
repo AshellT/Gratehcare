@@ -503,17 +503,6 @@ const SettingsPage: React.FC = () => {
                     <span className="text-sm text-amber-700">
                       — add a payment method to keep access.
                     </span>
-                    <button
-                      onClick={() =>
-                        toast({
-                          tone: "info",
-                          title: "Payment method form opened.",
-                        })
-                      }
-                      className="ml-auto rounded-full bg-amber-600 px-4 py-1.5 text-xs font-bold text-white hover:bg-amber-700"
-                    >
-                      Add payment
-                    </button>
                   </div>
                 )}
                 <Card
@@ -676,41 +665,15 @@ const SettingsPage: React.FC = () => {
                   </div>
                 </Card>
                 <div className="grid sm:grid-cols-2 gap-4">
-                  <Card
-                    title="Payment method"
-                    action={
-                      <button
-                        onClick={() =>
-                          toast({
-                            tone: "info",
-                            title: "Payment method editor opened.",
-                          })
-                        }
-                        className="text-xs font-semibold text-indigo-600 hover:text-indigo-700"
-                      >
-                        Edit
-                      </button>
-                    }
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="h-9 w-14 rounded-lg bg-gradient-to-br from-slate-700 to-slate-900 flex items-center justify-center">
-                        <CreditCard className="h-4 w-4 text-white" />
+                  <Card title="Payment method">
+                    <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center">
+                      <CreditCard className="mx-auto h-5 w-5 text-slate-400" />
+                      <div className="mt-2 text-sm font-semibold text-slate-900">
+                        Payment method is managed by Stripe checkout.
                       </div>
-                      <div>
-                        <div className="text-sm font-bold text-slate-900">
-                          Visa •••• 4242
-                        </div>
-                        <div className="text-xs text-slate-500">
-                          Expires 09 / 2028
-                        </div>
-                      </div>
-                    </div>
-                    <div className="mt-3 text-xs text-slate-500">
-                      Next charge:{" "}
-                      <span className="font-bold text-slate-900">
-                        ${sub.plan.monthlyPrice}.00 AUD on{" "}
-                        {sub.currentPeriodEnd}
-                      </span>
+                      <p className="mt-1 text-xs text-slate-500">
+                        Billing details will appear here once the subscription portal is connected.
+                      </p>
                     </div>
                   </Card>
                   <Card title="Manage subscription">
@@ -720,19 +683,6 @@ const SettingsPage: React.FC = () => {
                         className="w-full rounded-full bg-indigo-600 py-2.5 text-sm font-bold text-white hover:bg-indigo-700 transition-colors"
                       >
                         Manage subscription
-                      </button>
-                      <button
-                        onClick={() =>
-                          toast({
-                            tone: "warning",
-                            title: "Cancellation request submitted.",
-                            message:
-                              "Your plan remains active until end of billing period.",
-                          })
-                        }
-                        className="w-full rounded-full border border-rose-200 bg-rose-50 py-2.5 text-sm font-semibold text-rose-600 hover:bg-rose-100 transition-colors"
-                      >
-                        Cancel subscription
                       </button>
                     </div>
                   </Card>

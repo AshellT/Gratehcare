@@ -13,16 +13,17 @@ import {
   Plus,
   Receipt,
   ShieldCheck,
-  Sparkles,
   Users,
   Wallet,
 } from "lucide-react";
 import React from "react";
 import RoleGreeting from "./RoleGreeting";
+import { useNavigate } from "react-router-dom";
 
 const OrgOwnerHome: React.FC = () => {
   const data = useRoleHomeData();
   const loading = data.loading ? "..." : undefined;
+  const navigate = useNavigate();
 
   return (
     <div className="space-y-8">
@@ -32,8 +33,9 @@ const OrgOwnerHome: React.FC = () => {
             label: "Reports",
             variant: "secondary",
             icon: <BarChart3 className="h-4 w-4" />,
+            onClick: () => navigate("/app/reports"),
           },
-          { label: "Quick actions", icon: <Sparkles className="h-4 w-4" /> },
+          { label: "New client", icon: <Plus className="h-4 w-4" />, onClick: () => navigate("/app/clients?action=create") },
         ]}
       />
 
@@ -94,31 +96,37 @@ const OrgOwnerHome: React.FC = () => {
               label: "New client",
               icon: <Plus className="h-4 w-4" />,
               tone: "indigo",
+              onClick: () => navigate("/app/clients?action=create"),
             },
             {
               label: "Build roster",
               icon: <CalendarCheck className="h-4 w-4" />,
               tone: "sky",
+              onClick: () => navigate("/app/rostering?action=create"),
             },
             {
               label: "New care plan",
               icon: <HeartPulse className="h-4 w-4" />,
               tone: "rose",
+              onClick: () => navigate("/app/care-plans?action=create"),
             },
             {
               label: "Send invoices",
               icon: <Receipt className="h-4 w-4" />,
               tone: "emerald",
+              onClick: () => navigate("/app/invoices?action=create"),
             },
             {
               label: "Open compliance",
               icon: <ShieldCheck className="h-4 w-4" />,
               tone: "amber",
+              onClick: () => navigate("/app/compliance"),
             },
             {
               label: "Bookkeeping",
               icon: <Wallet className="h-4 w-4" />,
               tone: "violet",
+              onClick: () => navigate("/app/billing"),
             },
           ]}
           columns={3}

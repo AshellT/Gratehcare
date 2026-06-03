@@ -8,7 +8,7 @@ import { toTenantRecord } from "@/lib/api/tenantRecord";
 import Modal from "@/components/dashboard/Modal";
 import FormField from "@/components/dashboard/FormField";
 import { motion } from "framer-motion";
-import { ChevronLeft, ChevronRight, Filter, Loader2, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2, Plus } from "lucide-react";
 import React, { useEffect, useMemo, useState } from "react";
 
 const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -160,7 +160,6 @@ const SchedulePage: React.FC = () => {
     return [
       { label: "Shifts this week", value: String(shifts.length), tone: "bg-indigo-50 text-indigo-700" },
       { label: "Open shifts", value: String(open), tone: "bg-amber-50 text-amber-700" },
-      { label: "Conflicts", value: "0", tone: "bg-emerald-50 text-emerald-700" },
       { label: "Coverage", value: `${coverage}%`, tone: "bg-sky-50 text-sky-700" },
     ];
   }, [shifts]);
@@ -172,11 +171,6 @@ const SchedulePage: React.FC = () => {
         title="Schedule"
         description="Drag-and-drop rosters, fill shifts and avoid conflicts in real time."
         actions={[
-          {
-            label: "Filters",
-            variant: "secondary",
-            icon: <Filter className="h-4 w-4" />,
-          },
           {
             label: "New shift",
             icon: <Plus className="h-4 w-4" />,
@@ -220,7 +214,7 @@ const SchedulePage: React.FC = () => {
                 setWeekOffset(0);
                 toast({
                   tone: "info",
-                  title: "Returned to current demo week.",
+                  title: "Returned to current week.",
                 });
               }}
               className="h-8 px-3 inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700"
@@ -345,12 +339,6 @@ const SchedulePage: React.FC = () => {
             <div>
               <div className="text-xs text-slate-500">Service</div>
               <div className="font-semibold text-slate-900">{selected.service ?? "Personal care"}</div>
-            </div>
-            <div>
-              <div className="text-xs text-slate-500">Funding</div>
-              <div className="font-semibold text-slate-900">
-                NDIS · Plan-managed
-              </div>
             </div>
           </div>
         </Card>

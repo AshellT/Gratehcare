@@ -17,16 +17,18 @@ import QuickActions from "@/components/dashboard/widgets/QuickActions";
 import ActivityFeed from "@/components/dashboard/widgets/ActivityFeed";
 import WorkQueue from "@/components/dashboard/widgets/WorkQueue";
 import { TrendCard } from "@/components/dashboard/widgets/TrendCard";
+import { useNavigate } from "react-router-dom";
 
 const PractitionerHome: React.FC = () => {
   const data = useRoleHomeData();
   const loading = data.loading ? "..." : undefined;
+  const navigate = useNavigate();
   return (
   <div className="space-y-8">
     <RoleGreeting
       actions={[
-        { label: "Open schedule", variant: "secondary", icon: <CalendarCheck className="h-4 w-4" /> },
-        { label: "New care plan", icon: <Plus className="h-4 w-4" /> },
+        { label: "Open schedule", variant: "secondary", icon: <CalendarCheck className="h-4 w-4" />, onClick: () => navigate("/app/practitioner-overview") },
+        { label: "New evaluation", icon: <Plus className="h-4 w-4" />, onClick: () => navigate("/app/practitioner-evaluations?action=create") },
       ]}
     />
 
@@ -59,12 +61,12 @@ const PractitionerHome: React.FC = () => {
 
       <QuickActions
         actions={[
-          { label: "New care plan", icon: <Plus className="h-4 w-4" />, tone: "indigo" },
-          { label: "Add session note", icon: <ClipboardList className="h-4 w-4" />, tone: "emerald" },
-          { label: "Set outcome", icon: <Target className="h-4 w-4" />, tone: "sky" },
-          { label: "Patient list", icon: <Users className="h-4 w-4" />, tone: "violet" },
-          { label: "Schedule", icon: <CalendarCheck className="h-4 w-4" />, tone: "amber" },
-          { label: "Message team", icon: <MessageSquare className="h-4 w-4" />, tone: "slate" },
+          { label: "New evaluation", icon: <Plus className="h-4 w-4" />, tone: "indigo", onClick: () => navigate("/app/practitioner-evaluations?action=create") },
+          { label: "Add session note", icon: <ClipboardList className="h-4 w-4" />, tone: "emerald", onClick: () => navigate("/app/practitioner-clinical-notes?action=create") },
+          { label: "Outcomes", icon: <Target className="h-4 w-4" />, tone: "sky", onClick: () => navigate("/app/outcomes") },
+          { label: "Patient list", icon: <Users className="h-4 w-4" />, tone: "violet", onClick: () => navigate("/app/practitioner-clients") },
+          { label: "Schedule", icon: <CalendarCheck className="h-4 w-4" />, tone: "amber", onClick: () => navigate("/app/practitioner-overview") },
+          { label: "Message team", icon: <MessageSquare className="h-4 w-4" />, tone: "slate", onClick: () => navigate("/app/practitioner-messages") },
         ]}
         columns={2}
       />

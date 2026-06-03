@@ -72,10 +72,7 @@ export const documentsApi = {
   },
 
   getPreviewUrl: (id: string) =>
-    withFallback(
-      () => apiClient.get<{ url: string }>(`/documents/${id}/preview`),
-      { url: "" },
-    ),
+    apiClient.get<{ url: string }>(`/documents/${id}/preview`),
 
   archive: (id: string) => apiClient.post(`/documents/${id}/archive`, {}),
 };

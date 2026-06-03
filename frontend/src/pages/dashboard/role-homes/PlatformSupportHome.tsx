@@ -8,7 +8,6 @@ import {
   Plus,
   Search,
   BookOpen,
-  RefreshCcw,
 } from "lucide-react";
 import RoleGreeting from "./RoleGreeting";
 import KpiGrid from "@/components/dashboard/widgets/KpiGrid";
@@ -16,16 +15,18 @@ import AlertsWidget from "@/components/dashboard/widgets/AlertsWidget";
 import QuickActions from "@/components/dashboard/widgets/QuickActions";
 import ActivityFeed from "@/components/dashboard/widgets/ActivityFeed";
 import WorkQueue from "@/components/dashboard/widgets/WorkQueue";
+import { useNavigate } from "react-router-dom";
 
 const PlatformSupportHome: React.FC = () => {
   const data = useRoleHomeData();
   const loading = data.loading ? "..." : undefined;
+  const navigate = useNavigate();
   return (
   <div className="space-y-8">
     <RoleGreeting
       actions={[
-        { label: "Knowledge base", variant: "secondary", icon: <BookOpen className="h-4 w-4" /> },
-        { label: "New ticket", icon: <Plus className="h-4 w-4" /> },
+        { label: "Knowledge base", variant: "secondary", icon: <BookOpen className="h-4 w-4" />, onClick: () => navigate("/app/knowledge") },
+        { label: "New ticket", icon: <Plus className="h-4 w-4" />, onClick: () => navigate("/app/tickets?action=create") },
       ]}
     />
 
@@ -55,10 +56,8 @@ const PlatformSupportHome: React.FC = () => {
     <div className="grid lg:grid-cols-3 gap-6">
       <QuickActions
         actions={[
-          { label: "Search tickets", icon: <Search className="h-4 w-4" />, tone: "indigo" },
-          { label: "Impersonate user", icon: <Sparkles className="h-4 w-4" />, tone: "violet" },
-          { label: "Re-sync tenant", icon: <RefreshCcw className="h-4 w-4" />, tone: "sky" },
-          { label: "New macro reply", icon: <Plus className="h-4 w-4" />, tone: "emerald" },
+          { label: "Search tickets", icon: <Search className="h-4 w-4" />, tone: "indigo", onClick: () => navigate("/app/tickets") },
+          { label: "Knowledge article", icon: <BookOpen className="h-4 w-4" />, tone: "emerald", onClick: () => navigate("/app/knowledge?action=create") },
         ]}
       />
 

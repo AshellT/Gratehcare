@@ -13,7 +13,7 @@ export const reportsApi = {
       emptyPage<ReportSummary>(),
     ),
 
-  generate: (type: ReportSummary["type"], params?: Record<string, string>) =>
+  generate: (type: string, params?: Record<string, string>) =>
     apiClient.post<ReportSummary>("/reports/generate", {
       type,
       ...params,

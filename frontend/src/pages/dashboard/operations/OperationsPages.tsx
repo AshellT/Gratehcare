@@ -40,7 +40,6 @@ import {
   ClipboardCheck,
   ClipboardList,
   Clock,
-  Download,
   FileText,
   Filter,
   HeartPulse,
@@ -642,7 +641,6 @@ const OperationModulePage: React.FC<{ moduleKey: ModuleKey }> = ({
   useActionQuery("create", () => {
     if (canCreate) setShowCreate(true);
   });
-  useActionQuery("autofill", () => notify("Auto-fill suggestions applied to open shifts."));
 
   const filtered = useMemo(() => {
     return records.filter((record) => {
@@ -727,12 +725,6 @@ const OperationModulePage: React.FC<{ moduleKey: ModuleKey }> = ({
             : `${meta.description} Read-only access for your role.`
         }
         actions={[
-          {
-            label: "Export",
-            variant: "secondary",
-            icon: <Download className="h-4 w-4" />,
-            onClick: () => notify(`${meta.title} export prepared.`),
-          },
           ...(canCreate
             ? [
                 {
@@ -799,7 +791,7 @@ const OperationModulePage: React.FC<{ moduleKey: ModuleKey }> = ({
           </button>
         }
       >
-        <div className="mb-5 grid gap-3 lg:grid-cols-[1fr_180px_180px_auto]">
+        <div className="mb-5 grid gap-3 lg:grid-cols-[1fr_180px_180px]">
           <label className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <input
@@ -829,15 +821,6 @@ const OperationModulePage: React.FC<{ moduleKey: ModuleKey }> = ({
               ),
             )}
           </select>
-          <button
-            onClick={() =>
-              notify("Saved operational views opened in demo mode.")
-            }
-            className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-          >
-            <Filter className="h-4 w-4" />
-            Saved views
-          </button>
         </div>
 
         {filtered.length === 0 ? (
@@ -933,7 +916,6 @@ const OperationModulePage: React.FC<{ moduleKey: ModuleKey }> = ({
           onClose={() => setSelected(null)}
           onEdit={() => setEditing(selected)}
           onResolve={() => closeRecord(selected)}
-          onNotify={notify}
         />
       )}
 
@@ -1197,7 +1179,6 @@ const DetailDrawer: React.FC<{
   onClose: () => void;
   onEdit: () => void;
   onResolve: () => void | Promise<void>;
-  onNotify: (message: string) => void;
 }> = ({
   moduleTitle,
   record,
@@ -1205,7 +1186,6 @@ const DetailDrawer: React.FC<{
   onClose,
   onEdit,
   onResolve,
-  onNotify,
 }) => (
   <div className="fixed inset-0 z-[80] flex justify-end bg-slate-900/30">
     <button
@@ -1265,27 +1245,7 @@ const DetailDrawer: React.FC<{
             ))}
           </div>
         </Card>
-        <Card title="Activity">
-          <ol className="space-y-3 text-sm text-slate-600">
-            {[
-              "Record opened",
-              "Validation checks complete",
-              "Assigned owner notified",
-            ].map((item) => (
-              <li key={item} className="flex gap-3">
-                <CheckCircle2 className="mt-0.5 h-4 w-4 text-emerald-600" />
-                <span>{item}</span>
-              </li>
-            ))}
-          </ol>
-        </Card>
         <div className="flex flex-wrap gap-2">
-          <button
-            onClick={() => onNotify(`${record.id} exported.`)}
-            className="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-          >
-            Export
-          </button>
           {canManage && (
             <>
               <button

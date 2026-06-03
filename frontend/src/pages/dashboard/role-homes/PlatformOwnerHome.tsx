@@ -19,6 +19,7 @@ import WorkQueue from "@/components/dashboard/widgets/WorkQueue";
 import { TrendCard } from "@/components/dashboard/widgets/TrendCard";
 import { tenantsApi } from "@/lib/api/tenants";
 import { auditLogsApi } from "@/lib/api/audit-logs";
+import { useNavigate } from "react-router-dom";
 
 const PlatformOwnerHome: React.FC = () => {
   const [loading, setLoading] = useState(true);
@@ -26,6 +27,7 @@ const PlatformOwnerHome: React.FC = () => {
   const [trendData, setTrendData] = useState<number[]>([0]);
   const [topTenants, setTopTenants] = useState<any[]>([]);
   const [recentActivity, setRecentActivity] = useState<any[]>([]);
+  const navigate = useNavigate();
 
   useEffect(() => {
     let mounted = true;
@@ -86,8 +88,8 @@ const PlatformOwnerHome: React.FC = () => {
     <div className="space-y-8">
       <RoleGreeting
         actions={[
-          { label: "Plans", variant: "secondary", icon: <Tag className="h-4 w-4" /> },
-          { label: "Add tenant", icon: <Plus className="h-4 w-4" /> },
+          { label: "Plans", variant: "secondary", icon: <Tag className="h-4 w-4" />, onClick: () => navigate("/app/plans") },
+          { label: "Add tenant", icon: <Plus className="h-4 w-4" />, onClick: () => navigate("/app/tenants?action=create") },
         ]}
       />
 
@@ -146,12 +148,12 @@ const PlatformOwnerHome: React.FC = () => {
       <div className="grid lg:grid-cols-3 gap-6">
         <QuickActions
           actions={[
-            { label: "Invite tenant", icon: <Plus className="h-4 w-4" />, tone: "indigo" },
-            { label: "Open revenue", icon: <Wallet className="h-4 w-4" />, tone: "emerald" },
-            { label: "Network map", icon: <Network className="h-4 w-4" />, tone: "sky" },
-            { label: "Plans & pricing", icon: <Tag className="h-4 w-4" />, tone: "violet" },
-            { label: "Integrations", icon: <Plug className="h-4 w-4" />, tone: "amber" },
-            { label: "Reports", icon: <BarChart3 className="h-4 w-4" />, tone: "slate" },
+            { label: "Invite tenant", icon: <Plus className="h-4 w-4" />, tone: "indigo", onClick: () => navigate("/app/tenants?action=create") },
+            { label: "Open revenue", icon: <Wallet className="h-4 w-4" />, tone: "emerald", onClick: () => navigate("/app/revenue") },
+            { label: "Network map", icon: <Network className="h-4 w-4" />, tone: "sky", onClick: () => navigate("/app/network") },
+            { label: "Plans & pricing", icon: <Tag className="h-4 w-4" />, tone: "violet", onClick: () => navigate("/app/plans") },
+            { label: "Integrations", icon: <Plug className="h-4 w-4" />, tone: "amber", onClick: () => navigate("/app/integrations") },
+            { label: "Reports", icon: <BarChart3 className="h-4 w-4" />, tone: "slate", onClick: () => navigate("/app/reports") },
           ]}
           columns={3}
         />

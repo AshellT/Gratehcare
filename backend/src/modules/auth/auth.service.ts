@@ -118,12 +118,7 @@ export class AuthService {
     }
 
     const email = (supabaseUser.email || "").toLowerCase();
-    const existing = await this.prisma.user.findFirst({
-      where: {
-        OR: [{ supabaseId: supabaseUser.id }, { email }],
-      },
-      include: { roles: true },
-    });
+    const existing = await this.findUserWithRoles(supabaseUser.id, email);
 
     if (dto.organizationName?.trim() && !existing) {
       const orgName = dto.organizationName.trim();
@@ -148,9 +143,11 @@ export class AuthService {
       };
     }
 
-    const user = await this.syncFromSupabaseUser(supabaseUser, {
-      planId: dto.planId,
-    });
+    const user = await this.syncFromSupabaseUser(
+      supabaseUser,
+      { planId: dto.planId },
+      { existing },
+    );
     const payload = {
       ...this.toAuthPayload(user),
       fullName: user.fullName,
@@ -190,6 +187,7 @@ export class AuthService {
       fullName?: string;
       planId?: string;
     },
+    preloaded?: { existing: Awaited<ReturnType<AuthService["findUserWithRoles"]>> },
   ) {
     const email = (supabaseUser.email || "").toLowerCase();
     const meta = supabaseUser.user_metadata ?? {};
@@ -206,12 +204,9 @@ export class AuthService {
       tenantId = meta.organization_id;
     }
 
-    const existing = await this.prisma.user.findFirst({
-      where: {
-        OR: [{ supabaseId: supabaseUser.id }, { email }],
-      },
-      include: { roles: true },
-    });
+    const existing = preloaded
+      ? preloaded.existing
+      : await this.findUserWithRoles(supabaseUser.id, email);
 
     if (existing) {
       const updated = await this.prisma.user.update({
@@ -227,15 +222,17 @@ export class AuthService {
         include: { roles: true },
       });
 
-      if (!updated.roles.some((assignment) => assignment.role === role)) {
-        await this.prisma.roleAssignment.create({
-          data: {
-            userId: updated.id,
-            role,
-            tenantId: updated.tenantId,
-          },
-        });
+      if (updated.roles.some((assignment) => assignment.role === role)) {
+        return updated;
       }
+
+      await this.prisma.roleAssignment.create({
+        data: {
+          userId: updated.id,
+          role,
+          tenantId: updated.tenantId,
+        },
+      });
 
       return this.prisma.user.findUniqueOrThrow({
         where: { id: updated.id },
@@ -310,6 +307,15 @@ export class AuthService {
       tenantId: user.tenantId,
       roles: user.roles.map((assignment) => assignment.role),
     };
+  }
+
+  private findUserWithRoles(supabaseId: string, email: string) {
+    return this.prisma.user.findFirst({
+      where: {
+        OR: [{ supabaseId }, { email }],
+      },
+      include: { roles: true },
+    });
   }
 
   private isTestEmail(email: string) {

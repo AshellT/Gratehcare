@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Download } from "lucide-react";
 import PageHeader from "@/components/dashboard/PageHeader";
 import Card from "@/components/dashboard/Card";
 import StatCard from "@/components/dashboard/StatCard";
@@ -60,7 +59,6 @@ const RevenuePage: React.FC = () => {
         eyebrow="Platform"
         title="Revenue"
         description="MRR, ARR, expansion and churn — across the entire GRATEHCARE network."
-        actions={[{ label: "Export", icon: <Download className="h-4 w-4" /> }]}
       />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

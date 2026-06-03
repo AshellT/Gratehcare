@@ -23,7 +23,6 @@ import {
   ChevronRight,
   CreditCard,
   HardDrive,
-  Receipt,
   RotateCcw,
   Save,
   Star,
@@ -148,46 +147,6 @@ const PlanOption: React.FC<PlanOptionProps> = ({
     </div>
   );
 };
-
-// ─── Billing history stub ─────────────────────────────────────────────────────
-
-const BILLING_HISTORY = [
-  {
-    id: "INV-S0028",
-    date: "2026-04-28",
-    amount: 199,
-    status: "paid",
-    desc: "GRATEHCARE Pro · Monthly",
-  },
-  {
-    id: "INV-S0027",
-    date: "2026-03-28",
-    amount: 199,
-    status: "paid",
-    desc: "GRATEHCARE Pro · Monthly",
-  },
-  {
-    id: "INV-S0026",
-    date: "2026-02-28",
-    amount: 199,
-    status: "paid",
-    desc: "GRATEHCARE Pro · Monthly",
-  },
-  {
-    id: "INV-S0025",
-    date: "2026-01-28",
-    amount: 199,
-    status: "paid",
-    desc: "GRATEHCARE Pro · Monthly",
-  },
-  {
-    id: "INV-S0024",
-    date: "2025-12-28",
-    amount: 199,
-    status: "paid",
-    desc: "GRATEHCARE Pro · Monthly",
-  },
-];
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
@@ -569,12 +528,6 @@ const SubscriptionPage: React.FC = () => {
               — your subscription will be paused unless payment is updated.
             </span>
           </div>
-          <button
-            onClick={() => notify("Payment update modal opened.")}
-            className="rounded-full bg-rose-600 px-4 py-1.5 text-xs font-bold text-white hover:bg-rose-700"
-          >
-            Update payment
-          </button>
         </div>
       )}
 
@@ -694,16 +647,6 @@ const SubscriptionPage: React.FC = () => {
                   className={`h-4 w-4 transition-transform ${changePlanOpen ? "rotate-90" : ""}`}
                 />
               </button>
-              <button
-                onClick={() =>
-                  notify("Annual billing switch confirmed. 17% saved.")
-                }
-                className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-              >
-                {sub.cycle === "monthly"
-                  ? "Switch to annual (save 17%)"
-                  : "Switch to monthly"}
-              </button>
             </div>
 
             {/* Plan selector (expandable) */}
@@ -781,37 +724,15 @@ const SubscriptionPage: React.FC = () => {
           <Card
             title="Payment method"
             description="Billing details on file."
-            action={
-              <button
-                onClick={() => notify("Payment method editor opened.")}
-                className="text-xs font-semibold text-indigo-600 hover:text-indigo-700"
-              >
-                Edit
-              </button>
-            }
           >
-            <div className="flex items-center gap-3 rounded-xl border border-slate-200 p-4">
-              <div className="h-10 w-16 rounded-lg bg-gradient-to-br from-slate-700 to-slate-900 flex items-center justify-center">
-                <CreditCard className="h-5 w-5 text-white" />
+            <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center">
+              <CreditCard className="mx-auto h-6 w-6 text-slate-400" />
+              <div className="mt-2 text-sm font-semibold text-slate-900">
+                Payment method is managed by Stripe checkout.
               </div>
-              <div>
-                <div className="text-sm font-bold text-slate-900">
-                  Visa •••• 4242
-                </div>
-                <div className="text-xs text-slate-500">Expires 09 / 2028</div>
-              </div>
-            </div>
-            <div className="mt-3">
-              <div className="text-xs text-slate-500">Billing email</div>
-              <div className="text-sm font-semibold text-slate-900">
-                billing@meridian.care
-              </div>
-            </div>
-            <div className="mt-3">
-              <div className="text-xs text-slate-500">Next charge</div>
-              <div className="text-sm font-bold text-slate-900">
-                ${sub.plan.monthlyPrice}.00 AUD on {sub.currentPeriodEnd}
-              </div>
+              <p className="mt-1 text-xs text-slate-500">
+                Billing details will appear here once the subscription portal is connected.
+              </p>
             </div>
           </Card>
 
@@ -819,40 +740,10 @@ const SubscriptionPage: React.FC = () => {
           <Card
             title="Billing history"
             description="Recent subscription invoices."
-            action={
-              <button
-                onClick={() => notify("Full invoice history downloaded.")}
-                className="flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-700"
-              >
-                <Receipt className="h-3.5 w-3.5" /> Export
-              </button>
-            }
           >
-            <ul className="space-y-0 divide-y divide-slate-100">
-              {BILLING_HISTORY.map((inv) => (
-                <li
-                  key={inv.id}
-                  className="flex items-center justify-between py-3"
-                >
-                  <div>
-                    <div className="text-sm font-semibold text-slate-900">
-                      {inv.id}
-                    </div>
-                    <div className="text-xs text-slate-500">
-                      {inv.date} · {inv.desc}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm font-bold text-slate-900">
-                      ${inv.amount}
-                    </span>
-                    <Badge tone="emerald" dot>
-                      paid
-                    </Badge>
-                  </div>
-                </li>
-              ))}
-            </ul>
+            <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
+              Subscription invoice history is not connected yet.
+            </div>
           </Card>
 
           {/* Danger zone */}
@@ -862,16 +753,6 @@ const SubscriptionPage: React.FC = () => {
                 Cancelling will stop billing at the end of your current period.
                 Your data is retained for 90 days.
               </p>
-              <button
-                onClick={() =>
-                  notify(
-                    "Cancellation request submitted. Our team will reach out within 24 hours.",
-                  )
-                }
-                className="w-full rounded-full border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-semibold text-rose-600 hover:bg-rose-100"
-              >
-                Cancel subscription
-              </button>
             </div>
           </Card>
         </div>

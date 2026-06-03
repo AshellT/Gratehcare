@@ -7,31 +7,26 @@ import WorkQueue from "@/components/dashboard/widgets/WorkQueue";
 import {
   AlertTriangle,
   BookOpen,
-  Download,
   FileBadge,
   GraduationCap,
   Plus,
-  Send,
   ShieldCheck,
-  Users,
 } from "lucide-react";
 import React from "react";
 import { formatCurrency, useRoleHomeData } from "@/hooks/useRoleHomeData";
 import RoleGreeting from "./RoleGreeting";
+import { useNavigate } from "react-router-dom";
 
 const ComplianceOfficerHome: React.FC = () => {
   const data = useRoleHomeData();
   const loading = data.loading ? "..." : undefined;
+  const navigate = useNavigate();
   return (
   <div className="space-y-8">
     <RoleGreeting
       actions={[
-        {
-          label: "Audit pack",
-          variant: "secondary",
-          icon: <Download className="h-4 w-4" />,
-        },
-        { label: "New incident", icon: <Plus className="h-4 w-4" /> },
+        { label: "Audit logs", variant: "secondary", icon: <FileBadge className="h-4 w-4" />, onClick: () => navigate("/app/audit-logs") },
+        { label: "New incident", icon: <Plus className="h-4 w-4" />, onClick: () => navigate("/app/incidents?action=create") },
       ]}
     />
 
@@ -60,31 +55,19 @@ const ComplianceOfficerHome: React.FC = () => {
             label: "New credential",
             icon: <Plus className="h-4 w-4" />,
             tone: "indigo",
-          },
-          {
-            label: "Send reminders",
-            icon: <Send className="h-4 w-4" />,
-            tone: "amber",
-          },
-          {
-            label: "Audit pack",
-            icon: <Download className="h-4 w-4" />,
-            tone: "emerald",
+            onClick: () => navigate("/app/staff-credentials?action=create"),
           },
           {
             label: "New policy",
             icon: <BookOpen className="h-4 w-4" />,
             tone: "sky",
+            onClick: () => navigate("/app/policies?action=create"),
           },
           {
             label: "Assign training",
             icon: <GraduationCap className="h-4 w-4" />,
             tone: "violet",
-          },
-          {
-            label: "Bulk review",
-            icon: <Users className="h-4 w-4" />,
-            tone: "slate",
+            onClick: () => navigate("/app/training?action=create"),
           },
         ]}
         columns={3}

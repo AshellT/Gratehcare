@@ -9,4 +9,5 @@ REACT_APP_SUPABASE_ANON_KEY=<same anon key as Railway SUPABASE_ANON_KEY>
 
 # Railway → your backend service → Settings → Networking → Public domain
 # Example shape: https://something-production.up.railway.app
-REACT_APP_API_URL=<paste Railway public domain here — no trailing slash>
+# Must include https:// (or the app will add it automatically after next deploy)
+REACT_APP_API_URL=https://<your-service>.up.railway.app

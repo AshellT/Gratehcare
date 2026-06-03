@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Building2,
@@ -7,7 +7,6 @@ import {
   Activity,
   Plus,
   KeyRound,
-  RefreshCcw,
   AlertTriangle,
 } from "lucide-react";
 import RoleGreeting from "./RoleGreeting";
@@ -22,19 +21,7 @@ import { useRoleHomeData } from "@/hooks/useRoleHomeData";
 const SuperAdminHome: React.FC = () => {
   const navigate = useNavigate();
   const data = useRoleHomeData();
-  const [message, setMessage] = useState<string | null>(null);
-  const [selectedAction, setSelectedAction] = useState<string | null>(null);
   const loading = data.loading ? "..." : undefined;
-
-  const notify = (text: string) => {
-    setMessage(text);
-    window.setTimeout(() => setMessage(null), 2400);
-  };
-
-  const openAction = (text: string) => {
-    setSelectedAction(text);
-    notify(text);
-  };
 
   return (
     <div className="space-y-8">
@@ -53,12 +40,6 @@ const SuperAdminHome: React.FC = () => {
           },
         ]}
       />
-
-      {message && (
-        <div className="rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm font-semibold text-indigo-800">
-          {message}
-        </div>
-      )}
 
       <KpiGrid
         items={[
@@ -140,28 +121,6 @@ const SuperAdminHome: React.FC = () => {
           onViewAll={() => navigate("/app/users")}
         />
       </div>
-
-      {selectedAction && (
-        <Card title="Action workspace" description="Selected admin action">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <div className="text-sm font-semibold text-slate-900">{selectedAction}</div>
-              <div className="mt-1 text-xs text-slate-500">
-                This workflow is ready for the next backend integration step.
-              </div>
-            </div>
-            <button
-              onClick={() => {
-                setSelectedAction(null);
-                notify("Action dismissed.");
-              }}
-              className="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-            >
-              Dismiss
-            </button>
-          </div>
-        </Card>
-      )}
 
       <ActivityFeed
         title="Recent system activity"

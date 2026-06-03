@@ -19,7 +19,7 @@ export const systemApi = {
         integrations: { enabled: 0, total: 0 },
         openTickets: 0,
         recentErrors: 0,
-        status: "healthy" as const,
+        status: "degraded" as const,
       },
     ),
 };

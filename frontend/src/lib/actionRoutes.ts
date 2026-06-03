@@ -23,7 +23,6 @@ const ROUTES: Record<string, string> = {
   system: "/app/system",
   permissions: "/app/permissions",
   "reset user": "/app/users?action=reset",
-  "re-sync tenant": "/app/tenants?action=sync",
 
   // Users & support
   "add user": "/app/users?action=create",
@@ -51,8 +50,6 @@ const ROUTES: Record<string, string> = {
   timesheets: "/app/timesheets",
   staff: "/app/staff",
   "add staff": "/app/staff?action=create",
-  "auto-fill": "/app/rostering?action=autofill",
-  "auto fill": "/app/rostering?action=autofill",
 
   // Finance
   "new invoice": "/app/invoices?action=create",

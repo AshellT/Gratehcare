@@ -8,31 +8,27 @@ import WorkQueue from "@/components/dashboard/widgets/WorkQueue";
 import {
   Activity,
   Banknote,
-  Download,
   Plus,
   Receipt,
   RefreshCcw,
-  Send,
   ShieldCheck,
   Wallet,
 } from "lucide-react";
 import React from "react";
 import { formatCurrency, useRoleHomeData } from "@/hooks/useRoleHomeData";
 import RoleGreeting from "./RoleGreeting";
+import { useNavigate } from "react-router-dom";
 
 const BillingOfficerHome: React.FC = () => {
   const data = useRoleHomeData();
   const loading = data.loading ? "..." : undefined;
+  const navigate = useNavigate();
   return (
   <div className="space-y-8">
     <RoleGreeting
       actions={[
-        {
-          label: "Export",
-          variant: "secondary",
-          icon: <Download className="h-4 w-4" />,
-        },
-        { label: "New invoice", icon: <Plus className="h-4 w-4" /> },
+        { label: "Claims", variant: "secondary", icon: <ShieldCheck className="h-4 w-4" />, onClick: () => navigate("/app/finance-claims") },
+        { label: "New invoice", icon: <Plus className="h-4 w-4" />, onClick: () => navigate("/app/invoices?action=create") },
       ]}
     />
 
@@ -73,31 +69,25 @@ const BillingOfficerHome: React.FC = () => {
             label: "Generate invoices",
             icon: <Plus className="h-4 w-4" />,
             tone: "indigo",
-          },
-          {
-            label: "Send reminders",
-            icon: <Send className="h-4 w-4" />,
-            tone: "amber",
+            onClick: () => navigate("/app/invoices?action=create"),
           },
           {
             label: "Submit claims",
             icon: <ShieldCheck className="h-4 w-4" />,
             tone: "emerald",
+            onClick: () => navigate("/app/finance-claims?action=create"),
           },
           {
             label: "Reconcile",
             icon: <RefreshCcw className="h-4 w-4" />,
             tone: "sky",
+            onClick: () => navigate("/app/reconciliation"),
           },
           {
             label: "Payouts",
             icon: <Banknote className="h-4 w-4" />,
             tone: "violet",
-          },
-          {
-            label: "Export ledger",
-            icon: <Download className="h-4 w-4" />,
-            tone: "slate",
+            onClick: () => navigate("/app/payouts?action=create"),
           },
         ]}
         columns={2}

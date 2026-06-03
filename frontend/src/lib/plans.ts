@@ -379,15 +379,14 @@ export function planFeatureValue(
   return feature[planId];
 }
 
-// Demo org's current plan — swap with real subscription data in production
 export const DEMO_SUBSCRIPTION = {
   planId: "pro" as PlanId,
   cycle: "monthly" as BillingCycle,
   status: "active" as "active" | "trial" | "past_due" | "cancelled",
   trialEndsAt: null as string | null,
-  currentPeriodEnd: "2026-05-28",
-  seats: { used: 42, total: 75 },
-  storageGb: { used: 38.4, total: 100 },
+  currentPeriodEnd: new Date().toISOString().slice(0, 10),
+  seats: { used: 0, total: 0 },
+  storageGb: { used: 0, total: 0 },
 };
 
 export const PLAN_LIST: Plan[] = [PLANS.start, PLANS.pro, PLANS.elite];

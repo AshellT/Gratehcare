@@ -5,9 +5,7 @@ import {
   Banknote,
   Calendar,
   CheckCircle2,
-  Download,
   FileText,
-  Filter,
   Plus,
   Receipt,
   Search,
@@ -369,7 +367,6 @@ const FinancePage: React.FC<{ kind: FinancePageKind; familyOnly?: boolean }> = (
               : meta.description
         }
         actions={[
-          { label: "Export", variant: "secondary", icon: <Download className="h-4 w-4" /> },
           ...(canCreate
             ? [{ label: primaryAction(kind), icon: <Plus className="h-4 w-4" />, onClick: () => setShowCreate(true) }]
             : []),
@@ -440,7 +437,7 @@ const FinancePage: React.FC<{ kind: FinancePageKind; familyOnly?: boolean }> = (
       )}
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Receivable value" value={money(total)} tone="emerald" icon={<Wallet className="h-5 w-5" />} delta={{ value: "+8%", direction: "up" }} index={0} />
+        <StatCard label="Receivable value" value={money(total)} tone="emerald" icon={<Wallet className="h-5 w-5" />} index={0} />
         <StatCard label="Open items" value={`${rows.length}`} tone="indigo" icon={<Receipt className="h-5 w-5" />} index={1} />
         <StatCard label="Validation warnings" value={`${warnings.length}`} tone={warnings.length ? "amber" : "emerald"} icon={<ShieldAlert className="h-5 w-5" />} index={2} />
         <StatCard label="Overdue risk" value={money(rows.filter((row) => row.status === "overdue").reduce((sum, row) => sum + row.amount, 0))} tone="rose" icon={<AlertTriangle className="h-5 w-5" />} index={3} />
@@ -464,7 +461,6 @@ const FinancePage: React.FC<{ kind: FinancePageKind; familyOnly?: boolean }> = (
           onStatus={setStatus}
           onPayer={setPayer}
           onQuery={setQuery}
-          onSavedViews={() => notify("Saved finance views opened in demo mode.")}
         />
         {loading ? (
           <div className="py-12 text-center text-sm text-slate-500">Loading billing records...</div>
@@ -523,9 +519,8 @@ const Filters: React.FC<{
   onStatus: (value: string) => void;
   onPayer: (value: string) => void;
   onQuery: (value: string) => void;
-  onSavedViews: () => void;
-}> = ({ status, payer, query, onStatus, onPayer, onQuery, onSavedViews }) => (
-  <div className="mb-5 grid gap-3 lg:grid-cols-[1fr_180px_180px_auto]">
+}> = ({ status, payer, query, onStatus, onPayer, onQuery }) => (
+  <div className="mb-5 grid gap-3 lg:grid-cols-[1fr_180px_180px]">
     <label className="relative">
       <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
       <input
@@ -545,13 +540,6 @@ const Filters: React.FC<{
         <option key={option}>{option}</option>
       ))}
     </select>
-    <button
-      onClick={onSavedViews}
-      className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-    >
-      <Filter className="h-4 w-4" />
-      Saved views
-    </button>
   </div>
 );
 
@@ -610,8 +598,9 @@ const ValidationPanel: React.FC<{ warnings: FinanceRecord[] }> = ({ warnings }) 
     description="Items to review before sending, submitting or closing period."
     icon={<AlertTriangle className="h-4 w-4" />}
   >
-    <div className="grid gap-3 lg:grid-cols-3">
-      {(warnings.length ? warnings : records.slice(0, 3)).slice(0, 3).map((warning, index) => (
+    {warnings.length ? (
+      <div className="grid gap-3 lg:grid-cols-3">
+        {warnings.slice(0, 3).map((warning, index) => (
         <div key={`${warning.id}-${index}`} className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
           <div className="flex items-center justify-between gap-3">
             <span className="font-mono text-xs font-bold text-amber-900">{warning.id}</span>
@@ -621,8 +610,13 @@ const ValidationPanel: React.FC<{ warnings: FinanceRecord[] }> = ({ warnings }) 
             {warning.warning || "No validation issues detected for this finance item."}
           </p>
         </div>
-      ))}
-    </div>
+        ))}
+      </div>
+    ) : (
+      <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
+        No validation warnings.
+      </div>
+    )}
   </Card>
 );
 
@@ -666,17 +660,6 @@ const DetailDrawer: React.FC<{
   onNotify: (message: string) => void;
 }> = ({ record, canManage, onClose, onRefresh, onNotify }) => {
   const toast = useToast();
-
-  const exportPdf = () => {
-    const blob = new Blob([JSON.stringify(record, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${record.id}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    onNotify(`${record.id} exported.`);
-  };
 
   const postAction = async () => {
     if (!record.backendId) {
@@ -730,25 +713,7 @@ const DetailDrawer: React.FC<{
           </div>
         )}
 
-        <Card title="Activity timeline">
-          <ol className="space-y-3">
-            {["Created from approved visit notes", "Rate schedule validated", "Sent to payer portal", "Awaiting finance review"].map((item) => (
-              <li key={item} className="flex gap-3 text-sm">
-                <CheckCircle2 className="mt-0.5 h-4 w-4 text-emerald-600" />
-                <span className="text-slate-600">{item}</span>
-              </li>
-            ))}
-          </ol>
-        </Card>
-
         <div className="flex flex-wrap gap-2">
-          <button
-            onClick={exportPdf}
-            className="inline-flex items-center gap-2 rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-          >
-            <Download className="h-4 w-4" />
-            Export
-          </button>
           {canManage && (
             <button
               onClick={() => void postAction()}
@@ -773,41 +738,11 @@ const Info: React.FC<{ label: string; value: string }> = ({ label, value }) => (
 );
 
 const RevenueBreakdown: React.FC = () => (
-  <div className="grid gap-6 lg:grid-cols-2">
-    <Card title="Revenue by payer" description="Current quarter">
-      {[
-        ["NDIS", 44],
-        ["Aged Care", 26],
-        ["Private", 18],
-        ["Family", 12],
-      ].map(([label, value]) => (
-        <div key={label} className="mb-4 last:mb-0">
-          <div className="mb-1 flex justify-between text-sm">
-            <span className="font-medium text-slate-700">{label}</span>
-            <span className="font-semibold text-slate-900">{value}%</span>
-          </div>
-          <div className="h-2 rounded-full bg-slate-100">
-            <div className="h-2 rounded-full bg-indigo-500" style={{ width: `${value}%` }} />
-          </div>
-        </div>
-      ))}
-    </Card>
-    <Card title="Ageing summary" description="Outstanding balance bands">
-      <div className="grid grid-cols-4 gap-3">
-        {[
-          ["0-14", "$18k"],
-          ["15-30", "$9k"],
-          ["31-60", "$4k"],
-          ["60+", "$2k"],
-        ].map(([label, value]) => (
-          <div key={label} className="rounded-xl border border-slate-200 p-4 text-center">
-            <div className="font-display text-xl font-bold text-slate-900">{value}</div>
-            <div className="mt-1 text-xs text-slate-500">{label} days</div>
-          </div>
-        ))}
-      </div>
-    </Card>
-  </div>
+  <Card title="Revenue breakdown" description="Payer mix and ageing summaries require connected revenue analytics.">
+    <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
+      No revenue analytics data connected yet.
+    </div>
+  </Card>
 );
 
 export const FinancialOverviewPage = () => <FinancePage kind="overview" />;

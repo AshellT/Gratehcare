@@ -4,7 +4,6 @@ export interface PaginatedResponse<T> {
   total: number;
   page: number;
   limit: number;
-  _isMock?: boolean;
 }
 
 export interface PaginationQuery {
@@ -228,7 +227,6 @@ export interface ReportSummary {
   activeStaff: number;
   complianceScore: number;
   rosterFillRate: number;
-  _isMock?: boolean;
 }
 
 // ─── Integrations ─────────────────────────────────────────────────────────────

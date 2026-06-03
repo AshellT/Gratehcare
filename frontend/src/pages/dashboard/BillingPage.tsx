@@ -10,9 +10,6 @@ import { useToast } from "@/context/ToastContext";
 import {
   Activity,
   AlertTriangle,
-  Download,
-  Filter,
-  MoreHorizontal,
   Plus,
   Receipt,
   Wallet,
@@ -40,7 +37,6 @@ const fmtDate = (iso: string) =>
   new Date(iso).toLocaleDateString("en-AU", { day: "2-digit", month: "short" });
 
 const BillingPage: React.FC = () => {
-  const [message, setMessage] = useState<string | null>(null);
   const { data, loading, error, stats, create } = useBilling();
   const { data: clientsData } = useClients();
   const clients = clientsData?.data ?? [];
@@ -49,10 +45,6 @@ const BillingPage: React.FC = () => {
   const [showCreate, setShowCreate] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ number: "", clientId: "", amount: "" });
-  const notify = (text: string) => {
-    setMessage(text);
-    window.setTimeout(() => setMessage(null), 2400);
-  };
 
   const handleCreate = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -87,23 +79,12 @@ const BillingPage: React.FC = () => {
         description="Invoices, payments and reconciliation in one place."
         actions={[
           {
-            label: "Export",
-            variant: "secondary",
-            icon: <Download className="h-4 w-4" />,
-          },
-          {
             label: "New invoice",
             icon: <Plus className="h-4 w-4" />,
             onClick: () => setShowCreate(true),
           },
         ]}
       />
-
-      {message && (
-        <div className="rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm font-semibold text-indigo-800">
-          {message}
-        </div>
-      )}
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
@@ -118,15 +99,13 @@ const BillingPage: React.FC = () => {
           value={fmt(stats.paidThisMonth)}
           tone="emerald"
           icon={<Wallet className="h-5 w-5" />}
-          delta={{ value: "+12%", direction: "up" }}
           index={1}
         />
         <StatCard
           label="Avg. days to pay"
-          value="11d"
+          value="—"
           tone="indigo"
           icon={<Activity className="h-5 w-5" />}
-          delta={{ value: "-3d", direction: "up" }}
           index={2}
         />
         <StatCard
@@ -152,12 +131,6 @@ const BillingPage: React.FC = () => {
               </span>
             )}
           </div>
-          <button
-            onClick={() => notify("Invoice filters opened in demo mode.")}
-            className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-          >
-            <Filter className="h-3.5 w-3.5" /> Filters
-          </button>
         </div>
 
         <div className="overflow-x-auto -mx-5">
@@ -170,7 +143,6 @@ const BillingPage: React.FC = () => {
                 <th className="px-5 py-3">Due</th>
                 <th className="px-5 py-3">Amount</th>
                 <th className="px-5 py-3">Status</th>
-                <th className="px-5 py-3 w-10" />
               </tr>
             </thead>
             <tbody>
@@ -199,19 +171,6 @@ const BillingPage: React.FC = () => {
                     <Badge tone={statusTone[inv.status]} dot>
                       {inv.status}
                     </Badge>
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <button
-                      onClick={() =>
-                        notify(
-                          `${inv.invoiceNumber} actions opened in demo mode.`,
-                        )
-                      }
-                      aria-label={`Open actions for ${inv.invoiceNumber}`}
-                      className="inline-flex items-center justify-center h-8 w-8 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100"
-                    >
-                      <MoreHorizontal className="h-4 w-4" />
-                    </button>
                   </td>
                 </tr>
               ))}
