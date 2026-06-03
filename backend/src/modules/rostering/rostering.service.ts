@@ -8,7 +8,24 @@ import { AuthUser } from "@/common/types/auth-user.type";
 export class RosteringService extends TenantCrudService {
   constructor(prisma: PrismaService) {
     super(prisma, "shift", {
-      createData: (dto, tenantId) => ({ tenantId, startsAt: new Date(), endsAt: new Date(Date.now() + 60 * 60 * 1000), service: dto.title, notes: dto.description, status: "OPEN" }),
+      createData: (dto, tenantId) => {
+        const meta = dto.metadata ?? {};
+        const startsAt = meta.startsAt ? new Date(String(meta.startsAt)) : new Date();
+        const endsAt = meta.endsAt
+          ? new Date(String(meta.endsAt))
+          : new Date(startsAt.getTime() + 60 * 60 * 1000);
+        const staffId = (meta.staffId as string) || undefined;
+        return {
+          tenantId,
+          clientId: (meta.clientId as string) || undefined,
+          staffId,
+          startsAt,
+          endsAt,
+          service: dto.title,
+          notes: dto.description,
+          status: staffId ? "FILLED" : "OPEN",
+        };
+      },
       updateData: (dto) => ({ service: dto.title, notes: dto.description }),
       archiveData: { status: "CANCELLED" },
       defaultOrderBy: { startsAt: "desc" },

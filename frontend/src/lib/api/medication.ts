@@ -3,8 +3,12 @@ import type { PaginatedResponse, PaginationQuery } from "./types";
 
 export type MedicationRecord = {
   id: string;
+  name?: string;
   title?: string;
+  dosage?: string;
+  schedule?: string;
   clientId?: string;
+  client?: { fullName?: string };
   status?: string;
   createdAt?: string;
 };

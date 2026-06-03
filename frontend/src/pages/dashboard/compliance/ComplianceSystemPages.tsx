@@ -157,6 +157,40 @@ const meta: Record<
   },
 };
 
+// Each compliance page targets a specific category and uses a tailored
+// subject label, so "Add credential" and "New policy" no longer show the
+// same generic form.
+const categoryForPage: Record<ComplianceKey, string> = {
+  overview: "Compliance",
+  events: "Compliance",
+  "risk-alerts": "Risk",
+  credentials: "Credential",
+  training: "Training",
+  expiry: "Expiry",
+  incidents: "Incident",
+  investigations: "Investigation",
+  "audit-logs": "Audit",
+  policies: "Policy",
+  "corrective-actions": "Corrective action",
+};
+
+const subjectLabelForPage: Record<ComplianceKey, string> = {
+  overview: "Subject",
+  events: "Event subject",
+  "risk-alerts": "Alert title",
+  credentials: "Credential name",
+  training: "Training course",
+  expiry: "Item expiring",
+  incidents: "Incident summary",
+  investigations: "Investigation subject",
+  "audit-logs": "Audit note",
+  policies: "Policy name",
+  "corrective-actions": "Corrective action",
+};
+
+const isIncidentPage = (key: ComplianceKey) =>
+  key === "incidents" || key === "investigations";
+
 const records: ComplianceRecord[] = [
   rec("CMP-910", "Medication authority missing", "Medication", "Sara Hill", "critical", "open", "Today 17:00", "2 files pending", "Onboarding medication authority is missing for Maya Krishnan before first support visit.", ["Triage", "Evidence requested", "Coordinator assigned", "Awaiting verification"], "Upload signed medication authority"),
   rec("CRD-804", "James McGuire first aid renewal", "Credential", "Compliance", "high", "in progress", "Apr 30", "Certificate requested", "First aid certificate expires in 4 days and blocks high-intensity support assignments.", ["Detected", "Worker notified", "Renewal booked", "Evidence pending"], "Verify renewed certificate"),
@@ -350,18 +384,20 @@ const ComplianceSystemPage: React.FC<{ pageKey: ComplianceKey }> = ({ pageKey })
 
   const createRecord = async (form: FormState) => {
     try {
-      const useIncidents = pageKey === "incidents" || pageKey === "investigations";
-      if (useIncidents) {
+      if (isIncidentPage(pageKey)) {
         await incidentsApi.create(
-          toTenantRecord(form.subject, form.summary, {
-            severity: form.severity.toUpperCase(),
-          }) as any,
+          toTenantRecord(form.subject, form.notes, {
+            occurredAt: form.due || undefined,
+            clientName: form.client || undefined,
+          }, { severity: form.severity.toUpperCase() }) as any,
         );
       } else {
         await complianceApi.createEvent(
-          toTenantRecord(form.subject, form.summary, {
-            category: form.category,
+          toTenantRecord(form.subject, form.notes, {
+            category: categoryForPage[pageKey],
             severity: form.severity.toUpperCase(),
+            dueAt: form.due || undefined,
+            summary: form.notes || undefined,
           }) as any,
         );
       }
@@ -526,34 +562,42 @@ const ComplianceSystemPage: React.FC<{ pageKey: ComplianceKey }> = ({ pageKey })
         />
       )}
 
-      {showForm && <ComplianceForm title={page.createLabel} onClose={() => setShowForm(false)} onSubmit={createRecord} />}
+      {showForm && (
+        <ComplianceForm
+          title={page.createLabel}
+          eyebrow={page.title}
+          subjectLabel={subjectLabelForPage[pageKey]}
+          isIncident={isIncidentPage(pageKey)}
+          onClose={() => setShowForm(false)}
+          onSubmit={createRecord}
+        />
+      )}
     </div>
   );
 };
 
 type FormState = {
   subject: string;
-  category: string;
-  owner: string;
   severity: Severity;
   due: string;
-  summary: string;
-  action: string;
+  client: string;
+  notes: string;
 };
 
 const ComplianceForm: React.FC<{
   title: string;
+  eyebrow: string;
+  subjectLabel: string;
+  isIncident: boolean;
   onClose: () => void;
   onSubmit: (form: FormState) => void;
-}> = ({ title, onClose, onSubmit }) => {
+}> = ({ title, eyebrow, subjectLabel, isIncident, onClose, onSubmit }) => {
   const [form, setForm] = useState<FormState>({
     subject: "",
-    category: "Compliance",
-    owner: "",
     severity: "medium",
-    due: "This week",
-    summary: "",
-    action: "",
+    due: "",
+    client: "",
+    notes: "",
   });
   const [error, setError] = useState<string | null>(null);
   const update = (key: keyof FormState, value: string) => setForm((current) => ({ ...current, [key]: value }));
@@ -564,7 +608,7 @@ const ComplianceForm: React.FC<{
       <aside className="h-full w-full max-w-xl overflow-y-auto bg-white shadow-2xl">
         <div className="sticky top-0 flex items-start justify-between border-b border-slate-200 bg-white px-6 py-5">
           <div>
-            <div className="text-xs font-bold uppercase tracking-[0.2em] text-indigo-600">Compliance workflow</div>
+            <div className="text-xs font-bold uppercase tracking-[0.2em] text-indigo-600">{eyebrow}</div>
             <h2 className="mt-1 font-display text-2xl font-bold text-slate-900">{title}</h2>
           </div>
           <button onClick={onClose} className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700">
@@ -575,19 +619,18 @@ const ComplianceForm: React.FC<{
           className="space-y-5 p-6"
           onSubmit={(event) => {
             event.preventDefault();
-            if (!form.subject.trim() || !form.owner.trim() || !form.action.trim()) {
-              setError("Subject, owner and corrective action are required.");
+            if (!form.subject.trim()) {
+              setError(`${subjectLabel} is required.`);
               return;
             }
             onSubmit(form);
           }}
         >
           {error && <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-800">{error}</div>}
-          <Field label="Subject" value={form.subject} onChange={(value) => update("subject", value)} />
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Category" value={form.category} onChange={(value) => update("category", value)} />
-            <Field label="Owner" value={form.owner} onChange={(value) => update("owner", value)} />
-          </div>
+          <Field label={subjectLabel} value={form.subject} onChange={(value) => update("subject", value)} />
+          {isIncident && (
+            <Field label="Client (optional)" value={form.client} onChange={(value) => update("client", value)} />
+          )}
           <div className="grid grid-cols-2 gap-3">
             <label>
               <span className="text-xs font-semibold text-slate-700">Severity</span>
@@ -595,16 +638,18 @@ const ComplianceForm: React.FC<{
                 {["low", "medium", "high", "critical"].map((option) => <option key={option}>{option}</option>)}
               </select>
             </label>
-            <Field label="Due" value={form.due} onChange={(value) => update("due", value)} />
+            <label>
+              <span className="text-xs font-semibold text-slate-700">{isIncident ? "Occurred" : "Due date"}</span>
+              <input type="date" value={form.due} onChange={(event) => update("due", event.target.value)} className="mt-1 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-indigo-500" />
+            </label>
           </div>
-          <Field label="Corrective action" value={form.action} onChange={(value) => update("action", value)} />
           <label>
-            <span className="text-xs font-semibold text-slate-700">Summary</span>
-            <textarea value={form.summary} onChange={(event) => update("summary", event.target.value)} rows={5} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500" />
+            <span className="text-xs font-semibold text-slate-700">Notes</span>
+            <textarea value={form.notes} onChange={(event) => update("notes", event.target.value)} rows={5} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500" />
           </label>
           <div className="flex justify-end gap-2 border-t border-slate-100 pt-5">
             <button type="button" onClick={onClose} className="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Cancel</button>
-            <button type="submit" className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">Create workflow</button>
+            <button type="submit" className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">{title}</button>
           </div>
         </form>
       </aside>

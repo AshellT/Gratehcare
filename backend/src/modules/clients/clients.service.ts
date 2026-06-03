@@ -6,7 +6,13 @@ import { TenantCrudService } from "@/common/services/tenant-crud.service";
 export class ClientsService extends TenantCrudService {
   constructor(prisma: PrismaService) {
     super(prisma, "client", {
-      createData: (dto, tenantId) => ({ tenantId, fullName: dto.title, status: dto.status || "ACTIVE", riskLevel: dto.severity }),
+      createData: (dto, tenantId) => ({
+        tenantId,
+        fullName: dto.title,
+        status: dto.status || "ACTIVE",
+        riskLevel: dto.severity,
+        funding: (dto.metadata?.funding as string) || undefined,
+      }),
       updateData: (dto) => ({ fullName: dto.title, status: dto.status, riskLevel: dto.severity }),
     });
   }

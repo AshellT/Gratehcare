@@ -4,14 +4,25 @@ import PageHeader from "@/components/dashboard/PageHeader";
 import StatCard from "@/components/dashboard/StatCard";
 import { useAuth } from "@/context/AuthContext";
 import { useActionQuery } from "@/hooks/useActionQuery";
-import { createModuleRecord } from "@/lib/api/moduleCreate";
+import {
+  CREATABLE_MODULES,
+  createModuleRecord,
+  moduleFields,
+  updateModuleRecord,
+  type FieldDef,
+  type ModuleValues,
+} from "@/lib/api/moduleCreate";
 import { useToast } from "@/context/ToastContext";
+import { useApi } from "@/hooks/useApi";
 import { useCareNotes, useCarePlans } from "@/hooks/useCare";
 import { useClients } from "@/hooks/useClients";
 import { useIncidents } from "@/hooks/useIncidents";
 import { useRostering } from "@/hooks/useRostering";
 import { useStaff } from "@/hooks/useStaff";
 import { useTimesheets } from "@/hooks/useTimesheets";
+import { incidentsApi } from "@/lib/api/incidents";
+import { medicationApi, type MedicationRecord } from "@/lib/api/medication";
+import { timesheetsApi } from "@/lib/api/timesheets";
 import type {
   CareNote,
   CarePlan,
@@ -69,6 +80,8 @@ type Tone =
 
 type OperationRecord = {
   id: string;
+  /** Real backend entity id used for API mutations (defaults to `id`). */
+  entityId: string;
   primary: string;
   secondary: string;
   owner: string;
@@ -262,9 +275,11 @@ function row(
   location: string,
   detail: string,
   fields: Record<string, string>,
+  entityId?: string,
 ): OperationRecord {
   return {
     id,
+    entityId: entityId ?? id,
     primary,
     secondary,
     owner,
@@ -297,6 +312,7 @@ function useModuleRecords(moduleKey: ModuleKey) {
   const plansQ = useCarePlans();
   const notesQ = useCareNotes();
   const incidentsQ = useIncidents();
+  const medicationQ = useApi(() => medicationApi.list(), []);
 
   const records = useMemo((): OperationRecord[] => {
     const fromShifts = (shifts: Shift[]): OperationRecord[] =>
@@ -483,8 +499,37 @@ function useModuleRecords(moduleKey: ModuleKey) {
               Severity: i.severity,
               Reporter: i.reportedBy,
             },
+            i.id,
           ),
         );
+      }
+      case "medication": {
+        const items = medicationQ.data?.data;
+        if (!items?.length) return [];
+        const clientName = (m: MedicationRecord) =>
+          m.client?.fullName ??
+          clientsQ.data?.data?.find((c: Client) => c.id === m.clientId)?.fullName ??
+          "—";
+        return items.map((m: MedicationRecord) => {
+          const label = m.name ?? m.title ?? "Medication";
+          return row(
+            m.id,
+            label,
+            m.dosage ? `${clientName(m)} · ${m.dosage}` : clientName(m),
+            "Clinical",
+            m.status ?? "active",
+            "low",
+            m.schedule ?? "—",
+            "—",
+            `${label}. ${m.dosage ? `Dosage: ${m.dosage}. ` : ""}${m.schedule ? `Schedule: ${m.schedule}.` : ""}`.trim(),
+            {
+              Client: clientName(m),
+              Dosage: m.dosage ?? "—",
+              Schedule: m.schedule ?? "—",
+              Status: m.status ?? "—",
+            },
+          );
+        });
       }
       default:
         return [];
@@ -500,6 +545,7 @@ function useModuleRecords(moduleKey: ModuleKey) {
     plansQ.data,
     notesQ.data,
     incidentsQ.data,
+    medicationQ.data,
   ]);
 
   const refetch = useCallback(async () => {
@@ -528,6 +574,9 @@ function useModuleRecords(moduleKey: ModuleKey) {
       case "incidents":
         await incidentsQ.refetch();
         break;
+      case "medication":
+        await medicationQ.refetch();
+        break;
       default:
         break;
     }
@@ -541,6 +590,7 @@ function useModuleRecords(moduleKey: ModuleKey) {
     plansQ,
     notesQ,
     incidentsQ,
+    medicationQ,
   ]);
 
   return { records, refetch };
@@ -580,14 +630,18 @@ const OperationModulePage: React.FC<{ moduleKey: ModuleKey }> = ({
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
   const canManage = canManageModule(user?.role, moduleKey);
+  const canCreate = canManage && CREATABLE_MODULES.has(moduleKey);
 
   const notify = (text: string) => {
     setMessage(text);
     window.setTimeout(() => setMessage(null), 2600);
   };
 
-  useActionQuery("create", () => setShowCreate(true));
+  useActionQuery("create", () => {
+    if (canCreate) setShowCreate(true);
+  });
   useActionQuery("autofill", () => notify("Auto-fill suggestions applied to open shifts."));
 
   const filtered = useMemo(() => {
@@ -608,42 +662,58 @@ const OperationModulePage: React.FC<{ moduleKey: ModuleKey }> = ({
     (record) => record.priority === "critical" || record.status === "critical",
   ).length;
 
-  const createRecord = async (form: FormState) => {
+  const createRecord = async (values: ModuleValues) => {
     try {
       setCreating(true);
-      await createModuleRecord(moduleKey, form);
+      await createModuleRecord(moduleKey, values);
       await refetch();
       setShowCreate(false);
-      notify(`${form.primary} created.`);
+      notify(`${meta.title} record created.`);
     } catch {
-      toast.error("Create failed", `Could not create ${meta.title.toLowerCase()} record.`);
+      toast.error(
+        "Create failed",
+        `Could not create ${meta.title.toLowerCase()} record.`,
+      );
     } finally {
       setCreating(false);
     }
   };
 
-  const updateRecord = (form: FormState) => {
+  const updateRecord = async (values: ModuleValues) => {
     if (!editing) return;
-    const next = { ...editing, ...form };
-    setRecords((items) =>
-      items.map((item) => (item.id === editing.id ? next : item)),
-    );
-    setEditing(null);
-    setSelected(next);
-    notify(`${next.id} updated.`);
+    try {
+      setSaving(true);
+      await updateModuleRecord(moduleKey, editing.entityId, values);
+      await refetch();
+      setEditing(null);
+      setSelected(null);
+      notify(`${editing.id} updated.`);
+    } catch {
+      toast.error(
+        "Update failed",
+        `Could not update ${meta.title.toLowerCase()} record.`,
+      );
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const closeRecord = (record: OperationRecord) => {
-    const closed = {
-      ...record,
-      status: moduleKey === "open-shifts" ? "covered" : "resolved",
-      priority: "low" as const,
-    };
-    setRecords((items) =>
-      items.map((item) => (item.id === record.id ? closed : item)),
-    );
-    setSelected(closed);
-    notify(`${record.id} marked ${closed.status}.`);
+  const closeRecord = async (record: OperationRecord) => {
+    try {
+      if (moduleKey === "incidents") {
+        await incidentsApi.close(record.entityId, "Resolved from operations detail drawer");
+      } else if (moduleKey === "timesheets") {
+        await timesheetsApi.approve(record.entityId);
+      } else {
+        notify(`Resolve is not available for ${meta.title.toLowerCase()} records.`);
+        return;
+      }
+      await refetch();
+      setSelected(null);
+      notify(`${record.id} updated.`);
+    } catch {
+      toast.error("Update failed", `Could not resolve ${record.id}.`);
+    }
   };
 
   return (
@@ -663,7 +733,7 @@ const OperationModulePage: React.FC<{ moduleKey: ModuleKey }> = ({
             icon: <Download className="h-4 w-4" />,
             onClick: () => notify(`${meta.title} export prepared.`),
           },
-          ...(canManage
+          ...(canCreate
             ? [
                 {
                   label: meta.createLabel,
@@ -778,7 +848,7 @@ const OperationModulePage: React.FC<{ moduleKey: ModuleKey }> = ({
             <p className="mt-1 text-sm text-slate-500">
               Adjust filters or create a new record to continue.
             </p>
-            {canManage && (
+            {canCreate && (
               <button
                 onClick={() => setShowCreate(true)}
                 className="mt-4 inline-flex items-center gap-2 rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
@@ -871,6 +941,7 @@ const OperationModulePage: React.FC<{ moduleKey: ModuleKey }> = ({
         <RecordFormDrawer
           title={meta.createLabel}
           moduleKey={moduleKey}
+          submitting={creating}
           onClose={() => setShowCreate(false)}
           onSubmit={createRecord}
         />
@@ -881,6 +952,7 @@ const OperationModulePage: React.FC<{ moduleKey: ModuleKey }> = ({
           title={`Edit ${editing.id}`}
           moduleKey={moduleKey}
           record={editing}
+          submitting={saving}
           onClose={() => setEditing(null)}
           onSubmit={updateRecord}
         />
@@ -889,38 +961,162 @@ const OperationModulePage: React.FC<{ moduleKey: ModuleKey }> = ({
   );
 };
 
-type FormState = {
-  primary: string;
-  secondary: string;
-  owner: string;
-  status: string;
-  priority: OperationRecord["priority"];
-  date: string;
-  location: string;
-  detail: string;
-};
+type SelectOption = { value: string; label: string };
+
+const INPUT_CLASS =
+  "mt-1 h-10 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500";
+
+/** Best-effort mapping of an existing record back into editable form values. */
+function recordToValues(
+  moduleKey: ModuleKey,
+  record: OperationRecord,
+): ModuleValues {
+  const fields = moduleFields[moduleKey] ?? [];
+  const values: ModuleValues = {};
+  let titleSet = false;
+  let detailSet = false;
+  for (const field of fields) {
+    if (field.type === "text" && field.required && !titleSet) {
+      values[field.name] = record.primary;
+      titleSet = true;
+    } else if (field.type === "textarea" && !detailSet) {
+      values[field.name] = record.detail;
+      detailSet = true;
+    } else if (field.type === "select" && field.options) {
+      const candidate =
+        field.name === "severity" || field.name === "riskLevel"
+          ? record.priority.toUpperCase()
+          : record.status.toUpperCase();
+      if (field.options.includes(candidate)) values[field.name] = candidate;
+    }
+  }
+  return values;
+}
+
+function initialValues(
+  moduleKey: ModuleKey,
+  record?: OperationRecord,
+): ModuleValues {
+  const fields = moduleFields[moduleKey] ?? [];
+  const base: ModuleValues = {};
+  for (const field of fields) {
+    base[field.name] =
+      field.type === "select" && field.required && field.options?.length
+        ? field.options[0]
+        : "";
+  }
+  return record ? { ...base, ...recordToValues(moduleKey, record) } : base;
+}
 
 const RecordFormDrawer: React.FC<{
   title: string;
   moduleKey: ModuleKey;
   record?: OperationRecord;
+  submitting?: boolean;
   onClose: () => void;
-  onSubmit: (form: FormState) => void;
-}> = ({ title, moduleKey, record, onClose, onSubmit }) => {
-  const [form, setForm] = useState<FormState>({
-    primary: record?.primary || "",
-    secondary: record?.secondary || "",
-    owner: record?.owner || "",
-    status: record?.status || "open",
-    priority: record?.priority || "medium",
-    date: record?.date || "Today",
-    location: record?.location || "",
-    detail: record?.detail || "",
-  });
+  onSubmit: (values: ModuleValues) => void;
+}> = ({ title, moduleKey, record, submitting, onClose, onSubmit }) => {
+  const fields = moduleFields[moduleKey] ?? [];
+  const [values, setValues] = useState<ModuleValues>(() =>
+    initialValues(moduleKey, record),
+  );
   const [error, setError] = useState<string | null>(null);
 
-  const update = (key: keyof FormState, value: string) =>
-    setForm((current) => ({ ...current, [key]: value }));
+  const needsClients = fields.some((field) => field.type === "client");
+  const needsStaff = fields.some((field) => field.type === "staff");
+  const clientsQ = useClients();
+  const staffQ = useStaff();
+  const clientOptions: SelectOption[] = needsClients
+    ? (clientsQ.data?.data ?? []).map((c) => ({ value: c.id, label: c.fullName }))
+    : [];
+  const staffOptions: SelectOption[] = needsStaff
+    ? (staffQ.data?.data ?? []).map((s) => ({ value: s.id, label: s.fullName }))
+    : [];
+
+  const set = (name: string, value: string) =>
+    setValues((current) => ({ ...current, [name]: value }));
+
+  const handleSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
+    const missing = fields.filter(
+      (field) => field.required && !(values[field.name] ?? "").trim(),
+    );
+    if (missing.length) {
+      setError(`Please complete: ${missing.map((f) => f.label).join(", ")}.`);
+      return;
+    }
+    setError(null);
+    onSubmit(values);
+  };
+
+  const renderControl = (field: FieldDef) => {
+    const value = values[field.name] ?? "";
+    if (field.type === "textarea") {
+      return (
+        <textarea
+          value={value}
+          onChange={(event) => set(field.name, event.target.value)}
+          rows={4}
+          placeholder={field.placeholder}
+          className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+        />
+      );
+    }
+    if (
+      field.type === "select" ||
+      field.type === "client" ||
+      field.type === "staff"
+    ) {
+      const options: SelectOption[] =
+        field.type === "client"
+          ? clientOptions
+          : field.type === "staff"
+            ? staffOptions
+            : (field.options ?? []).map((o) => ({ value: o, label: o }));
+      const placeholder =
+        field.type === "client"
+          ? "Select client"
+          : field.type === "staff"
+            ? "Select staff member"
+            : "Select…";
+      return (
+        <select
+          value={value}
+          onChange={(event) => set(field.name, event.target.value)}
+          className={INPUT_CLASS}
+        >
+          {!field.required && <option value="">{placeholder}</option>}
+          {field.required && !value && (
+            <option value="" disabled>
+              {placeholder}
+            </option>
+          )}
+          {options.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      );
+    }
+    const inputType =
+      field.type === "number"
+        ? "number"
+        : field.type === "date"
+          ? "date"
+          : field.type === "datetime"
+            ? "datetime-local"
+            : "text";
+    return (
+      <input
+        type={inputType}
+        value={value}
+        onChange={(event) => set(field.name, event.target.value)}
+        placeholder={field.placeholder}
+        className={INPUT_CLASS}
+      />
+    );
+  };
 
   return (
     <div className="fixed inset-0 z-[90] flex justify-end bg-slate-900/30">
@@ -947,80 +1143,32 @@ const RecordFormDrawer: React.FC<{
           </button>
         </div>
 
-        <form
-          className="space-y-5 p-6"
-          onSubmit={(event) => {
-            event.preventDefault();
-            if (!form.primary.trim() || !form.owner.trim()) {
-              setError("Primary name and owner are required.");
-              return;
-            }
-            onSubmit(form);
-          }}
-        >
+        <form className="p-6" onSubmit={handleSubmit}>
           {error && (
-            <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-800">
+            <div className="mb-5 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-800">
               {error}
             </div>
           )}
-          <Field
-            label="Primary name"
-            value={form.primary}
-            onChange={(value) => update("primary", value)}
-          />
-          <Field
-            label="Summary"
-            value={form.secondary}
-            onChange={(value) => update("secondary", value)}
-          />
-          <div className="grid grid-cols-2 gap-3">
-            <Field
-              label="Owner"
-              value={form.owner}
-              onChange={(value) => update("owner", value)}
-            />
-            <Field
-              label="Date"
-              value={form.date}
-              onChange={(value) => update("date", value)}
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <label>
-              <span className="text-xs font-semibold text-slate-700">
-                Priority
-              </span>
-              <select
-                value={form.priority}
-                onChange={(event) => update("priority", event.target.value)}
-                className="mt-1 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm"
+          <div className="grid grid-cols-2 gap-4">
+            {fields.map((field) => (
+              <label
+                key={field.name}
+                className={field.half ? "col-span-1" : "col-span-2"}
               >
-                {["low", "medium", "high", "critical"].map((option) => (
-                  <option key={option}>{option}</option>
-                ))}
-              </select>
-            </label>
-            <Field
-              label="Status"
-              value={form.status}
-              onChange={(value) => update("status", value)}
-            />
+                <span className="text-xs font-semibold text-slate-700">
+                  {field.label}
+                  {field.required && <span className="text-rose-500"> *</span>}
+                </span>
+                {renderControl(field)}
+                {field.help && (
+                  <span className="mt-1 block text-[11px] text-slate-400">
+                    {field.help}
+                  </span>
+                )}
+              </label>
+            ))}
           </div>
-          <Field
-            label="Location"
-            value={form.location}
-            onChange={(value) => update("location", value)}
-          />
-          <label>
-            <span className="text-xs font-semibold text-slate-700">Detail</span>
-            <textarea
-              value={form.detail}
-              onChange={(event) => update("detail", event.target.value)}
-              rows={5}
-              className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-          </label>
-          <div className="flex justify-end gap-2 border-t border-slate-100 pt-5">
+          <div className="mt-6 flex justify-end gap-2 border-t border-slate-100 pt-5">
             <button
               type="button"
               onClick={onClose}
@@ -1030,9 +1178,10 @@ const RecordFormDrawer: React.FC<{
             </button>
             <button
               type="submit"
-              className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+              disabled={submitting}
+              className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
             >
-              Save
+              {submitting ? "Saving…" : "Save"}
             </button>
           </div>
         </form>
@@ -1041,28 +1190,13 @@ const RecordFormDrawer: React.FC<{
   );
 };
 
-const Field: React.FC<{
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-}> = ({ label, value, onChange }) => (
-  <label>
-    <span className="text-xs font-semibold text-slate-700">{label}</span>
-    <input
-      value={value}
-      onChange={(event) => onChange(event.target.value)}
-      className="mt-1 h-10 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
-    />
-  </label>
-);
-
 const DetailDrawer: React.FC<{
   moduleTitle: string;
   record: OperationRecord;
   canManage: boolean;
   onClose: () => void;
   onEdit: () => void;
-  onResolve: () => void;
+  onResolve: () => void | Promise<void>;
   onNotify: (message: string) => void;
 }> = ({
   moduleTitle,
@@ -1161,7 +1295,7 @@ const DetailDrawer: React.FC<{
                 Edit
               </button>
               <button
-                onClick={onResolve}
+                onClick={() => void onResolve()}
                 className="rounded-full bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
               >
                 Resolve

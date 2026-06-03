@@ -1,26 +1,62 @@
 import { apiClient, normalizePage } from "./client";
 import type { Client, PaginatedResponse, PaginationQuery } from "./types";
 
+type RawClient = Partial<Client> & {
+  status?: string;
+  riskLevel?: string;
+};
+
+const normalizeStatus = (status?: string): Client["status"] => {
+  switch (String(status ?? "ACTIVE").toUpperCase()) {
+    case "PENDING":
+      return "onboarding";
+    case "REVIEW":
+      return "paused";
+    case "ARCHIVED":
+      return "discharged";
+    default:
+      return "active";
+  }
+};
+
+const normalizeClient = (client: RawClient): Client => {
+  const fullName = client.fullName ?? "Client";
+  return {
+    ...(client as Client),
+    fullName,
+    initial: client.initial ?? fullName.charAt(0).toUpperCase(),
+    status: normalizeStatus(client.status),
+    funding: client.funding ?? "—",
+    since: client.since ?? (client.createdAt ? new Date(client.createdAt).toLocaleDateString("en-AU") : "—"),
+    riskLevel: client.riskLevel?.toLowerCase() as Client["riskLevel"],
+  };
+};
+
+const normalizeClientPage = (page: PaginatedResponse<RawClient> | { items?: RawClient[] }) => {
+  const normalized = normalizePage(page);
+  return { ...normalized, data: normalized.data.map(normalizeClient) };
+};
+
 export const clientsApi = {
   list: (query?: PaginationQuery) =>
     apiClient
       .get<
-        PaginatedResponse<Client> | {
-          items?: Client[];
+        PaginatedResponse<RawClient> | {
+          items?: RawClient[];
           total?: number;
           page?: number;
           limit?: number;
         }
       >("/clients", { params: query as any })
-      .then(normalizePage),
+      .then(normalizeClientPage),
 
-  get: (id: string) => apiClient.get<Client>(`/clients/${id}`),
+  get: (id: string) => apiClient.get<RawClient>(`/clients/${id}`).then(normalizeClient),
 
   create: (data: Partial<Client>) =>
-    apiClient.post<Client>("/clients", data as any),
+    apiClient.post<RawClient>("/clients", data as any).then(normalizeClient),
 
   update: (id: string, data: Partial<Client>) =>
-    apiClient.patch<Client>(`/clients/${id}`, data as any),
+    apiClient.patch<RawClient>(`/clients/${id}`, data as any).then(normalizeClient),
 
   archive: (id: string) => apiClient.post(`/clients/${id}/archive`, {}),
 };

@@ -23,6 +23,7 @@ import StatCard from "@/components/dashboard/StatCard";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
 import { useActionQuery } from "@/hooks/useActionQuery";
+import { useClients } from "@/hooks/useClients";
 import { billingApi } from "@/lib/api/billing";
 import { claimsApi } from "@/lib/api/claims";
 import { toTenantRecord } from "@/lib/api/tenantRecord";
@@ -127,9 +128,11 @@ const pageMeta: Record<FinancePageKind, { title: string; description: string; ey
 
 const invoiceStatusMap: Record<string, FinanceRecord['status']> = {
   draft: 'draft',
+  sent: 'sent',
   pending: 'sent',
   paid: 'paid',
   overdue: 'overdue',
+  disputed: 'disputed',
   cancelled: 'draft',
 };
 
@@ -202,6 +205,17 @@ const statusTone: Record<FinanceRecord["status"], any> = {
   "low-funds": "rose",
 };
 
+// Only these pages map to a real backend create (invoice or claim).
+// Other finance pages (payments, reconciliation, funding, etc.) have no
+// create endpoint, so we don't show a misleading create button there.
+const CREATE_KINDS: FinancePageKind[] = [
+  "invoices",
+  "billing-dashboard",
+  "invoice-builder",
+  "claims",
+  "claim-tracking",
+];
+
 const pageRecords = (
   kind: FinancePageKind,
   source: FinanceRecord[],
@@ -239,7 +253,9 @@ const FinancePage: React.FC<{ kind: FinancePageKind; familyOnly?: boolean }> = (
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [createForm, setCreateForm] = useState({ client: "", service: "", amount: "", payer: "NDIS" });
+  const [createForm, setCreateForm] = useState({ clientId: "", service: "", amount: "", payer: "NDIS" });
+  const { data: clientsData } = useClients();
+  const clients = clientsData?.data ?? [];
 
   const reload = useCallback(async () => {
     const loads = [billingApi.listInvoices()];
@@ -275,6 +291,7 @@ const FinancePage: React.FC<{ kind: FinancePageKind; familyOnly?: boolean }> = (
   const [query, setQuery] = useState("");
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const canManage = user?.role === "billing_officer" && !familyOnly;
+  const canCreate = canManage && CREATE_KINDS.includes(kind);
   const isOwnerView = user?.role === "org_owner";
   const rows = useMemo(() => {
     const source = pageRecords(kind, records, claimRecords, familyOnly || user?.role === "family");
@@ -303,7 +320,9 @@ const FinancePage: React.FC<{ kind: FinancePageKind; familyOnly?: boolean }> = (
     window.setTimeout(() => setActionMessage(null), 2600);
   };
 
-  useActionQuery("create", () => setShowCreate(true));
+  useActionQuery("create", () => {
+    if (canCreate) setShowCreate(true);
+  });
 
   const handleCreate = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -318,15 +337,17 @@ const FinancePage: React.FC<{ kind: FinancePageKind; familyOnly?: boolean }> = (
           }) as any,
         );
       } else {
+        const number = `INV-${Date.now().toString().slice(-6)}`;
         await billingApi.createInvoice(
-          toTenantRecord(createForm.client.trim() || "Invoice", undefined, {
+          toTenantRecord(number, undefined, {
             amount: Number(createForm.amount) || 0,
-            clientId: createForm.client,
+            clientId: createForm.clientId || undefined,
           }) as any,
         );
       }
       toast.success("Record created");
       setShowCreate(false);
+      setCreateForm({ clientId: "", service: "", amount: "", payer: "NDIS" });
       await reload();
     } catch {
       toast.error("Create failed", "Could not save finance record.");
@@ -349,7 +370,7 @@ const FinancePage: React.FC<{ kind: FinancePageKind; familyOnly?: boolean }> = (
         }
         actions={[
           { label: "Export", variant: "secondary", icon: <Download className="h-4 w-4" /> },
-          ...(canManage
+          ...(canCreate
             ? [{ label: primaryAction(kind), icon: <Plus className="h-4 w-4" />, onClick: () => setShowCreate(true) }]
             : []),
         ]}
@@ -357,19 +378,30 @@ const FinancePage: React.FC<{ kind: FinancePageKind; familyOnly?: boolean }> = (
 
       <Modal open={showCreate} onClose={() => setShowCreate(false)} title={primaryAction(kind)}>
         <form onSubmit={handleCreate} className="space-y-4">
-          <FormField label={kind === "claims" || kind === "claim-tracking" ? "Service" : "Client / title"}>
-            <input
-              value={kind === "claims" || kind === "claim-tracking" ? createForm.service : createForm.client}
-              onChange={(e) =>
-                setCreateForm((f) =>
-                  kind === "claims" || kind === "claim-tracking"
-                    ? { ...f, service: e.target.value }
-                    : { ...f, client: e.target.value },
-                )
-              }
-              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-            />
-          </FormField>
+          {kind === "claims" || kind === "claim-tracking" ? (
+            <FormField label="Service">
+              <input
+                value={createForm.service}
+                onChange={(e) => setCreateForm((f) => ({ ...f, service: e.target.value }))}
+                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+              />
+            </FormField>
+          ) : (
+            <FormField label="Client">
+              <select
+                value={createForm.clientId}
+                onChange={(e) => setCreateForm((f) => ({ ...f, clientId: e.target.value }))}
+                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+              >
+                <option value="">Unassigned</option>
+                {clients.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.fullName}
+                  </option>
+                ))}
+              </select>
+            </FormField>
+          )}
           {(kind === "claims" || kind === "claim-tracking") && (
             <FormField label="Payer">
               <select

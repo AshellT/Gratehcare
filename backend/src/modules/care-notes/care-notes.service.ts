@@ -3,6 +3,7 @@ import { PrismaService } from "@/prisma/prisma.service";
 import { TenantCrudService } from "@/common/services/tenant-crud.service";
 import { CreateTenantRecordDto } from "@/common/dto/tenant-record.dto";
 import { AuthUser } from "@/common/types/auth-user.type";
+import { PaginationDto } from "@/common/dto/pagination.dto";
 
 @Injectable()
 export class CareNotesService extends TenantCrudService {
@@ -14,6 +15,7 @@ export class CareNotesService extends TenantCrudService {
         staffId: (dto.metadata?.staffId as string) || undefined,
         title: dto.title,
         body: dto.description || "",
+        sharedWithFamily: dto.metadata?.sharedWithFamily === true,
         status: dto.status || "ACTIVE",
       }),
       updateData: (dto) => ({ title: dto.title, body: dto.description, status: dto.status }),
@@ -48,5 +50,29 @@ export class CareNotesService extends TenantCrudService {
       },
       user,
     );
+  }
+
+  override async list(query: PaginationDto, user: AuthUser) {
+    const page = query.page || 1;
+    const limit = query.limit || 25;
+    const status = query.status?.trim();
+    const where = {
+      ...(user.tenantId ? { tenantId: user.tenantId } : {}),
+      ...(status ? { status: status.toUpperCase() as any } : {}),
+    };
+    const [items, total] = await Promise.all([
+      this.prisma.careNote.findMany({
+        where,
+        skip: (page - 1) * limit,
+        take: limit,
+        orderBy: { createdAt: "desc" },
+        include: {
+          client: { select: { fullName: true } },
+          staff: { select: { title: true, user: { select: { fullName: true } } } },
+        },
+      }),
+      this.prisma.careNote.count({ where }),
+    ]);
+    return { items, total, page, limit };
   }
 }

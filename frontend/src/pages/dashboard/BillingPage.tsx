@@ -2,7 +2,11 @@ import Badge from "@/components/dashboard/Badge";
 import Card from "@/components/dashboard/Card";
 import PageHeader from "@/components/dashboard/PageHeader";
 import StatCard from "@/components/dashboard/StatCard";
+import Modal from "@/components/dashboard/Modal";
+import FormField from "@/components/dashboard/FormField";
 import { useBilling } from "@/hooks/useBilling";
+import { useClients } from "@/hooks/useClients";
+import { useToast } from "@/context/ToastContext";
 import {
   Activity,
   AlertTriangle,
@@ -16,9 +20,13 @@ import {
 import React, { useState } from "react";
 
 const statusTone: Record<string, any> = {
+  draft: "slate",
+  sent: "indigo",
   paid: "emerald",
   pending: "amber",
   overdue: "rose",
+  disputed: "amber",
+  cancelled: "slate",
 };
 
 const fmt = (n: number) =>
@@ -33,11 +41,42 @@ const fmtDate = (iso: string) =>
 
 const BillingPage: React.FC = () => {
   const [message, setMessage] = useState<string | null>(null);
-  const { data, loading, error, stats } = useBilling();
+  const { data, loading, error, stats, create } = useBilling();
+  const { data: clientsData } = useClients();
+  const clients = clientsData?.data ?? [];
+  const toast = useToast();
   const invoices = data?.data ?? [];
+  const [showCreate, setShowCreate] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({ number: "", clientId: "", amount: "" });
   const notify = (text: string) => {
     setMessage(text);
     window.setTimeout(() => setMessage(null), 2400);
+  };
+
+  const handleCreate = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!form.number.trim()) {
+      toast.warning("Invoice number required");
+      return;
+    }
+    setSaving(true);
+    try {
+      await create({
+        title: form.number.trim(),
+        metadata: {
+          clientId: form.clientId || undefined,
+          amount: Number(form.amount) || 0,
+        },
+      } as any);
+      toast.success("Invoice created", `${form.number.trim()} saved as draft.`);
+      setShowCreate(false);
+      setForm({ number: "", clientId: "", amount: "" });
+    } catch {
+      toast.error("Create failed", "Could not create invoice.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -52,7 +91,11 @@ const BillingPage: React.FC = () => {
             variant: "secondary",
             icon: <Download className="h-4 w-4" />,
           },
-          { label: "New invoice", icon: <Plus className="h-4 w-4" /> },
+          {
+            label: "New invoice",
+            icon: <Plus className="h-4 w-4" />,
+            onClick: () => setShowCreate(true),
+          },
         ]}
       />
 
@@ -176,6 +219,54 @@ const BillingPage: React.FC = () => {
           </table>
         </div>
       </Card>
+
+      <Modal
+        open={showCreate}
+        onClose={() => setShowCreate(false)}
+        title="New invoice"
+        description="Create a draft invoice for a client."
+      >
+        <form onSubmit={handleCreate} className="space-y-4">
+          <FormField label="Invoice number">
+            <input
+              value={form.number}
+              onChange={(e) => setForm((f) => ({ ...f, number: e.target.value }))}
+              placeholder="INV-1001"
+              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+            />
+          </FormField>
+          <FormField label="Client">
+            <select
+              value={form.clientId}
+              onChange={(e) => setForm((f) => ({ ...f, clientId: e.target.value }))}
+              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+            >
+              <option value="">Unassigned</option>
+              {clients.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.fullName}
+                </option>
+              ))}
+            </select>
+          </FormField>
+          <FormField label="Amount">
+            <input
+              type="number"
+              value={form.amount}
+              onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
+              placeholder="0"
+              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+            />
+          </FormField>
+          <button
+            type="submit"
+            disabled={saving}
+            className="rounded-full bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
+          >
+            {saving ? "Creating…" : "Create invoice"}
+          </button>
+        </form>
+      </Modal>
     </div>
   );
 };

@@ -139,7 +139,7 @@ export interface Invoice extends BaseEntity {
   currency: string;
   issuedAt: string;
   dueAt: string;
-  status: "draft" | "pending" | "paid" | "overdue" | "cancelled";
+  status: "draft" | "sent" | "pending" | "paid" | "overdue" | "disputed" | "cancelled";
   lineItems?: LineItem[];
 }
 

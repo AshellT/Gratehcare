@@ -3,14 +3,46 @@ import { PrismaService } from "@/prisma/prisma.service";
 import { TenantCrudService } from "@/common/services/tenant-crud.service";
 import { PaginationDto } from "@/common/dto/pagination.dto";
 import { AuthUser } from "@/common/types/auth-user.type";
+import { CreateTenantRecordDto } from "@/common/dto/tenant-record.dto";
 
 @Injectable()
 export class IncidentsService extends TenantCrudService {
   constructor(prisma: PrismaService) {
     super(prisma, "incident", {
-      createData: (dto, tenantId) => ({ tenantId, clientId: dto.metadata?.clientId as string | undefined, title: dto.title, details: dto.description, severity: dto.severity || "MEDIUM", status: dto.status || "PENDING" }),
+      createData: (dto, tenantId) => ({
+        tenantId,
+        clientId: (dto.metadata?.clientId as string) || undefined,
+        title: dto.title,
+        details: dto.description,
+        severity: dto.severity || "MEDIUM",
+        status: dto.status || "PENDING",
+        occurredAt: dto.metadata?.occurredAt
+          ? new Date(String(dto.metadata?.occurredAt))
+          : undefined,
+      }),
       updateData: (dto) => ({ title: dto.title, details: dto.description, severity: dto.severity, status: dto.status }),
     });
+  }
+
+  override async create(dto: CreateTenantRecordDto, user: AuthUser) {
+    const tenantId = user.tenantId || dto.tenantId;
+    let clientId = dto.metadata?.clientId as string | undefined;
+    if (!clientId && tenantId && dto.metadata?.clientName) {
+      const byName = await this.prisma.client.findFirst({
+        where: {
+          tenantId,
+          fullName: { contains: String(dto.metadata.clientName), mode: "insensitive" },
+        },
+      });
+      clientId = byName?.id;
+    }
+    return super.create(
+      {
+        ...dto,
+        metadata: { ...dto.metadata, clientId },
+      },
+      user,
+    );
   }
 
   override async list(query: PaginationDto, user: AuthUser) {

@@ -84,10 +84,12 @@ async function uploadFile(
   file: File,
 ): Promise<{ id: string; previewUrl?: string }> {
   const uploaded = await documentsApi.upload(file);
+  const preview = await documentsApi.getPreviewUrl(uploaded.id);
   return {
     id: uploaded.id,
     previewUrl:
-      uploaded.previewUrl ??
+      preview.url ||
+      uploaded.previewUrl ||
       (file.type.startsWith("image/") ? URL.createObjectURL(file) : undefined),
   };
 }
@@ -260,6 +262,15 @@ const DocumentsPage: React.FC = () => {
     if (file) processFile(file);
   };
 
+  const openPreview = async (doc: DocumentRecord) => {
+    try {
+      const preview = await documentsApi.getPreviewUrl(doc.id);
+      setPreview({ ...doc, previewUrl: preview.url || doc.previewUrl });
+    } catch {
+      toast.error("Preview failed", "Could not fetch the document preview URL.");
+    }
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -385,7 +396,7 @@ const DocumentsPage: React.FC = () => {
 
                 {doc.status === "ready" && (
                   <button
-                    onClick={() => setPreview(doc)}
+                    onClick={() => void openPreview(doc)}
                     className="flex-shrink-0 inline-flex items-center gap-1.5 rounded-full border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 hover:border-slate-300 transition"
                   >
                     <Eye className="h-3.5 w-3.5" />

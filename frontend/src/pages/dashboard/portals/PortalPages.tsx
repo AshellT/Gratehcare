@@ -329,6 +329,7 @@ const PortalShell: React.FC<{
       } else if (portalKind === "evaluations") {
         await careApi.createPlan(
           toTenantRecord(`${form.person} evaluation`, form.detail, {
+            clientName: form.person,
             goals: [form.title],
           }) as any,
         );
@@ -459,7 +460,7 @@ const PortalShell: React.FC<{
       </Card>
 
       {selected && <PortalDrawer record={selected} readOnly={readOnly} canEdit={Boolean(canCreate)} onClose={() => setSelected(null)} onNotify={notify} />}
-      {showForm && <PortalForm title={createLabel || "Create"} onClose={() => setShowForm(false)} onSubmit={createRecord} />}
+      {showForm && <PortalForm title={createLabel || "Create"} kind={portalKind} onClose={() => setShowForm(false)} onSubmit={createRecord} />}
     </div>
   );
 };
@@ -493,8 +494,14 @@ type PortalFormState = {
   detail: string;
 };
 
-const PortalForm: React.FC<{ title: string; onClose: () => void; onSubmit: (form: PortalFormState) => void }> = ({ title, onClose, onSubmit }) => {
-  const [form, setForm] = useState<PortalFormState>({ title: "", subtitle: "", person: "", category: title.includes("report") ? "Report" : title.includes("evaluation") ? "Evaluation" : "Clinical note", detail: "" });
+const portalTypeLabel = (kind?: string) =>
+  kind === "reports" ? "Report" : kind === "evaluations" ? "Evaluation" : "Clinical note";
+
+const PortalForm: React.FC<{ title: string; kind?: string; onClose: () => void; onSubmit: (form: PortalFormState) => void }> = ({ title, kind, onClose, onSubmit }) => {
+  const typeLabel = portalTypeLabel(kind);
+  const titleFieldLabel = kind === "reports" ? "Report title" : kind === "evaluations" ? "Evaluation focus" : "Note title";
+  const detailLabel = kind === "reports" ? "Report content" : kind === "evaluations" ? "Findings & recommendations" : "Clinical note";
+  const [form, setForm] = useState<PortalFormState>({ title: "", subtitle: "", person: "", category: typeLabel, detail: "" });
   const [error, setError] = useState<string | null>(null);
   const update = (key: keyof PortalFormState, value: string) => setForm((current) => ({ ...current, [key]: value }));
   return (
@@ -503,7 +510,7 @@ const PortalForm: React.FC<{ title: string; onClose: () => void; onSubmit: (form
       <aside className="h-full w-full max-w-xl overflow-y-auto bg-white shadow-2xl">
         <div className="sticky top-0 flex items-start justify-between border-b border-slate-200 bg-white px-6 py-5">
           <div>
-            <div className="text-xs font-bold uppercase tracking-[0.2em] text-indigo-600">Practitioner portal</div>
+            <div className="text-xs font-bold uppercase tracking-[0.2em] text-indigo-600">Practitioner portal · {typeLabel}</div>
             <h2 className="mt-1 font-display text-2xl font-bold text-slate-900">{title}</h2>
           </div>
           <button onClick={onClose} className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700"><X className="h-5 w-5" /></button>
@@ -513,21 +520,17 @@ const PortalForm: React.FC<{ title: string; onClose: () => void; onSubmit: (form
           onSubmit={(event) => {
             event.preventDefault();
             if (!form.title.trim() || !form.person.trim() || !form.detail.trim()) {
-              setError("Title, client, and note details are required.");
+              setError(`${titleFieldLabel}, client, and ${detailLabel.toLowerCase()} are required.`);
               return;
             }
             onSubmit(form);
           }}
         >
           {error && <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-800">{error}</div>}
-          <Field label="Title" value={form.title} onChange={(value) => update("title", value)} />
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Client" value={form.person} onChange={(value) => update("person", value)} />
-            <Field label="Type" value={form.category} onChange={(value) => update("category", value)} />
-          </div>
-          <Field label="Short summary" value={form.subtitle} onChange={(value) => update("subtitle", value)} />
+          <Field label={titleFieldLabel} value={form.title} onChange={(value) => update("title", value)} />
+          <Field label="Client" value={form.person} onChange={(value) => update("person", value)} />
           <label>
-            <span className="text-xs font-semibold text-slate-700">Details</span>
+            <span className="text-xs font-semibold text-slate-700">{detailLabel}</span>
             <textarea value={form.detail} onChange={(event) => update("detail", event.target.value)} rows={6} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500" />
           </label>
           <div className="flex justify-end gap-2 border-t border-slate-100 pt-5">

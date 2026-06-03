@@ -12,15 +12,50 @@ const ALLOWED_MIME_TYPES = new Set([
 
 const MAX_BYTES = 20 * 1024 * 1024;
 
+type RawDocument = Partial<Document> & {
+  title?: string;
+  status?: string;
+};
+
+const normalizeDocumentStatus = (status?: string): Document["status"] => {
+  switch (String(status ?? "ACTIVE").toUpperCase()) {
+    case "ACTIVE":
+    case "APPROVED":
+    case "COMPLETED":
+      return "ready";
+    case "ARCHIVED":
+    case "CANCELLED":
+      return "error";
+    default:
+      return "uploading";
+  }
+};
+
+const normalizeDocument = (doc: RawDocument): Document => ({
+  ...(doc as Document),
+  name: doc.name ?? doc.title ?? "Document",
+  mimeType: doc.mimeType ?? "application/octet-stream",
+  sizeBytes: Number(doc.sizeBytes) || 0,
+  status: normalizeDocumentStatus(doc.status),
+  uploadedBy: doc.uploadedBy ?? "Backend",
+});
+
+const normalizeDocumentPage = (
+  page: PaginatedResponse<RawDocument> | { items?: RawDocument[] },
+) => {
+  const normalized = normalizePage(page);
+  return { ...normalized, data: normalized.data.map(normalizeDocument) };
+};
+
 export const documentsApi = {
   list: (query?: PaginationQuery) =>
     withFallback(
       () =>
         apiClient
-          .get<PaginatedResponse<Document> | { items?: Document[] }>("/documents", {
+          .get<PaginatedResponse<RawDocument> | { items?: RawDocument[] }>("/documents", {
             params: query as any,
           })
-          .then(normalizePage),
+          .then(normalizeDocumentPage),
       emptyPage<Document>(),
     ),
 
@@ -33,7 +68,7 @@ export const documentsApi = {
     }
     const form = new FormData();
     form.append("file", file);
-    return apiClient.post<Document>("/documents/upload", form);
+    return apiClient.post<RawDocument>("/documents/upload", form).then(normalizeDocument);
   },
 
   getPreviewUrl: (id: string) =>
