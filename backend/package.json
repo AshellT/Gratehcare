@@ -9,7 +9,6 @@
     "dev": "nest start --watch",
     "start:dev": "nest start --watch",
     "setup:db": "ts-node --transpile-only scripts/setup-backend.ts",
-    "postinstall": "prisma generate",
     "build": "prisma generate && nest build",
     "lint": "eslint \"src/**/*.ts\"",
     "prisma:generate": "prisma generate",

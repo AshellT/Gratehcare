@@ -17,9 +17,10 @@ ENV NODE_ENV=production
 
 COPY backend/package.json backend/package-lock.json ./
 COPY backend/prisma ./prisma
-# Generated client comes from build stage; skip postinstall (prisma generate) here
+# Skip postinstall (prisma CLI is dev-only); rebuild native addons bcrypt needs on Alpine
 RUN apk add --no-cache --virtual .build-deps python3 make g++ \
   && npm ci --omit=dev --ignore-scripts \
+  && npm rebuild bcrypt --build-from-source \
   && apk del .build-deps
 
 COPY --from=build /app/dist ./dist
