@@ -15,8 +15,33 @@ async function bootstrap() {
 
   app.setGlobalPrefix("api/v1");
   app.use(helmet());
+
+  const normalizeOrigin = (value: string) => value.trim().replace(/\/+$/, "");
+  const corsOrigins = new Set<string>(
+    [
+      config.get<string>("CORS_ORIGIN"),
+      config.get<string>("FRONTEND_URL"),
+      "https://gratehcare.vercel.app",
+      "http://localhost:3000",
+    ]
+      .flatMap((entry) => (entry ?? "").split(","))
+      .map(normalizeOrigin)
+      .filter(Boolean),
+  );
+
   app.enableCors({
-    origin: config.get<string>("CORS_ORIGIN")?.split(",") || true,
+    origin: (origin, callback) => {
+      if (!origin) {
+        callback(null, true);
+        return;
+      }
+      const normalized = normalizeOrigin(origin);
+      if (corsOrigins.has(normalized)) {
+        callback(null, true);
+        return;
+      }
+      callback(new Error(`CORS blocked origin: ${origin}`));
+    },
     credentials: true,
   });
   app.useGlobalPipes(
@@ -27,7 +52,26 @@ async function bootstrap() {
     }),
   );
 
-  const port = Number(process.env.PORT) || config.get<number>("PORT") || 4000;
+  // Railway injects PORT — do not set PORT=4000 in Railway Variables (causes 502).
+  const port =
+    process.env.PORT != null && process.env.PORT !== ""
+      ? Number(process.env.PORT)
+      : process.env.NODE_ENV !== "production"
+        ? Number(config.get<number>("PORT")) || 4000
+        : NaN;
+
+  if (!Number.isFinite(port) || port <= 0) {
+    console.error(
+      "PORT is missing or invalid. On Railway, delete any manual PORT variable and redeploy.",
+    );
+    process.exit(1);
+  }
+
+  const http = app.getHttpAdapter().getInstance();
+  http.get("/", (_req: unknown, res: { json: (body: unknown) => void }) => {
+    res.json({ status: "ok", service: "gratehcare-api" });
+  });
+
   await app.listen(port, "0.0.0.0");
 
   console.log(`🚀 GRATEHCARE Backend running on port ${port}`);

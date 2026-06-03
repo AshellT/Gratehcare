@@ -7,7 +7,7 @@
 #   DIRECT_URL    = Session pooler, port 5432 (same aws-0-eu-west-1.pooler host)
 
 NODE_ENV=production
-PORT=4000
+# Do NOT set PORT here — Railway injects it automatically. Manual PORT=4000 causes public 502s.
 
 DATABASE_URL=postgresql://postgres.qijhaslgckubaieigmbv:YOUR_PASSWORD@aws-0-eu-west-1.pooler.supabase.com:6543/postgres?pgbouncer=true
 DIRECT_URL=postgresql://postgres.qijhaslgckubaieigmbv:YOUR_PASSWORD@aws-0-eu-west-1.pooler.supabase.com:5432/postgres
@@ -16,6 +16,7 @@ JWT_SECRET=<generate NEW 64-char secret for production — do not reuse local va
 JWT_EXPIRES_IN=1d
 
 # Frontend (Vercel)
+# No trailing slash — browser sends Origin without /
 CORS_ORIGIN=https://gratehcare.vercel.app
 
 # Supabase → Project Settings → API (project: qijhaslgckubaieigmbv)
