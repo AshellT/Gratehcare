@@ -41,3 +41,31 @@ export function readSignupPlan(): PlanId | null {
     return null;
   }
 }
+
+const SIGNUP_CHECKOUT_KEY = "gratehcare.signup.checkout";
+
+export function setCheckoutIntent(planId: PlanId) {
+  try {
+    sessionStorage.setItem(SIGNUP_CHECKOUT_KEY, planId);
+  } catch {
+    // ignore
+  }
+}
+
+export function takeCheckoutIntent(): PlanId | null {
+  try {
+    const plan = parseSignupPlan(sessionStorage.getItem(SIGNUP_CHECKOUT_KEY));
+    sessionStorage.removeItem(SIGNUP_CHECKOUT_KEY);
+    return plan;
+  } catch {
+    return null;
+  }
+}
+
+export function clearCheckoutIntent() {
+  try {
+    sessionStorage.removeItem(SIGNUP_CHECKOUT_KEY);
+  } catch {
+    // ignore
+  }
+}

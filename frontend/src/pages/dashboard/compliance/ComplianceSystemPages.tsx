@@ -24,8 +24,11 @@ import StatCard from "@/components/dashboard/StatCard";
 import { useAuth } from "@/context/AuthContext";
 import { complianceApi } from "@/lib/api/compliance";
 import { incidentsApi } from "@/lib/api/incidents";
+import { credentialsApi, type StaffCredential } from "@/lib/api/credentials";
 import { toTenantRecord } from "@/lib/api/tenantRecord";
 import { useActionQuery } from "@/hooks/useActionQuery";
+import { useClients } from "@/hooks/useClients";
+import { useStaff } from "@/hooks/useStaff";
 import { useToast } from "@/context/ToastContext";
 import type { ComplianceEvent, Incident } from "@/lib/api/types";
 
@@ -47,6 +50,8 @@ type Severity = "low" | "medium" | "high" | "critical";
 
 type ComplianceRecord = {
   id: string;
+  backendId: string;
+  source: "event" | "incident" | "credential";
   subject: string;
   category: string;
   owner: string;
@@ -159,24 +164,24 @@ const meta: Record<
 // subject label, so "Add credential" and "New policy" no longer show the
 // same generic form.
 const categoryForPage: Record<ComplianceKey, string> = {
-  overview: "Compliance",
-  events: "Compliance",
-  "risk-alerts": "Risk",
-  credentials: "Credential",
-  training: "Training",
-  expiry: "Expiry",
-  incidents: "Incident",
-  investigations: "Investigation",
-  "audit-logs": "Audit",
-  policies: "Policy",
-  "corrective-actions": "Corrective action",
+  overview: "compliance",
+  events: "compliance",
+  "risk-alerts": "risk",
+  credentials: "credential",
+  training: "training",
+  expiry: "expiry",
+  incidents: "incident",
+  investigations: "investigation",
+  "audit-logs": "audit",
+  policies: "policy",
+  "corrective-actions": "corrective_action",
 };
 
 const subjectLabelForPage: Record<ComplianceKey, string> = {
   overview: "Subject",
   events: "Event subject",
   "risk-alerts": "Alert title",
-  credentials: "Credential name",
+  credentials: "Credential type",
   training: "Training course",
   expiry: "Item expiring",
   incidents: "Incident summary",
@@ -186,54 +191,86 @@ const subjectLabelForPage: Record<ComplianceKey, string> = {
   "corrective-actions": "Corrective action",
 };
 
-const isIncidentPage = (key: ComplianceKey) =>
-  key === "incidents" || key === "investigations";
+const isIncidentPage = (key: ComplianceKey) => key === "incidents";
+const isCredentialPage = (key: ComplianceKey) => key === "credentials";
+const canCreateOnPage = (key: ComplianceKey) => key !== "audit-logs";
+
+const fmtDue = (value?: string | null) => {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString("en-AU", { day: "2-digit", month: "short", year: "numeric" });
+};
 
 const categoryLabel = (value: string) => {
   const map: Record<string, string> = {
-    credential: 'Credential',
-    training: 'Training',
-    policy: 'Policy',
-    corrective_action: 'Corrective action',
-    medication: 'Medication',
-    incident: 'Incident',
-    audit: 'Audit',
-    expiry: 'Expiry',
-    compliance: 'Compliance',
+    credential: "Credential",
+    training: "Training",
+    policy: "Policy",
+    corrective_action: "Corrective action",
+    medication: "Medication",
+    incident: "Incident",
+    investigation: "Investigation",
+    audit: "Audit",
+    expiry: "Expiry",
+    compliance: "Compliance",
+    risk: "Risk",
   };
-  return map[value] ?? value.replace(/_/g, ' ').replace(/^w/, (m) => m.toUpperCase());
+  return map[String(value || "").toLowerCase()] ?? value.replace(/_/g, " ");
 };
 
 const mapComplianceEvent = (event: ComplianceEvent): ComplianceRecord =>
   rec(
+    event.id.slice(0, 8).toUpperCase(),
     event.id,
+    "event",
     event.title,
     categoryLabel(event.category),
-    event.assignee ?? 'Unassigned',
+    event.assignee ?? "Unassigned",
     event.severity,
-    event.status.replace(/_/g, ' '),
-    event.dueDate,
-    '—',
-    event.title,
-    ['Triage', 'Evidence', 'Review', 'Close'],
+    event.status.replace(/_/g, " "),
+    fmtDue(event.dueDate),
+    event.summary || event.evidence?.[0]?.note || "—",
+    event.summary || event.title,
+    ["Triage", "Evidence", "Review", "Close"],
   );
 
 const mapIncident = (incident: Incident): ComplianceRecord =>
   rec(
     incident.reference,
+    incident.id,
+    "incident",
     incident.summary,
-    'Incident',
-    incident.reportedBy,
+    "Incident",
+    incident.clientName || incident.reportedBy,
     incident.severity,
     incident.status,
-    new Date(incident.occurredAt).toLocaleDateString('en-AU', { day: '2-digit', month: 'short' }),
-    '—',
+    fmtDue(incident.occurredAt),
     incident.summary,
-    ['Logged', 'Investigation', 'Review', 'Close'],
+    incident.summary,
+    ["Logged", "Investigation", "Review", "Close"],
+  );
+
+const mapCredential = (credential: StaffCredential): ComplianceRecord =>
+  rec(
+    credential.id.slice(0, 8).toUpperCase(),
+    credential.id,
+    "credential",
+    credential.type,
+    "Credential",
+    credential.staffName,
+    String(credential.severity || "medium").toLowerCase() as Severity,
+    String(credential.status || "active").toLowerCase(),
+    fmtDue(credential.expiresAt),
+    credential.staffName,
+    `${credential.type} for ${credential.staffName}`,
+    ["Recorded", "Verified", "Renewal", "Archived"],
   );
 
 function rec(
   id: string,
+  backendId: string,
+  source: ComplianceRecord["source"],
   subject: string,
   category: string,
   owner: string,
@@ -246,6 +283,8 @@ function rec(
 ): ComplianceRecord {
   return {
     id,
+    backendId,
+    source,
     subject,
     category,
     owner,
@@ -278,12 +317,12 @@ const statusTone = (status: string): Tone => {
 const pageRecords = (key: ComplianceKey, source: ComplianceRecord[]) => {
   if (key === "overview") return source;
   if (key === "events") return source.filter((r) => ["Compliance", "Medication", "Expiry"].includes(r.category));
-  if (key === "risk-alerts") return source.filter((r) => ["high", "critical"].includes(r.severity));
+  if (key === "risk-alerts") return source.filter((r) => r.category === "Risk");
   if (key === "credentials") return source.filter((r) => r.category === "Credential");
   if (key === "training") return source.filter((r) => r.category === "Training");
-  if (key === "expiry") return source.filter((r) => ["Expiry", "Credential", "Policy"].includes(r.category));
+  if (key === "expiry") return source.filter((r) => ["Expiry", "Credential"].includes(r.category));
   if (key === "incidents") return source.filter((r) => r.category === "Incident");
-  if (key === "investigations") return source.filter((r) => ["Incident", "Audit", "Corrective action"].includes(r.category));
+  if (key === "investigations") return source.filter((r) => r.category === "Investigation");
   if (key === "audit-logs") return source.filter((r) => ["Audit", "Policy", "Compliance"].includes(r.category));
   if (key === "policies") return source.filter((r) => r.category === "Policy");
   return source.filter((r) => r.category === "Corrective action");
@@ -304,16 +343,23 @@ const ComplianceSystemPage: React.FC<{ pageKey: ComplianceKey }> = ({ pageKey })
   const [showForm, setShowForm] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const canManage = managerRoles.has(user?.role || "");
+  const { data: clientsData } = useClients();
+  const { data: staffData } = useStaff();
+  const clients = clientsData?.data ?? [];
+  const staff = staffData?.data ?? [];
 
   const loadRecords = useCallback(async () => {
     try {
       setLoading(true);
-      const useIncidents = pageKey === "incidents" || pageKey === "investigations";
-      if (useIncidents) {
-        const res = await incidentsApi.list();
+      if (isCredentialPage(pageKey)) {
+        const res = await credentialsApi.list();
+        setItems((res.data ?? []).map(mapCredential));
+      } else if (isIncidentPage(pageKey)) {
+        const res = await incidentsApi.list({ limit: 100 });
         setItems((res.data ?? []).map(mapIncident));
       } else {
-        const res = await complianceApi.listEvents();
+        const category = pageKey === "overview" ? undefined : categoryForPage[pageKey];
+        const res = await complianceApi.listEvents({ limit: 100, ...(category ? { category } : {}) });
         setItems((res.data ?? []).map(mapComplianceEvent));
       }
     } catch {
@@ -327,7 +373,9 @@ const ComplianceSystemPage: React.FC<{ pageKey: ComplianceKey }> = ({ pageKey })
     loadRecords();
   }, [loadRecords]);
 
-  useActionQuery("create", () => setShowForm(true));
+  useActionQuery("create", () => {
+    if (canCreateOnPage(pageKey)) setShowForm(true);
+  });
 
   const notify = (text: string) => {
     setMessage(text);
@@ -355,43 +403,70 @@ const ComplianceSystemPage: React.FC<{ pageKey: ComplianceKey }> = ({ pageKey })
 
   const createRecord = async (form: FormState) => {
     try {
-      if (isIncidentPage(pageKey)) {
+      if (isCredentialPage(pageKey)) {
+        if (!form.staffId) throw new Error("Staff is required");
+        await credentialsApi.create({
+          staffId: form.staffId,
+          type: form.subject.trim(),
+          expiresAt: form.due || undefined,
+        });
+      } else if (isIncidentPage(pageKey)) {
         await incidentsApi.create(
-          toTenantRecord(form.subject, form.notes, {
-            occurredAt: form.due || undefined,
-            clientName: form.client || undefined,
-          }, { severity: form.severity.toUpperCase() }) as any,
+          toTenantRecord(
+            form.subject,
+            form.notes,
+            {
+              occurredAt: form.due || undefined,
+              clientId: form.clientId || undefined,
+            },
+            { severity: form.severity.toUpperCase() },
+          ) as any,
         );
       } else {
         await complianceApi.createEvent(
-          toTenantRecord(form.subject, form.notes, {
-            category: categoryForPage[pageKey],
-            severity: form.severity.toUpperCase(),
-            dueAt: form.due || undefined,
-            summary: form.notes || undefined,
-          }) as any,
+          toTenantRecord(
+            form.subject,
+            form.notes,
+            {
+              category: categoryForPage[pageKey],
+              dueAt: form.due || undefined,
+              summary: form.notes || undefined,
+              owner: form.owner || undefined,
+            },
+            { severity: form.severity.toUpperCase() },
+          ) as any,
         );
       }
       await loadRecords();
       setShowForm(false);
-      notify(`${form.subject} created and assigned.`);
+      notify(`${form.subject} saved.`);
     } catch {
-      toast.error("Create failed", "Could not save compliance record.");
+      toast.error("Create failed", "Could not save this record. Check required fields and try again.");
     }
   };
 
-  const advanceWorkflow = (record: ComplianceRecord) => {
-    const next = {
-      ...record,
-      status: record.status === "open" ? "in progress" : record.status === "in progress" ? "review" : "closed",
-      audit: [
-        ...record.audit,
-        { when: "Now", actor: user?.name || "Current user", event: "Workflow advanced from detail drawer" },
-      ],
-    };
-    setItems((current) => current.map((item) => (item.id === record.id ? next : item)));
-    setSelected(next);
-    notify(`${record.id} workflow advanced.`);
+  const advanceWorkflow = async (record: ComplianceRecord) => {
+    const current = record.status.replace(/_/g, " ").toLowerCase();
+    const nextUi =
+      current === "open" || current === "pending" || current === "active"
+        ? "in progress"
+        : current === "in progress" || current === "investigating" || current === "review"
+          ? "closed"
+          : "closed";
+    const nextBackend =
+      nextUi === "in progress" ? "REVIEW" : "COMPLETED";
+    try {
+      if (record.source === "incident") {
+        await incidentsApi.update(record.backendId, { status: nextBackend } as any);
+      } else if (record.source === "event") {
+        await complianceApi.updateEvent(record.backendId, { status: nextBackend } as any);
+      }
+      await loadRecords();
+      setSelected(null);
+      notify(`${record.id} workflow advanced.`);
+    } catch {
+      toast.error("Update failed", "Could not advance this workflow.");
+    }
   };
 
   return (
@@ -401,7 +476,7 @@ const ComplianceSystemPage: React.FC<{ pageKey: ComplianceKey }> = ({ pageKey })
         title={page.title}
         description={canManage ? page.description : `${page.description} View-only access for your role.`}
         actions={[
-          ...(canManage
+          ...(canManage && canCreateOnPage(pageKey)
             ? [{ label: page.createLabel, icon: <Plus className="h-4 w-4" />, onClick: () => setShowForm(true) }]
             : []),
         ]}
@@ -515,7 +590,7 @@ const ComplianceSystemPage: React.FC<{ pageKey: ComplianceKey }> = ({ pageKey })
           record={selected}
           canManage={canManage}
           onClose={() => setSelected(null)}
-          onAdvance={() => advanceWorkflow(selected)}
+          onAdvance={() => void advanceWorkflow(selected)}
         />
       )}
 
@@ -523,8 +598,10 @@ const ComplianceSystemPage: React.FC<{ pageKey: ComplianceKey }> = ({ pageKey })
         <ComplianceForm
           title={page.createLabel}
           eyebrow={page.title}
+          pageKey={pageKey}
           subjectLabel={subjectLabelForPage[pageKey]}
-          isIncident={isIncidentPage(pageKey)}
+          clients={clients}
+          staff={staff}
           onClose={() => setShowForm(false)}
           onSubmit={createRecord}
         />
@@ -537,23 +614,34 @@ type FormState = {
   subject: string;
   severity: Severity;
   due: string;
-  client: string;
+  clientId: string;
+  staffId: string;
+  owner: string;
   notes: string;
 };
 
 const ComplianceForm: React.FC<{
   title: string;
   eyebrow: string;
+  pageKey: ComplianceKey;
   subjectLabel: string;
-  isIncident: boolean;
+  clients: { id: string; fullName: string }[];
+  staff: { id: string; fullName: string }[];
   onClose: () => void;
   onSubmit: (form: FormState) => void;
-}> = ({ title, eyebrow, subjectLabel, isIncident, onClose, onSubmit }) => {
+}> = ({ title, eyebrow, pageKey, subjectLabel, clients, staff, onClose, onSubmit }) => {
+  const credential = isCredentialPage(pageKey);
+  const incident = isIncidentPage(pageKey);
+  const showOwner = pageKey === "corrective-actions" || pageKey === "investigations";
+  const severities: Severity[] =
+    pageKey === "risk-alerts" ? ["high", "critical"] : ["low", "medium", "high", "critical"];
   const [form, setForm] = useState<FormState>({
     subject: "",
-    severity: "medium",
+    severity: pageKey === "risk-alerts" ? "high" : "medium",
     due: "",
-    client: "",
+    clientId: "",
+    staffId: "",
+    owner: "",
     notes: "",
   });
   const [error, setError] = useState<string | null>(null);
@@ -580,30 +668,78 @@ const ComplianceForm: React.FC<{
               setError(`${subjectLabel} is required.`);
               return;
             }
+            if (credential && !form.staffId) {
+              setError("Select the staff member this credential belongs to.");
+              return;
+            }
             onSubmit(form);
           }}
         >
           {error && <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-800">{error}</div>}
           <Field label={subjectLabel} value={form.subject} onChange={(value) => update("subject", value)} />
-          {isIncident && (
-            <Field label="Client (optional)" value={form.client} onChange={(value) => update("client", value)} />
-          )}
-          <div className="grid grid-cols-2 gap-3">
+          {credential && (
             <label>
-              <span className="text-xs font-semibold text-slate-700">Severity</span>
-              <select value={form.severity} onChange={(event) => update("severity", event.target.value)} className="mt-1 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm">
-                {["low", "medium", "high", "critical"].map((option) => <option key={option}>{option}</option>)}
+              <span className="text-xs font-semibold text-slate-700">Staff member</span>
+              <select
+                value={form.staffId}
+                onChange={(event) => update("staffId", event.target.value)}
+                className="mt-1 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm"
+              >
+                <option value="">Select staff</option>
+                {staff.map((member) => (
+                  <option key={member.id} value={member.id}>
+                    {member.fullName}
+                  </option>
+                ))}
               </select>
             </label>
+          )}
+          {incident && (
             <label>
-              <span className="text-xs font-semibold text-slate-700">{isIncident ? "Occurred" : "Due date"}</span>
+              <span className="text-xs font-semibold text-slate-700">Client</span>
+              <select
+                value={form.clientId}
+                onChange={(event) => update("clientId", event.target.value)}
+                className="mt-1 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm"
+              >
+                <option value="">Unassigned</option>
+                {clients.map((client) => (
+                  <option key={client.id} value={client.id}>
+                    {client.fullName}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          {showOwner && (
+            <Field label="Owner" value={form.owner} onChange={(value) => update("owner", value)} />
+          )}
+          {!credential && (
+            <div className="grid grid-cols-2 gap-3">
+              <label>
+                <span className="text-xs font-semibold text-slate-700">Severity</span>
+                <select value={form.severity} onChange={(event) => update("severity", event.target.value)} className="mt-1 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm">
+                  {severities.map((option) => <option key={option}>{option}</option>)}
+                </select>
+              </label>
+              <label>
+                <span className="text-xs font-semibold text-slate-700">{incident ? "Occurred" : "Due date"}</span>
+                <input type="date" value={form.due} onChange={(event) => update("due", event.target.value)} className="mt-1 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-indigo-500" />
+              </label>
+            </div>
+          )}
+          {credential && (
+            <label>
+              <span className="text-xs font-semibold text-slate-700">Expiry date</span>
               <input type="date" value={form.due} onChange={(event) => update("due", event.target.value)} className="mt-1 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-indigo-500" />
             </label>
-          </div>
-          <label>
-            <span className="text-xs font-semibold text-slate-700">Notes</span>
-            <textarea value={form.notes} onChange={(event) => update("notes", event.target.value)} rows={5} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500" />
-          </label>
+          )}
+          {!credential && (
+            <label>
+              <span className="text-xs font-semibold text-slate-700">{incident ? "Details" : "Notes"}</span>
+              <textarea value={form.notes} onChange={(event) => update("notes", event.target.value)} rows={5} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500" />
+            </label>
+          )}
           <div className="flex justify-end gap-2 border-t border-slate-100 pt-5">
             <button type="button" onClick={onClose} className="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Cancel</button>
             <button type="submit" className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">{title}</button>
@@ -718,7 +854,7 @@ const ComplianceDrawer: React.FC<{
         </Card>
 
         <div className="flex flex-wrap gap-2">
-          {canManage && (
+          {canManage && record.source !== "credential" && (
             <button onClick={onAdvance} className="rounded-full bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">
               Advance workflow
             </button>

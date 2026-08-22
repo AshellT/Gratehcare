@@ -26,7 +26,20 @@ export class RosteringService extends TenantCrudService {
           status: staffId ? "FILLED" : "OPEN",
         };
       },
-      updateData: (dto) => ({ service: dto.title, notes: dto.description }),
+      updateData: (dto) => {
+        const meta = dto.metadata ?? {};
+        const staffId = meta.staffId as string | undefined;
+        return {
+          service: dto.title,
+          notes: dto.description,
+          ...(meta.startsAt ? { startsAt: new Date(String(meta.startsAt)) } : {}),
+          ...(meta.endsAt ? { endsAt: new Date(String(meta.endsAt)) } : {}),
+          ...(meta.clientId ? { clientId: String(meta.clientId) } : {}),
+          ...(staffId !== undefined
+            ? { staffId: staffId || null, status: staffId ? "FILLED" : "OPEN" }
+            : {}),
+        };
+      },
       archiveData: { status: "CANCELLED" },
       defaultOrderBy: { startsAt: "desc" },
     });
@@ -34,12 +47,11 @@ export class RosteringService extends TenantCrudService {
 
   override async list(query: PaginationDto, user: AuthUser) {
     const page = query.page || 1;
-    const limit = query.limit || 25;
+    const limit = query.limit || 100;
     const status = query.status?.trim();
-    const where = {
-      ...(user.tenantId ? { tenantId: user.tenantId } : {}),
+    const where = await this.scopedWhere(user, {
       ...(status ? { status: status.toUpperCase() as any } : {}),
-    };
+    });
     const [items, total] = await Promise.all([
       this.prisma.shift.findMany({
         where,

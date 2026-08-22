@@ -1,4 +1,5 @@
-import { apiClient, emptyPage, normalizePage, withFallback } from "./client";
+import { apiClient, emptyPage, getStoredToken, normalizePage, withFallback } from "./client";
+import { API_BASE } from "./config";
 import type { Document, PaginatedResponse, PaginationQuery } from "./types";
 
 const ALLOWED_MIME_TYPES = new Set([
@@ -31,14 +32,25 @@ const normalizeDocumentStatus = (status?: string): Document["status"] => {
   }
 };
 
-const normalizeDocument = (doc: RawDocument): Document => ({
-  ...(doc as Document),
-  name: doc.name ?? doc.title ?? "Document",
-  mimeType: doc.mimeType ?? "application/octet-stream",
-  sizeBytes: Number(doc.sizeBytes) || 0,
-  status: normalizeDocumentStatus(doc.status),
-  uploadedBy: doc.uploadedBy ?? "Backend",
-});
+const fileUrl = (id: string) => {
+  const url = new URL(`${API_BASE}/documents/${id}/file`, window.location.origin);
+  const token = getStoredToken();
+  if (token) url.searchParams.set("access_token", token);
+  return `${url.pathname}${url.search}`;
+};
+
+const normalizeDocument = (doc: RawDocument): Document => {
+  const id = String(doc.id || "");
+  return {
+    ...(doc as Document),
+    name: doc.name ?? doc.title ?? "Document",
+    mimeType: doc.mimeType ?? "application/octet-stream",
+    sizeBytes: Number(doc.sizeBytes) || 0,
+    status: normalizeDocumentStatus(doc.status),
+    uploadedBy: doc.uploadedBy ?? "Backend",
+    previewUrl: doc.previewUrl || (id ? fileUrl(id) : undefined),
+  };
+};
 
 const normalizeDocumentPage = (
   page: PaginatedResponse<RawDocument> | { items?: RawDocument[] },
@@ -71,8 +83,20 @@ export const documentsApi = {
     return apiClient.post<RawDocument>("/documents/upload", form).then(normalizeDocument);
   },
 
-  getPreviewUrl: (id: string) =>
-    apiClient.get<{ url: string }>(`/documents/${id}/preview`),
+  getPreviewUrl: async (id: string) => {
+    try {
+      const preview = await apiClient.get<{ url: string }>(`/documents/${id}/preview`);
+      const token = getStoredToken();
+      if (preview.url?.startsWith("/")) {
+        const url = new URL(preview.url, window.location.origin);
+        if (token) url.searchParams.set("access_token", token);
+        return { url: `${url.pathname}${url.search}` };
+      }
+      return { url: preview.url || fileUrl(id) };
+    } catch {
+      return { url: fileUrl(id) };
+    }
+  },
 
   archive: (id: string) => apiClient.post(`/documents/${id}/archive`, {}),
 };

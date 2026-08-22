@@ -1,7 +1,9 @@
 import Card from "@/components/dashboard/Card";
+import FormField from "@/components/dashboard/FormField";
 import PageHeader from "@/components/dashboard/PageHeader";
+import { useToast } from "@/context/ToastContext";
 import { useConversations, useMessages } from "@/hooks/useMessages";
-import { Phone, Search, Send, Video } from "lucide-react";
+import { Phone, Plus, Search, Send, Video, X } from "lucide-react";
 import React, { useState } from "react";
 
 const AVATAR_COLORS = [
@@ -24,12 +26,16 @@ const MessagesPage: React.FC = () => {
   const [activeIdx, setActiveIdx] = useState(0);
   const [draft, setDraft] = useState("");
   const [notification, setNotification] = useState<string | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [threadForm, setThreadForm] = useState({ subject: "", content: "" });
+  const toast = useToast();
   const notify = (text: string) => {
     setNotification(text);
     window.setTimeout(() => setNotification(null), 2400);
   };
 
-  const { data: convData } = useConversations();
+  const { data: convData, create: createConversation } = useConversations();
   const conversations = convData?.data ?? [];
   const activeConv = conversations[activeIdx] ?? null;
 
@@ -56,12 +62,39 @@ const MessagesPage: React.FC = () => {
     notify(`Video request sent to ${name}.`);
   };
 
+  const handleCreateThread = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!threadForm.subject.trim() || !threadForm.content.trim()) {
+      toast.warning("Message required", "Enter a subject and the first message.");
+      return;
+    }
+    setSaving(true);
+    try {
+      await createConversation(threadForm.subject.trim(), threadForm.content.trim());
+      setCreateOpen(false);
+      setThreadForm({ subject: "", content: "" });
+      setActiveIdx(0);
+      notify("Conversation started.");
+    } catch {
+      toast.error("Could not start conversation", "Try again in a moment.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div className="space-y-8">
       <PageHeader
         eyebrow="Workspace"
         title="Messages"
         description="Coordinate with staff, families and practitioners — without leaving GRATEHCARE."
+        actions={[
+          {
+            label: "New conversation",
+            icon: <Plus className="h-4 w-4" />,
+            onClick: () => setCreateOpen(true),
+          },
+        ]}
       />
 
       {notification && (
@@ -107,7 +140,7 @@ const MessagesPage: React.FC = () => {
                           {c.participantNames[0]}
                         </div>
                         <div className="text-[10px] text-slate-500 flex-shrink-0">
-                          {timeAgo(c.lastMessageAt)}
+                          {c.lastMessageAt ? timeAgo(c.lastMessageAt) : ""}
                         </div>
                       </div>
                       <div className="text-xs text-slate-500 truncate mt-0.5">
@@ -225,6 +258,68 @@ const MessagesPage: React.FC = () => {
           </div>
         </div>
       </Card>
+
+      {createOpen && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-900/40 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+            <div className="flex items-start justify-between">
+              <div>
+                <h2 className="font-display text-xl font-bold text-slate-900">
+                  New conversation
+                </h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  Start a thread with a subject and first message.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCreateOpen(false)}
+                className="rounded-lg p-2 text-slate-400 hover:bg-slate-100"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <form onSubmit={handleCreateThread} className="mt-5 space-y-4">
+              <FormField
+                label="Subject"
+                value={threadForm.subject}
+                onChange={(e) =>
+                  setThreadForm((f) => ({ ...f, subject: e.target.value }))
+                }
+                required
+              />
+              <label className="block text-sm font-semibold text-slate-700">
+                First message
+                <textarea
+                  value={threadForm.content}
+                  onChange={(e) =>
+                    setThreadForm((f) => ({ ...f, content: e.target.value }))
+                  }
+                  required
+                  rows={4}
+                  className="mt-1.5 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                />
+              </label>
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setCreateOpen(false)}
+                  className="rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                >
+                  {saving ? "Starting…" : "Start conversation"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

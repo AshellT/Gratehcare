@@ -19,6 +19,8 @@ const WHITELIST_SUFFIXES = [
   "/subscription/upgrade-request",
   "/oauth/complete",
   "/subscription-billing/checkout",
+  "/subscription-billing/change-plan",
+  "/subscription-billing/portal",
 ];
 
 @Injectable()
@@ -67,7 +69,7 @@ export class SubscriptionGuard implements CanActivate {
       code: "TRIAL_EXPIRED",
       message:
         "Your 14-day trial has ended. Upgrade your plan to continue making changes.",
-      upgradeUrl: "/app/subscription",
+      upgradeUrl: "/app/plans",
     });
   }
 

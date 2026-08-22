@@ -1,10 +1,12 @@
 import {
   apiClient,
+  clearRefreshToken,
   clearToken,
   clearTenantId,
+  getStoredToken,
+  storeRefreshToken,
   storeTenantId,
   storeToken,
-  withFallback,
 } from "./client";
 import type { User } from "./types";
 
@@ -37,35 +39,48 @@ export const authApi = {
   register: (payload: RegisterPayload) =>
     apiClient.post<RegisterResponse>("/auth/register", payload as any, { public: true }),
 
-  logout: () =>
-    withFallback(() => apiClient.post("/auth/logout", {}), undefined),
+  logout: async () => {
+    try {
+      await apiClient.post("/auth/logout", {});
+    } catch {
+      // ignore — client always clears the session
+    }
+  },
 
   refreshToken: (token: string) =>
-    apiClient.post<{ accessToken: string }>("/auth/refresh", {
+    apiClient.post<AuthResponse>("/auth/refresh", {
       refreshToken: token,
-    } as any),
+    } as any, { public: true }),
 
-  me: (): Promise<User | null> =>
-    withFallback<User | null>(
-      () => apiClient.get<User>("/auth/me"),
-      null,
-    ),
+  me: async (): Promise<User | null> => {
+    if (!getStoredToken()) return null;
+    try {
+      return await apiClient.get<User>("/auth/me");
+    } catch {
+      return null;
+    }
+  },
 
-  completeOAuth: (body: { organizationName?: string; planId?: string }, accessToken: string) =>
-    apiClient.post<AuthResponse>("/auth/oauth/complete", body as any, {
+  forgotPassword: (email: string) =>
+    apiClient.post<{ ok: boolean }>("/auth/forgot-password", { email } as any, {
       public: true,
-      headers: { Authorization: `Bearer ${accessToken}` },
     }),
 
-  /** Convenience: persist tokens after a successful login response */
+  resetPassword: (token: string, password: string) =>
+    apiClient.post<{ ok: boolean }>("/auth/reset-password", { token, password } as any, {
+      public: true,
+    }),
+
   persistSession: (resp: AuthResponse) => {
     storeToken(resp.accessToken);
+    if (resp.refreshToken) storeRefreshToken(resp.refreshToken);
     const tenantId = resp.tenantId || (resp.user as any)?.tenantId;
     if (tenantId) storeTenantId(tenantId);
   },
 
   clearSession: () => {
     clearToken();
+    clearRefreshToken();
     clearTenantId();
   },
 };

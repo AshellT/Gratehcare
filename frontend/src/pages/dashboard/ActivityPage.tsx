@@ -21,18 +21,19 @@ const ActivityPage: React.FC = () => {
     (async () => {
       try {
         setLoading(true);
-        const logs = await auditLogsApi.list({ limit: 20 });
+        const logs = await auditLogsApi.list({ limit: 50 });
         if (mounted && logs.data) {
           const mapped: ActivityEvent[] = logs.data.map((log: any) => ({
-            time: new Date(log.createdAt).toLocaleTimeString('en-US', { 
-              hour: '2-digit', 
-              minute: '2-digit',
-              hour12: false
+            time: new Date(log.createdAt).toLocaleString("en-US", {
+              month: "short",
+              day: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
             }),
-            who: log.user?.name || log.userId || 'System',
-            what: log.action || 'Performed an action',
-            tenant: log.tenant?.name || 'Platform',
-            tone: 'indigo',
+            who: log.user?.name || log.actor?.fullName || log.userId || "System",
+            what: log.action || "Performed an action",
+            tenant: log.tenant?.name || "Workspace",
+            tone: "indigo",
           }));
           setEvents(mapped);
         }
@@ -53,8 +54,8 @@ const ActivityPage: React.FC = () => {
     <div className="space-y-8">
       <PageHeader
         eyebrow="Audit"
-        title="Activity"
-        description="Every meaningful action across your organisation, in real time."
+        title="Audit log"
+        description="Every meaningful change in this workspace, newest first. This log is write-once — it is not edited from a form."
       />
 
       <Card>

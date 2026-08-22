@@ -8,6 +8,8 @@ import { apiClient } from "./client";
 
 export type FieldType =
   | "text"
+  | "email"
+  | "password"
   | "textarea"
   | "number"
   | "date"
@@ -25,6 +27,7 @@ export type FieldDef = {
   placeholder?: string;
   help?: string;
   half?: boolean;
+  createOnly?: boolean;
 };
 
 export type ModuleValues = Record<string, string>;
@@ -35,6 +38,33 @@ const SEVERITY = ["LOW", "MEDIUM", "HIGH", "CRITICAL"];
 export const moduleFields: Record<string, FieldDef[]> = {
   staff: [
     { name: "fullName", label: "Full name", type: "text", required: true },
+    {
+      name: "email",
+      label: "Work email",
+      type: "email",
+      required: true,
+      createOnly: true,
+      placeholder: "alex@yourorg.com",
+      help: "Used to sign in. An invite is sent if you leave the password blank.",
+    },
+    {
+      name: "role",
+      label: "Role",
+      type: "select",
+      options: ["SUPPORT_WORKER", "CARE_COORDINATOR"],
+      required: true,
+      half: true,
+      createOnly: true,
+    },
+    {
+      name: "password",
+      label: "Temporary password",
+      type: "password",
+      createOnly: true,
+      half: true,
+      placeholder: "Optional",
+      help: "Leave blank to email a set-password link instead.",
+    },
     {
       name: "skills",
       label: "Skills",
@@ -55,6 +85,29 @@ export const moduleFields: Record<string, FieldDef[]> = {
     },
     { name: "riskLevel", label: "Risk level", type: "select", options: SEVERITY, half: true },
     { name: "status", label: "Status", type: "select", options: RECORD_STATUS, half: true },
+    {
+      name: "familyName",
+      label: "Family contact name",
+      type: "text",
+      createOnly: true,
+      placeholder: "Optional",
+    },
+    {
+      name: "familyEmail",
+      label: "Family contact email",
+      type: "email",
+      createOnly: true,
+      placeholder: "Optional — invites the family portal",
+      help: "The client does not get a login. This email is for a family member.",
+    },
+    {
+      name: "familyPassword",
+      label: "Family password",
+      type: "password",
+      createOnly: true,
+      placeholder: "Optional",
+      help: "Leave blank to email a set-password link.",
+    },
   ],
   rostering: [
     {
@@ -193,14 +246,25 @@ function buildPayload(moduleKey: string, v: ModuleValues): TenantRecordPayload {
       return {
         title: text(v.fullName),
         status: text(v.status),
-        metadata: compact({ skills: lines(v.skills) }),
+        metadata: compact({
+          skills: lines(v.skills),
+          email: text(v.email),
+          password: text(v.password),
+          role: text(v.role),
+        }),
       };
     case "clients":
       return {
         title: text(v.fullName),
         status: text(v.status),
         severity: text(v.riskLevel),
-        metadata: compact({ funding: text(v.funding) }),
+        metadata: compact({
+          funding: text(v.funding),
+          coordinatorUserId: text(v.coordinatorUserId),
+          familyName: text(v.familyName),
+          familyEmail: text(v.familyEmail),
+          familyPassword: text(v.familyPassword),
+        }),
       };
     case "rostering":
     case "open-shifts":

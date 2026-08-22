@@ -86,7 +86,15 @@ const OrgOwnerHome: React.FC = () => {
           }
         />
 
-        <AlertsWidget title="What needs you today" alerts={[]} />
+        <AlertsWidget
+          title="What needs you today"
+          alerts={data.alerts}
+          onAction={(alert) => {
+            if (alert.id === "open-shifts") navigate("/app/open-shifts");
+            else if (alert.id === "overdue") navigate("/app/invoices");
+            else if (alert.id === "compliance") navigate("/app/compliance");
+          }}
+        />
       </div>
 
       <div className="grid lg:grid-cols-3 gap-6">
@@ -126,7 +134,7 @@ const OrgOwnerHome: React.FC = () => {
               label: "Bookkeeping",
               icon: <Wallet className="h-4 w-4" />,
               tone: "violet",
-              onClick: () => navigate("/app/billing"),
+              onClick: () => navigate("/app/financial-overview"),
             },
           ]}
           columns={3}
@@ -135,8 +143,15 @@ const OrgOwnerHome: React.FC = () => {
         <WorkQueue
           className="lg:col-span-2"
           title="Organization queue"
-          description="Work items appear when operational data is available."
-          items={[]}
+          description="Open shifts, overdue invoices and compliance items from live data."
+          items={data.queue}
+          emptyMessage="Nothing waiting — roster, billing and compliance are clear."
+          onViewAll={() => navigate("/app/live-activity")}
+          onItemClick={(item) => {
+            if (item.id === "open-shifts") navigate("/app/open-shifts");
+            else if (item.id === "overdue") navigate("/app/invoices");
+            else if (item.id === "compliance") navigate("/app/compliance");
+          }}
         />
       </div>
 

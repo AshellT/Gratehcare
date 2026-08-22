@@ -182,7 +182,7 @@ const DocumentsPage: React.FC = () => {
     (async () => {
       try {
         setLoading(true);
-        const res = await documentsApi.list();
+        const res = await documentsApi.list({ limit: 100 });
         if (!mounted) return;
         setDocs((res.data ?? []).map(mapDocument));
       } catch {

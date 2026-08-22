@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { API_BASE } from "@/lib/api/config";
+import { buildApiUrl } from "@/lib/api/config";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -26,7 +26,6 @@ export interface LiveNotification {
 
 // ─── SSE URL ─────────────────────────────────────────────────────────────────
 
-const SSE_URL = `${API_BASE}/notifications/stream`;
 const RECONNECT_DELAY_MS = 5_000;
 const MAX_RECONNECT_ATTEMPTS = 3;
 
@@ -80,7 +79,7 @@ export function useNotifications(): UseNotificationsResult {
     }
 
     try {
-      const url = new URL(SSE_URL);
+      const url = buildApiUrl("/notifications/stream");
       url.searchParams.set("access_token", token);
       const es = new EventSource(url.toString(), { withCredentials: true });
       esRef.current = es;

@@ -17,4 +17,16 @@ export const subscriptionBillingApi = {
       "/subscription-billing/checkout",
       planId ? { planId } : {},
     ),
+
+  changePlan: (planId: string) =>
+    apiClient.post<{
+      mode: "checkout" | "updated";
+      url?: string;
+      sessionId?: string;
+      planId: string;
+      planName: string;
+      upgrade?: boolean;
+    }>("/subscription-billing/change-plan", { planId }),
+
+  createPortal: () => apiClient.post<{ url: string }>("/subscription-billing/portal"),
 };

@@ -87,7 +87,7 @@ const PlaceholderPage: React.FC<{
           </div>
           <div className="mt-6 pt-4 border-t border-indigo-100">
             <button
-              onClick={() => navigate("/pricing")}
+              onClick={() => navigate("/app/plans")}
               className="text-xs font-semibold text-indigo-600 hover:text-indigo-700"
             >
               View all platform capabilities →

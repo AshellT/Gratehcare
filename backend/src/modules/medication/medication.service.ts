@@ -24,10 +24,9 @@ export class MedicationService extends TenantCrudService {
     const page = query.page || 1;
     const limit = query.limit || 25;
     const status = query.status?.trim();
-    const where = {
-      ...(user.tenantId ? { tenantId: user.tenantId } : {}),
+    const where = await this.scopedWhere(user, {
       ...(status ? { status: status.toUpperCase() as any } : {}),
-    };
+    });
     const [items, total] = await Promise.all([
       this.prisma.medication.findMany({
         where,

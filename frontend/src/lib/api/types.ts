@@ -71,6 +71,9 @@ export interface Client extends BaseEntity {
   status: "active" | "onboarding" | "paused" | "discharged";
   funding: string;
   coordinator?: string;
+  familyName?: string;
+  familyEmail?: string;
+  familyInviteSent?: boolean;
   since: string;
   hoursPerWeek?: number;
   color?: string;
@@ -81,6 +84,8 @@ export interface Client extends BaseEntity {
 export interface Shift extends BaseEntity {
   clientName: string;
   workerName?: string;
+  clientId?: string;
+  staffId?: string;
   startTime: string;
   endTime: string;
   type: string;
@@ -138,6 +143,8 @@ export interface Invoice extends BaseEntity {
   currency: string;
   issuedAt: string;
   dueAt: string;
+  paidAt?: string;
+  payer?: string;
   status: "draft" | "sent" | "pending" | "paid" | "overdue" | "disputed" | "cancelled";
   lineItems?: LineItem[];
 }
@@ -179,6 +186,8 @@ export interface ComplianceEvent extends BaseEntity {
   status: "pending" | "in_progress" | "completed" | "overdue";
   assignee?: string;
   severity: "low" | "medium" | "high" | "critical";
+  summary?: string;
+  evidence?: { note?: string; owner?: string }[];
 }
 
 // ─── Documents ───────────────────────────────────────────────────────────────

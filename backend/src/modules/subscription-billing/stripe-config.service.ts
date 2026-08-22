@@ -84,4 +84,9 @@ export class StripeConfigService {
     const hasPrices = ["start", "pro", "elite"].some((p) => this.getPriceId(p as PlanId));
     return hasPrices;
   }
+
+  /** Card collection for care invoices only needs the secret key. */
+  async isPaymentsConfigured(): Promise<boolean> {
+    return Boolean(await this.getSecretKey());
+  }
 }

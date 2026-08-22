@@ -1,10 +1,9 @@
 import { usePlanCatalog } from "@/hooks/usePlanCatalog";
+import { usePlanCta } from "@/hooks/usePlanCta";
 import type { Plan, PlanId } from "@/lib/plans";
 import { motion } from "framer-motion";
-import { Check, Sparkles } from "lucide-react";
+import { Check, Loader2, Sparkles } from "lucide-react";
 import React from "react";
-import { Link } from "react-router-dom";
-import { buildRegisterPath } from "@/lib/signupPlan";
 
 const CARD_HIGHLIGHTS: Record<PlanId, string[]> = {
   start: [
@@ -49,6 +48,7 @@ const highlightItems = (plan: Plan) => {
 
 const Pricing: React.FC = () => {
   const { plans } = usePlanCatalog();
+  const { signedIn, busyPlan, primaryLabel, startTrial, startCheckout } = usePlanCta();
 
   return (
     <section
@@ -167,23 +167,43 @@ const Pricing: React.FC = () => {
                 </dl>
               </div>
 
-              <Link
-                to={buildRegisterPath(plan.id)}
+              <button
+                type="button"
+                disabled={Boolean(busyPlan)}
+                onClick={() => void (signedIn ? startCheckout(plan.id) : startTrial(plan.id))}
                 data-testid={`pricing-cta-${plan.id}`}
-                className={`mt-8 inline-flex items-center justify-center rounded-full px-5 py-3 text-sm font-semibold transition-all ${
+                className={`mt-8 inline-flex items-center justify-center rounded-full px-5 py-3 text-sm font-semibold transition-all disabled:opacity-60 ${
                   plan.popular
                     ? "bg-white text-slate-900 hover:bg-slate-100"
                     : "bg-slate-900 text-white hover:bg-slate-800"
                 }`}
               >
-                Start free trial
-              </Link>
+                {busyPlan === plan.id ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  primaryLabel(plan.id)
+                )}
+              </button>
+              {!signedIn && (
+                <button
+                  type="button"
+                  disabled={Boolean(busyPlan)}
+                  onClick={() => void startCheckout(plan.id)}
+                  className={`mt-2 inline-flex items-center justify-center text-xs font-semibold underline-offset-2 hover:underline disabled:opacity-60 ${
+                    plan.popular ? "text-slate-300" : "text-indigo-600"
+                  }`}
+                >
+                  Subscribe now with card
+                </button>
+              )}
               <p
                 className={`mt-3 text-center text-xs ${
                   plan.popular ? "text-slate-400" : "text-slate-500"
                 }`}
               >
-                14-day trial · No credit card required
+                {signedIn
+                  ? "You'll stay signed in and return here after Stripe checkout."
+                  : "14-day trial · No credit card required"}
               </p>
             </motion.div>
           ))}

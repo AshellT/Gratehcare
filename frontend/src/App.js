@@ -1,5 +1,6 @@
 import "@/App.css";
 import AppBootGate from "@/components/AppBootGate";
+import PwaInstallBanner from "@/components/PwaInstallBanner";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import AppShell from "@/components/dashboard/AppShell";
 import { AuthProvider } from "@/context/AuthContext";
@@ -10,8 +11,8 @@ import NotFoundPage from "@/pages/NotFoundPage";
 import PricingPage from "@/pages/PricingPage";
 import ForgotPasswordPage from "@/pages/auth/ForgotPasswordPage";
 import LoginPage from "@/pages/auth/LoginPage";
-import AuthCallbackPage from "@/pages/auth/AuthCallbackPage";
 import RegisterPage from "@/pages/auth/RegisterPage";
+import ResetPasswordPage from "@/pages/auth/ResetPasswordPage";
 import BookDemoPage from "@/pages/BookDemoPage";
 import BillingPage from "@/pages/dashboard/BillingPage";
 import ClaimsPage from "@/pages/dashboard/ClaimsPage";
@@ -35,7 +36,6 @@ import TenantsPage from "@/pages/dashboard/TenantsPage";
 import TicketsPage from "@/pages/dashboard/TicketsPage";
 import UsersPage from "@/pages/dashboard/UsersPage";
 import {
-  AuditLogsPage,
   ComplianceEventsPage,
   ComplianceOverviewPage,
   CorrectiveActionsPage,
@@ -47,6 +47,7 @@ import {
   StaffCredentialsPage,
   TrainingRecordsPage,
 } from "@/pages/dashboard/compliance/ComplianceSystemPages";
+import ActivityPage from "@/pages/dashboard/ActivityPage";
 import {
   BillingDashboardPage,
   ClaimTrackingPage,
@@ -91,38 +92,24 @@ import {
   PractitionerOverviewPage,
   PractitionerReportsPage,
 } from "@/pages/dashboard/portals/PortalPages";
-import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
-
-/**
- * Supabase falls back to the project's Site URL (often "/") when the exact
- * redirect path is not allow-listed, so an OAuth ?code= can land on any route.
- * Forward it to the dedicated callback handler so sign-in still completes.
- */
-function OAuthCodeRedirect() {
-  const location = useLocation();
-  const hasCode = new URLSearchParams(location.search).has("code");
-  if (hasCode && location.pathname !== "/auth/callback") {
-    return <Navigate to={`/auth/callback${location.search}`} replace />;
-  }
-  return null;
-}
+import { BrowserRouter, Route, Routes } from "react-router-dom";
 
 function App() {
   return (
     <div className="App bg-white text-slate-900">
       <ToastProvider>
+        <PwaInstallBanner />
         <AuthProvider>
           <AppBootGate>
             <BrowserRouter>
-              <OAuthCodeRedirect />
               <Routes>
               {/* Public */}
               <Route path="/" element={<LandingPage />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
               <Route path="/book-demo" element={<BookDemoPage />} />
-              <Route path="/auth/callback" element={<AuthCallbackPage />} />
               <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+              <Route path="/reset-password" element={<ResetPasswordPage />} />
               <Route path="/pricing" element={<PricingPage />} />
               <Route path="/403" element={<ForbiddenPage />} />
               <Route path="/404" element={<NotFoundPage />} />
@@ -208,8 +195,8 @@ function App() {
                   element={<IncidentRegisterPage />}
                 />
                 <Route path="investigations" element={<InvestigationsPage />} />
-                <Route path="audits" element={<AuditLogsPage />} />
-                <Route path="audit-logs" element={<AuditLogsPage />} />
+                <Route path="audits" element={<ActivityPage />} />
+                <Route path="audit-logs" element={<ActivityPage />} />
                 <Route
                   path="policy-tracking"
                   element={<PolicyTrackingPage />}
@@ -223,7 +210,7 @@ function App() {
                 <Route path="tenants" element={<TenantsPage />} />
                 <Route path="users" element={<UsersPage />} />
                 <Route path="tickets" element={<TicketsPage />} />
-                <Route path="activity" element={<LiveActivityPage />} />
+                <Route path="activity" element={<ActivityPage />} />
                 <Route path="network" element={<NetworkPage />} />
                 <Route path="revenue" element={<RevenuePage />} />
                 <Route
@@ -289,6 +276,7 @@ function App() {
 
                 {/* Subscription management */}
                 <Route path="plans" element={<SubscriptionPage />} />
+                <Route path="subscription" element={<SubscriptionPage />} />
                 <Route path="integrations" element={<IntegrationsPage />} />
                 <Route path="permissions" element={<PermissionsPage />} />
                 <Route path="system" element={<SystemHealthPage />} />

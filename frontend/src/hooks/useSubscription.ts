@@ -13,6 +13,8 @@ type SubscriptionState = typeof DEMO_SUBSCRIPTION & {
   isTrialActive: boolean;
   isTrialExpired: boolean;
   isReadOnly: boolean;
+  stripeSubscriptionId: string | null;
+  stripeCustomerId: string | null;
 };
 
 const parseLimit = (value: number | "unlimited" | undefined, fallback: number) => {
@@ -29,6 +31,8 @@ const buildFallbackState = (planId: PlanId): SubscriptionState => ({
   isTrialActive: true,
   isTrialExpired: false,
   isReadOnly: false,
+  stripeSubscriptionId: null,
+  stripeCustomerId: null,
 });
 
 const mapOrganizationToState = (
@@ -58,6 +62,8 @@ const mapOrganizationToState = (
     isTrialActive: subscription?.isTrialActive ?? false,
     isTrialExpired: subscription?.isTrialExpired ?? false,
     isReadOnly: subscription?.isReadOnly ?? false,
+    stripeSubscriptionId: org.stripeSubscriptionId ?? null,
+    stripeCustomerId: org.stripeCustomerId ?? null,
   };
 };
 
@@ -152,6 +158,8 @@ export function useSubscription() {
     isTrialActive: sub.isTrialActive,
     isTrialExpired: sub.isTrialExpired,
     isReadOnly: sub.isReadOnly,
+    stripeSubscriptionId: sub.stripeSubscriptionId,
+    stripeCustomerId: sub.stripeCustomerId,
     refresh,
   };
 }

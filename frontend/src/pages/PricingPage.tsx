@@ -18,10 +18,14 @@ import {
   Users,
   X,
   Zap,
+  Loader2,
 } from "lucide-react";
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { buildDemoPath, buildRegisterPath } from "@/lib/signupPlan";
+import Header from "@/components/landing/Header";
+import Footer from "@/components/landing/Footer";
+import { usePlanCta } from "@/hooks/usePlanCta";
+import { buildDemoPath } from "@/lib/signupPlan";
 
 // ─── Feature icon map ─────────────────────────────────────────────────────────
 
@@ -358,6 +362,10 @@ interface PlanCardProps {
   selected: PlanId;
   onSelect: (id: PlanId) => void;
   onCta: (id: PlanId) => void;
+  onSubscribe: (id: PlanId) => void;
+  ctaLabel: string;
+  busy: boolean;
+  signedIn: boolean;
 }
 
 const PlanCard: React.FC<PlanCardProps> = ({
@@ -366,6 +374,10 @@ const PlanCard: React.FC<PlanCardProps> = ({
   selected,
   onSelect,
   onCta,
+  onSubscribe,
+  ctaLabel,
+  busy,
+  signedIn,
 }) => {
   const price = cycle === "monthly" ? plan.monthlyPrice : plan.annualPrice;
   const isSelected = selected === plan.id;
@@ -456,18 +468,38 @@ const PlanCard: React.FC<PlanCardProps> = ({
       {/* CTA */}
       <div className="p-6 pt-0">
         <button
+          type="button"
+          disabled={busy}
           onClick={() => onCta(plan.id)}
-          className={`w-full rounded-full py-3 text-sm font-bold transition-all ${
+          className={`w-full rounded-full py-3 text-sm font-bold transition-all disabled:opacity-60 ${
             plan.popular
               ? "bg-indigo-600 text-white hover:bg-indigo-700 shadow-md shadow-indigo-200"
               : "bg-slate-900 text-white hover:bg-slate-800"
           }`}
         >
-          Start free trial
-          <ArrowRight className="ml-1.5 inline h-4 w-4" />
+          {busy ? (
+            <Loader2 className="inline h-4 w-4 animate-spin" />
+          ) : (
+            <>
+              {ctaLabel}
+              <ArrowRight className="ml-1.5 inline h-4 w-4" />
+            </>
+          )}
         </button>
+        {!signedIn && (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => onSubscribe(plan.id)}
+            className="mt-2 w-full text-center text-xs font-semibold text-indigo-600 hover:underline disabled:opacity-60"
+          >
+            Subscribe now with card
+          </button>
+        )}
         <p className="mt-2 text-center text-xs text-slate-500">
-          14-day trial · No credit card required
+          {signedIn
+            ? "Stay signed in — Stripe returns you to Plan & billing."
+            : "14-day trial · No credit card required"}
         </p>
       </div>
     </motion.div>
@@ -479,6 +511,8 @@ const PlanCard: React.FC<PlanCardProps> = ({
 const PricingPage: React.FC = () => {
   const navigate = useNavigate();
   const { plans } = usePlanCatalog();
+  const { signedIn, busyPlan, error, primaryLabel, startTrial, startCheckout } =
+    usePlanCta();
   const [cycle, setCycle] = useState<BillingCycle>("monthly");
   const [selected, setSelected] = useState<PlanId>("pro");
   const [toast, setToast] = useState<string | null>(null);
@@ -488,13 +522,22 @@ const PricingPage: React.FC = () => {
     window.setTimeout(() => setToast(null), 3000);
   };
 
+  React.useEffect(() => {
+    if (error) notify(error);
+  }, [error]);
+
   const handleCta = (planId: PlanId) => {
     setSelected(planId);
-    navigate(buildRegisterPath(planId));
+    if (signedIn) {
+      void startCheckout(planId);
+      return;
+    }
+    startTrial(planId);
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
+      <Header />
       {/* Toast */}
       <AnimatePresence>
         {toast && (
@@ -563,6 +606,13 @@ const PricingPage: React.FC = () => {
               selected={selected}
               onSelect={setSelected}
               onCta={handleCta}
+              onSubscribe={(id) => {
+                setSelected(id);
+                void startCheckout(id);
+              }}
+              ctaLabel={primaryLabel(plan.id)}
+              busy={busyPlan === plan.id}
+              signedIn={signedIn}
             />
           ))}
         </div>
@@ -665,6 +715,7 @@ const PricingPage: React.FC = () => {
           </div>
         </div>
       </section>
+      <Footer />
     </div>
   );
 };

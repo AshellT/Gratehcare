@@ -5,18 +5,81 @@ import { RowActionButton } from "@/components/dashboard/DataTable";
 import EmptyState from "@/components/dashboard/EmptyState";
 import LoadingState from "@/components/dashboard/LoadingState";
 import PageHeader from "@/components/dashboard/PageHeader";
+import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
 import { useActionQuery } from "@/hooks/useActionQuery";
+import { useApi } from "@/hooks/useApi";
 import { useClients } from "@/hooks/useClients";
+import { usersApi } from "@/lib/api/users";
 import type { Client } from "@/lib/api/types";
 import { toTenantRecord } from "@/lib/api/tenantRecord";
 import { Filter, Plus, Search, Users, X } from "lucide-react";
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
+
+const FUNDING_OPTIONS = ["NDIS", "Aged Care (HCP)", "CHSP", "DVA", "Private"];
+const COORDINATOR_ROLES = new Set([
+  "CARE_COORDINATOR",
+  "ORGANIZATION_OWNER",
+  "OPERATIONS_ADMIN",
+]);
+
+const toRecordStatus = (status: Client["status"]) => {
+  switch (status) {
+    case "onboarding":
+      return "PENDING";
+    case "paused":
+      return "REVIEW";
+    case "discharged":
+      return "ARCHIVED";
+    default:
+      return "ACTIVE";
+  }
+};
+
+const clientPayload = (input: {
+  fullName: string;
+  funding: string;
+  coordinatorUserId?: string;
+  status: Client["status"];
+  riskLevel?: Client["riskLevel"];
+  familyName?: string;
+  familyEmail?: string;
+  familyPassword?: string;
+}) =>
+  toTenantRecord(input.fullName, undefined, {
+    funding: input.funding,
+    coordinatorUserId: input.coordinatorUserId || undefined,
+    familyName: input.familyName || undefined,
+    familyEmail: input.familyEmail || undefined,
+    familyPassword: input.familyPassword || undefined,
+  }, {
+    status: toRecordStatus(input.status),
+    severity: input.riskLevel ? input.riskLevel.toUpperCase() : undefined,
+  });
 
 const ClientsPage: React.FC = () => {
   const [q, setQ] = useState("");
-  const { toast, success } = useToast();
-  const { data, loading, error, create, update, remove, refetch } = useClients();
+  const toast = useToast();
+  const { success } = toast;
+  const { user } = useAuth();
+  const hideCoordinator = user?.role === "care_coordinator";
+  const { data, loading, error, create, update, remove, refetch } = useClients({
+    limit: 100,
+  });
+  const usersQ = useApi(() => usersApi.list({ limit: 100 }), []);
+  const coordinators = useMemo(() => {
+    const items = (usersQ.data?.data ?? []) as Array<{
+      id: string;
+      fullName?: string;
+      roles?: Array<{ role?: string } | string>;
+    }>;
+    const matching = items.filter((u) =>
+      (u.roles ?? []).some((role) =>
+        COORDINATOR_ROLES.has(typeof role === "string" ? role : String(role.role ?? "")),
+      ),
+    );
+    return matching.length ? matching : items;
+  }, [usersQ.data]);
   const clients = data?.data ?? [];
   const filtered = clients.filter(
     (c) =>
@@ -31,8 +94,12 @@ const ClientsPage: React.FC = () => {
   const [form, setForm] = useState({
     fullName: "",
     funding: "NDIS",
-    coordinator: "",
+    coordinatorUserId: "",
     status: "active" as Client["status"],
+    riskLevel: "low" as Client["riskLevel"],
+    familyName: "",
+    familyEmail: "",
+    familyPassword: "",
   });
 
   useActionQuery("create", () => setCreateOpen(true));
@@ -41,8 +108,12 @@ const ClientsPage: React.FC = () => {
     setForm({
       fullName: "",
       funding: "NDIS",
-      coordinator: "",
+      coordinatorUserId: "",
       status: "active",
+      riskLevel: "low",
+      familyName: "",
+      familyEmail: "",
+      familyPassword: "",
     });
 
   const handleCreate = async (event: React.FormEvent) => {
@@ -53,17 +124,33 @@ const ClientsPage: React.FC = () => {
     }
     setSaving(true);
     try {
-      await create(
-        toTenantRecord(form.fullName.trim(), form.funding, {
-          coordinator: form.coordinator.trim() || undefined,
-          status: form.status.toUpperCase(),
+      const created = await create(
+        clientPayload({
+          fullName: form.fullName.trim(),
+          funding: form.funding,
+          coordinatorUserId: form.coordinatorUserId,
+          status: form.status,
+          riskLevel: form.riskLevel,
+          familyName: form.familyName.trim(),
+          familyEmail: form.familyEmail.trim(),
+          familyPassword: form.familyPassword,
         }) as Partial<Client>,
       );
-      success("Client added", `${form.fullName.trim()} has been created.`);
+      success(
+        "Client added",
+        created.familyInviteSent
+          ? `${form.fullName.trim()} is on file. A family invite was sent to ${created.familyEmail}.`
+          : created.familyEmail
+            ? `${form.fullName.trim()} is on file. Family can sign in with ${created.familyEmail}.`
+            : `${form.fullName.trim()} has been created. Add a care plan or roster next.`,
+      );
       setCreateOpen(false);
       resetForm();
-    } catch {
-      toast.error("Create failed", "Could not add client. Try again.");
+    } catch (err) {
+      toast.error(
+        "Create failed",
+        err instanceof Error ? err.message : "Could not add client. Try again.",
+      );
     } finally {
       setSaving(false);
     }
@@ -84,9 +171,12 @@ const ClientsPage: React.FC = () => {
   const handleStatusChange = async (client: Client, status: Client["status"]) => {
     try {
       await update(client.id, {
-        ...toTenantRecord(client.fullName, client.funding, {
-          coordinator: client.coordinator,
-          status: status.toUpperCase(),
+        ...clientPayload({
+          fullName: client.fullName,
+          funding: client.funding,
+          coordinatorUserId: client.coordinatorUserId,
+          status,
+          riskLevel: client.riskLevel,
         }),
       } as Partial<Client>);
       success("Status updated", `${client.fullName} is now ${status}.`);
@@ -114,11 +204,10 @@ const ClientsPage: React.FC = () => {
             variant: "secondary",
             icon: <Filter className="h-4 w-4" />,
             onClick: () =>
-              toast({
-                tone: "info",
-                title: "Client filters ready",
-                message: "Use the search box to filter by client or coordinator.",
-              }),
+              toast.info(
+                "Client filters ready",
+                "Use the search box to filter by client or coordinator.",
+              ),
           },
           {
             label: "Add client",
@@ -205,9 +294,13 @@ const ClientsPage: React.FC = () => {
             }
             icon={<Users className="h-8 w-8" />}
             action={
-              q
-                ? { label: "Clear search", onClick: () => setQ("") }
-                : { label: "Add client", onClick: () => setCreateOpen(true) }
+              <button
+                type="button"
+                onClick={() => (q ? setQ("") : setCreateOpen(true))}
+                className="inline-flex items-center justify-center rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+              >
+                {q ? "Clear search" : "Add client"}
+              </button>
             }
             compact
           />
@@ -362,20 +455,61 @@ const ClientsPage: React.FC = () => {
                 }
                 required
               />
-              <FormField
-                label="Funding"
-                value={form.funding}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, funding: e.target.value }))
-                }
-              />
-              <FormField
-                label="Coordinator"
-                value={form.coordinator}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, coordinator: e.target.value }))
-                }
-              />
+              <label className="block text-sm font-semibold text-slate-700">
+                Funding
+                <select
+                  value={form.funding}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, funding: e.target.value }))
+                  }
+                  className="mt-1.5 h-10 w-full rounded-xl border border-slate-200 px-3 text-sm"
+                >
+                  {FUNDING_OPTIONS.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {!hideCoordinator && (
+                <label className="block text-sm font-semibold text-slate-700">
+                  Coordinator
+                  <select
+                    value={form.coordinatorUserId}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        coordinatorUserId: e.target.value,
+                      }))
+                    }
+                    className="mt-1.5 h-10 w-full rounded-xl border border-slate-200 px-3 text-sm"
+                  >
+                    <option value="">Unassigned</option>
+                    {coordinators.map((coordinator) => (
+                      <option key={coordinator.id} value={coordinator.id}>
+                        {coordinator.fullName ?? coordinator.id}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              <label className="block text-sm font-semibold text-slate-700">
+                Risk
+                <select
+                  value={form.riskLevel}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      riskLevel: e.target.value as Client["riskLevel"],
+                    }))
+                  }
+                  className="mt-1.5 h-10 w-full rounded-xl border border-slate-200 px-3 text-sm"
+                >
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                </select>
+              </label>
               <label className="block text-sm font-semibold text-slate-700">
                 Status
                 <select
@@ -393,6 +527,38 @@ const ClientsPage: React.FC = () => {
                   <option value="paused">Paused</option>
                 </select>
               </label>
+              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                <div className="text-sm font-semibold text-slate-900">
+                  Family portal (optional)
+                </div>
+                <p className="mt-1 text-xs text-slate-500">
+                  Clients do not log in. Invite a family member if they should see notes and roster.
+                </p>
+              </div>
+              <FormField
+                label="Family contact name"
+                value={form.familyName}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, familyName: e.target.value }))
+                }
+              />
+              <FormField
+                label="Family email"
+                type="email"
+                value={form.familyEmail}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, familyEmail: e.target.value }))
+                }
+              />
+              <FormField
+                label="Family password"
+                type="password"
+                value={form.familyPassword}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, familyPassword: e.target.value }))
+                }
+                hint="Leave blank to email a set-password link."
+              />
               <div className="flex justify-end gap-2 pt-2">
                 <button
                   type="button"
@@ -471,6 +637,8 @@ const ClientsPage: React.FC = () => {
                       : "—",
                   ],
                   ["Risk", selected.riskLevel ?? "—"],
+                  ["Family", selected.familyName ?? "—"],
+                  ["Family email", selected.familyEmail ?? "—"],
                 ].map(([label, value]) => (
                   <div
                     key={label}

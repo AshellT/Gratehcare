@@ -36,8 +36,8 @@ export const messagesApi = {
       content,
     } as any),
 
-  createConversation: (participantIds: string[]) =>
-    apiClient.post<Conversation>("/messages", { participantIds } as any),
+  createConversation: (data: { subject: string; content: string }) =>
+    apiClient.post<Conversation>("/messages", data as any),
 
   markRead: (conversationId: string) =>
     apiClient.patch(`/messages/${conversationId}/read`, {}),

@@ -24,7 +24,7 @@ const TrialBanner: React.FC = () => {
           </div>
         </div>
         <Link
-          to="/app/subscription"
+          to="/app/plans"
           className="inline-flex items-center justify-center gap-2 rounded-full bg-rose-600 px-4 py-2 text-xs font-bold text-white hover:bg-rose-700"
         >
           Upgrade plan
@@ -54,7 +54,7 @@ const TrialBanner: React.FC = () => {
           </div>
         </div>
         <Link
-          to="/app/subscription"
+          to="/app/plans"
           className="inline-flex items-center justify-center gap-2 rounded-full bg-amber-600 px-4 py-2 text-xs font-bold text-white hover:bg-amber-700"
         >
           View plans

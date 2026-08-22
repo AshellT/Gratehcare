@@ -1,6 +1,8 @@
 import React from "react";
 import { motion, Variants } from "framer-motion";
 import { Link } from "react-router-dom";
+import { useAuth } from "@/context/AuthContext";
+import { getAppHomePath } from "@/lib/appHome";
 import { buildDemoPath } from "@/lib/signupPlan";
 import {
   ArrowRight,
@@ -23,6 +25,10 @@ const fadeUp: Variants = {
 };
 
 const Hero: React.FC = () => {
+  const { user } = useAuth();
+  const primaryTo = user ? getAppHomePath(user.role) : "/register";
+  const primaryLabel = user ? "Open workspace" : "Start Free Trial";
+
   return (
     <section
       data-testid="hero-section"
@@ -97,11 +103,11 @@ const Hero: React.FC = () => {
               className="mt-8 flex flex-col sm:flex-row gap-3"
             >
               <Link
-                to="/register"
+                to={primaryTo}
                 data-testid="hero-primary-cta"
                 className="inline-flex items-center justify-center gap-2 rounded-full bg-slate-900 px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-slate-900/10 hover:bg-slate-800 transition-all hover:-translate-y-0.5"
               >
-                Start Free Trial
+                {primaryLabel}
                 <ArrowRight className="h-4 w-4" />
               </Link>
               <Link

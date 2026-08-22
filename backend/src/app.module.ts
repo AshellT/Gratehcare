@@ -32,7 +32,7 @@ import { TimesheetsModule } from "./modules/timesheets/timesheets.module";
 import { UsersModule } from "./modules/users/users.module";
 import { PrismaModule } from "./prisma/prisma.module";
 import { RedisModule } from "./redis/redis.module";
-import { SupabaseModule } from "./supabase/supabase.module";
+import { MailModule } from "./mail/mail.module";
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -43,7 +43,7 @@ import { SupabaseModule } from "./supabase/supabase.module";
     }),
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 120 }]),
     PrismaModule,
-    SupabaseModule,
+    MailModule,
     RedisModule,
     AuthModule,
     SubscriptionsModule,

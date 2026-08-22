@@ -1,15 +1,14 @@
 /**
  * GratehCare API Client
  * ─────────────────────
- * - Attaches Bearer token from the active Supabase session automatically.
+ * - Attaches Bearer token from the Nest JWT stored in sessionStorage.
  * - Adds X-Tenant-Id header from the stored organisation id.
  * - Retries once on 401 after a token refresh.
  * - On network error / server not reachable, withFallback returns empty data
  *   with { _isMock: true } so callers can show offline state without fake rows.
  */
 
-import { supabase } from "@/lib/supabase";
-import { API_BASE } from "./config";
+import { API_BASE, buildApiUrl } from "./config";
 import type { PaginatedResponse } from "./types";
 
 export { API_BASE };
@@ -17,6 +16,7 @@ export { API_BASE };
 const API_REQUEST_TIMEOUT_MS = 30_000;
 
 const TOKEN_STORE_KEY = "gratehcare.api.access_token";
+const REFRESH_STORE_KEY = "gratehcare.api.refresh_token";
 const TENANT_STORE_KEY = "gratehcare.api.tenant_id";
 const REFRESH_LOCK_KEY = "gratehcare.api.refreshing";
 
@@ -28,9 +28,37 @@ export function storeToken(token: string): void {
   } catch {}
 }
 
+export function getStoredToken(): string | null {
+  try {
+    return sessionStorage.getItem(TOKEN_STORE_KEY);
+  } catch {
+    return null;
+  }
+}
+
 export function clearToken(): void {
   try {
     sessionStorage.removeItem(TOKEN_STORE_KEY);
+  } catch {}
+}
+
+export function storeRefreshToken(token: string): void {
+  try {
+    sessionStorage.setItem(REFRESH_STORE_KEY, token);
+  } catch {}
+}
+
+export function getStoredRefreshToken(): string | null {
+  try {
+    return sessionStorage.getItem(REFRESH_STORE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function clearRefreshToken(): void {
+  try {
+    sessionStorage.removeItem(REFRESH_STORE_KEY);
   } catch {}
 }
 
@@ -47,16 +75,7 @@ export function clearTenantId(): void {
 }
 
 async function getBearerToken(): Promise<string | null> {
-  try {
-    // Prefer the live Supabase session token (auto-refreshed by supabase-js)
-    const { data } = await supabase.auth.getSession();
-    if (data.session?.access_token) return data.session.access_token;
-  } catch {}
-  // Fallback to manually stored token
-  try {
-    return sessionStorage.getItem(TOKEN_STORE_KEY);
-  } catch {}
-  return null;
+  return getStoredToken();
 }
 
 function getTenantId(): string | null {
@@ -67,13 +86,25 @@ function getTenantId(): string | null {
 }
 
 async function refreshToken(): Promise<string | null> {
-  // Guard against parallel refresh storms
   if (sessionStorage.getItem(REFRESH_LOCK_KEY)) return null;
+  const refresh = getStoredRefreshToken();
+  if (!refresh) return null;
   sessionStorage.setItem(REFRESH_LOCK_KEY, "1");
   try {
-    const { data, error } = await supabase.auth.refreshSession();
-    if (error || !data.session) return null;
-    return data.session.access_token;
+    const res = await fetch(`${API_BASE}/auth/refresh`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refreshToken: refresh }),
+      signal: AbortSignal.timeout(API_REQUEST_TIMEOUT_MS),
+    });
+    if (!res.ok) return null;
+    const json = (await res.json()) as { accessToken?: string; refreshToken?: string };
+    if (!json.accessToken) return null;
+    storeToken(json.accessToken);
+    if (json.refreshToken) storeRefreshToken(json.refreshToken);
+    return json.accessToken;
+  } catch {
+    return null;
   } finally {
     sessionStorage.removeItem(REFRESH_LOCK_KEY);
   }
@@ -140,8 +171,8 @@ async function request<T>(
 ): Promise<T> {
   const { body, params, public: isPublic, ...fetchOpts } = opts;
 
-  // Build URL
-  const url = new URL(`${API_BASE}${path}`);
+  // Build URL (relative /api/v1 needs window.origin — `new URL("/api/v1/...")` throws)
+  const url = buildApiUrl(path);
   if (params) {
     Object.entries(params).forEach(([k, v]) => {
       if (v !== undefined && v !== null) url.searchParams.set(k, String(v));
@@ -207,7 +238,7 @@ async function request<T>(
     if (code === "TRIAL_EXPIRED" && typeof window !== "undefined") {
       window.dispatchEvent(
         new CustomEvent("gratehcare:trial-expired", {
-          detail: { message, upgradeUrl: upgradeUrl || "/app/subscription" },
+          detail: { message, upgradeUrl: upgradeUrl || "/app/plans" },
         }),
       );
     }

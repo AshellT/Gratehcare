@@ -21,6 +21,7 @@ import { useRostering } from "@/hooks/useRostering";
 import { useStaff } from "@/hooks/useStaff";
 import { useTimesheets } from "@/hooks/useTimesheets";
 import { incidentsApi } from "@/lib/api/incidents";
+import { auditLogsApi, type AuditLog } from "@/lib/api/audit-logs";
 import { medicationApi, type MedicationRecord } from "@/lib/api/medication";
 import { timesheetsApi } from "@/lib/api/timesheets";
 import type {
@@ -107,7 +108,7 @@ const moduleMeta: Record<
     eyebrow: "Workforce",
     title: "Staff",
     description:
-      "Manage team members, roles, availability, credentials and workload.",
+      "Onboard workers with a login, then manage skills, credentials and roster.",
     createLabel: "Add staff",
     tableTitle: "Staff directory",
     icon: <Users className="h-5 w-5" />,
@@ -303,15 +304,16 @@ const managerRoles = new Set([
 // ─── API → OperationRecord adapter hook ─────────────────────────────────────
 
 function useModuleRecords(moduleKey: ModuleKey) {
-  const staffQ = useStaff();
-  const clientsQ = useClients();
-  const allShiftsQ = useRostering();
-  const openShiftsQ = useRostering({ status: "open" });
-  const timesheetsQ = useTimesheets();
-  const plansQ = useCarePlans();
-  const notesQ = useCareNotes();
-  const incidentsQ = useIncidents();
-  const medicationQ = useApi(() => medicationApi.list(), []);
+  const staffQ = useStaff({ limit: 100 });
+  const clientsQ = useClients({ limit: 100 });
+  const allShiftsQ = useRostering({ limit: 100 });
+  const openShiftsQ = useRostering({ status: "open", limit: 100 });
+  const timesheetsQ = useTimesheets({ limit: 100 });
+  const plansQ = useCarePlans({ limit: 100 });
+  const notesQ = useCareNotes({ limit: 100 });
+  const incidentsQ = useIncidents({ limit: 100 });
+  const medicationQ = useApi(() => medicationApi.list({ limit: 100 }), []);
+  const auditQ = useApi(() => auditLogsApi.list({ limit: 50 }), []);
 
   const records = useMemo((): OperationRecord[] => {
     const fromShifts = (shifts: Shift[]): OperationRecord[] =>
@@ -353,7 +355,7 @@ function useModuleRecords(moduleKey: ModuleKey) {
           row(
             s.id,
             s.fullName,
-            `${s.role.replace(/_/g, " ")} · ${s.hoursPerWeek ?? 0}h/wk`,
+            `${s.email ? s.email + " · " : ""}${s.role.replace(/_/g, " ")}`,
             "HR",
             s.status,
             s.credentialsExpiry ? "high" : "low",
@@ -405,6 +407,59 @@ function useModuleRecords(moduleKey: ModuleKey) {
         const items = openShiftsQ.data?.data;
         if (!items?.length) return [];
         return fromShifts(items.filter((s: Shift) => s.status === "open"));
+      }
+      case "shift-conflicts": {
+        const items = allShiftsQ.data?.data ?? [];
+        const active = items.filter(
+          (s: Shift) => s.status !== "cancelled" && s.staffId,
+        );
+        const found: OperationRecord[] = [];
+        for (let i = 0; i < active.length; i += 1) {
+          for (let j = i + 1; j < active.length; j += 1) {
+            const a = active[i];
+            const b = active[j];
+            if (a.staffId !== b.staffId) continue;
+            const aStart = new Date(a.startTime).getTime();
+            const aEnd = new Date(a.endTime).getTime();
+            const bStart = new Date(b.startTime).getTime();
+            const bEnd = new Date(b.endTime).getTime();
+            if (!(aStart < bEnd && bStart < aEnd)) continue;
+            found.push(
+              row(
+                `${a.id.slice(0, 8)}/${b.id.slice(0, 8)}`,
+                `${a.workerName ?? "Worker"} overlap`,
+                `${a.clientName} vs ${b.clientName}`,
+                a.workerName ?? "Unassigned",
+                "open",
+                "high",
+                new Date(Math.max(aStart, bStart)).toLocaleString("en-AU", {
+                  month: "short",
+                  day: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                }),
+                "—",
+                `${a.workerName ?? "A worker"} is rostered on overlapping shifts for ${a.clientName} and ${b.clientName}.`,
+                {
+                  Worker: a.workerName ?? "—",
+                  "Shift A": `${a.clientName} · ${a.type}`,
+                  "Shift B": `${b.clientName} · ${b.type}`,
+                },
+                a.id,
+              ),
+            );
+          }
+        }
+        return found;
+      }
+      case "attendance": {
+        const items = allShiftsQ.data?.data;
+        if (!items?.length) return [];
+        return fromShifts(
+          items.filter((s: Shift) =>
+            ["filled", "completed", "missed"].includes(s.status),
+          ),
+        );
       }
       case "timesheets": {
         const items = timesheetsQ.data?.data;
@@ -530,6 +585,80 @@ function useModuleRecords(moduleKey: ModuleKey) {
           );
         });
       }
+      case "live-activity": {
+        const items = auditQ.data?.data as AuditLog[] | undefined;
+        if (!items?.length) return [];
+        return items.map((log) => {
+          const when = log.createdAt
+            ? new Date(log.createdAt).toLocaleString("en-AU", {
+                month: "short",
+                day: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+              })
+            : "—";
+          return row(
+            log.id,
+            log.action,
+            log.user?.name ?? "System",
+            log.user?.name ?? "System",
+            "logged",
+            "low",
+            when,
+            "—",
+            log.action,
+            {
+              Actor: log.user?.name ?? "—",
+              When: when,
+            },
+          );
+        });
+      }
+      case "alerts": {
+        const open = (openShiftsQ.data?.data ?? []).filter((s: Shift) => s.status === "open");
+        const incidentItems = incidentsQ.data?.data ?? [];
+        return [
+          ...open.map((s: Shift) =>
+            row(
+              s.id,
+              `Open shift · ${s.clientName}`,
+              s.type.replace(/_/g, " "),
+              s.workerName ?? "Unassigned",
+              "open",
+              "high",
+              new Date(s.startTime).toLocaleString("en-AU", {
+                month: "short",
+                day: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+              }),
+              s.location ?? "—",
+              `${s.clientName} still needs a worker assigned.`,
+              { Client: s.clientName, Type: s.type },
+            ),
+          ),
+          ...incidentItems
+            .filter((i: Incident) => i.status === "open" || i.severity === "critical")
+            .map((i: Incident) =>
+              row(
+                i.reference,
+                i.summary.length > 60 ? i.summary.slice(0, 60) + "…" : i.summary,
+                `${i.type} · ${i.clientName}`,
+                i.reportedBy,
+                i.status,
+                i.severity as OperationRecord["priority"],
+                new Date(i.occurredAt).toLocaleDateString("en-AU", {
+                  day: "2-digit",
+                  month: "short",
+                }),
+                "—",
+                i.summary,
+                { Client: i.clientName, Type: i.type, Severity: i.severity },
+                i.id,
+              ),
+            ),
+        ];
+      }
       default:
         return [];
     }
@@ -545,6 +674,7 @@ function useModuleRecords(moduleKey: ModuleKey) {
     notesQ.data,
     incidentsQ.data,
     medicationQ.data,
+    auditQ.data,
   ]);
 
   const refetch = useCallback(async () => {
@@ -560,6 +690,16 @@ function useModuleRecords(moduleKey: ModuleKey) {
         break;
       case "open-shifts":
         await openShiftsQ.refetch();
+        break;
+      case "shift-conflicts":
+      case "attendance":
+        await allShiftsQ.refetch();
+        break;
+      case "live-activity":
+        await auditQ.refetch();
+        break;
+      case "alerts":
+        await Promise.all([openShiftsQ.refetch(), incidentsQ.refetch()]);
         break;
       case "timesheets":
         await timesheetsQ.refetch();
@@ -590,6 +730,7 @@ function useModuleRecords(moduleKey: ModuleKey) {
     notesQ,
     incidentsQ,
     medicationQ,
+    auditQ,
   ]);
 
   return { records, refetch };
@@ -605,6 +746,15 @@ const canManageModule = (role: string | undefined, module: ModuleKey) => {
       module,
     );
   if (role === "billing_officer") return false;
+  if (role === "care_coordinator")
+    return [
+      "clients",
+      "rostering",
+      "open-shifts",
+      "care-plans",
+      "care-notes",
+      "medication",
+    ].includes(module);
   if (module === "incidents" || module === "alerts")
     return managerRoles.has(role) || role === "platform_support";
   return managerRoles.has(role);
@@ -663,14 +813,27 @@ const OperationModulePage: React.FC<{ moduleKey: ModuleKey }> = ({
   const createRecord = async (values: ModuleValues) => {
     try {
       setCreating(true);
-      await createModuleRecord(moduleKey, values);
+      const created = (await createModuleRecord(moduleKey, values)) as {
+        inviteSent?: boolean;
+        loginEmail?: string;
+      };
       await refetch();
       setShowCreate(false);
-      notify(`${meta.title} record created.`);
-    } catch {
+      if (moduleKey === "staff" && created.inviteSent) {
+        notify(
+          `Staff added. ${created.loginEmail ?? "They"} will set a password from the invite email.`,
+        );
+      } else if (moduleKey === "staff") {
+        notify("Staff added. They can sign in with the password you set.");
+      } else {
+        notify(`${meta.title} record created.`);
+      }
+    } catch (err) {
       toast.error(
         "Create failed",
-        `Could not create ${meta.title.toLowerCase()} record.`,
+        err instanceof Error
+          ? err.message
+          : `Could not create ${meta.title.toLowerCase()} record.`,
       );
     } finally {
       setCreating(false);
@@ -948,12 +1111,18 @@ type SelectOption = { value: string; label: string };
 const INPUT_CLASS =
   "mt-1 h-10 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500";
 
+function moduleFormFields(moduleKey: ModuleKey, isEdit: boolean) {
+  return (moduleFields[moduleKey] ?? []).filter(
+    (field) => !(field.createOnly && isEdit),
+  );
+}
+
 /** Best-effort mapping of an existing record back into editable form values. */
 function recordToValues(
   moduleKey: ModuleKey,
   record: OperationRecord,
 ): ModuleValues {
-  const fields = moduleFields[moduleKey] ?? [];
+  const fields = moduleFormFields(moduleKey, true);
   const values: ModuleValues = {};
   let titleSet = false;
   let detailSet = false;
@@ -970,6 +1139,8 @@ function recordToValues(
           ? record.priority.toUpperCase()
           : record.status.toUpperCase();
       if (field.options.includes(candidate)) values[field.name] = candidate;
+    } else if (field.name === "skills" && record.fields.Skills) {
+      values.skills = record.fields.Skills;
     }
   }
   return values;
@@ -979,7 +1150,7 @@ function initialValues(
   moduleKey: ModuleKey,
   record?: OperationRecord,
 ): ModuleValues {
-  const fields = moduleFields[moduleKey] ?? [];
+  const fields = moduleFormFields(moduleKey, Boolean(record));
   const base: ModuleValues = {};
   for (const field of fields) {
     base[field.name] =
@@ -998,7 +1169,7 @@ const RecordFormDrawer: React.FC<{
   onClose: () => void;
   onSubmit: (values: ModuleValues) => void;
 }> = ({ title, moduleKey, record, submitting, onClose, onSubmit }) => {
-  const fields = moduleFields[moduleKey] ?? [];
+  const fields = moduleFormFields(moduleKey, Boolean(record));
   const [values, setValues] = useState<ModuleValues>(() =>
     initialValues(moduleKey, record),
   );
@@ -1075,7 +1246,7 @@ const RecordFormDrawer: React.FC<{
           )}
           {options.map((option) => (
             <option key={option.value} value={option.value}>
-              {option.label}
+              {option.label.replace(/_/g, " ")}
             </option>
           ))}
         </select>
@@ -1088,7 +1259,11 @@ const RecordFormDrawer: React.FC<{
           ? "date"
           : field.type === "datetime"
             ? "datetime-local"
-            : "text";
+            : field.type === "email"
+              ? "email"
+              : field.type === "password"
+                ? "password"
+                : "text";
     return (
       <input
         type={inputType}

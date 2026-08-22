@@ -20,7 +20,7 @@ type PayoutRow = {
 };
 
 const money = (value: number) =>
-  new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(value);
+  new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD", maximumFractionDigits: 0 }).format(value);
 
 const PayoutsPage: React.FC = () => {
   const toast = useToast();

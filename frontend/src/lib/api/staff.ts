@@ -1,10 +1,15 @@
 import { apiClient, normalizePage } from "./client";
+import { prismaRoleToUi } from "@/lib/roles";
 import type { PaginatedResponse, PaginationQuery, StaffMember } from "./types";
 
 type RawStaff = Partial<StaffMember> & {
   title?: string;
   status?: string;
-  user?: { fullName?: string; email?: string };
+  user?: {
+    fullName?: string;
+    email?: string;
+    roles?: Array<{ role?: string } | string>;
+  };
 };
 
 const normalizeStaffStatus = (status?: string): StaffMember["status"] => {
@@ -18,13 +23,19 @@ const normalizeStaffStatus = (status?: string): StaffMember["status"] => {
   }
 };
 
+const roleFromUser = (staff: RawStaff): string => {
+  const raw = staff.user?.roles?.[0];
+  const prismaRole = typeof raw === "string" ? raw : raw?.role;
+  return prismaRoleToUi(String(prismaRole ?? "")) ?? staff.role ?? "support_worker";
+};
+
 const normalizeStaff = (staff: RawStaff): StaffMember => {
   const fullName = staff.fullName ?? staff.user?.fullName ?? staff.title ?? "Staff member";
   return {
     ...(staff as StaffMember),
     fullName,
     email: staff.email ?? staff.user?.email ?? "",
-    role: staff.role ?? "support_worker",
+    role: roleFromUser(staff),
     status: normalizeStaffStatus(staff.status),
     hoursPerWeek: Number(staff.hoursPerWeek) || 0,
     skills: Array.isArray(staff.skills) ? staff.skills : [],

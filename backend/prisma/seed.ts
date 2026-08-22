@@ -1,7 +1,4 @@
 import { ClaimStatus, PrismaClient, Role, TicketPriority, TicketStatus } from "@prisma/client";
-import { createClient } from "@supabase/supabase-js";
-import type { RealtimeClientOptions } from "@supabase/realtime-js";
-import ws from "ws";
 import * as bcrypt from "bcrypt";
 
 const prisma = new PrismaClient();
@@ -12,143 +9,29 @@ const TEST_USERS: Array<{
   email: string;
   fullName: string;
   role: Role;
-  supabaseRole: string;
   avatarColor: string;
 }> = [
-  { email: "platform.owner@gratehcare.test", fullName: "Platform Owner", role: Role.PLATFORM_OWNER, supabaseRole: "platform_owner", avatarColor: "#7c3aed" },
-  { email: "super.admin@gratehcare.test", fullName: "Super Admin", role: Role.SUPER_ADMIN, supabaseRole: "super_admin", avatarColor: "#0f172a" },
-  { email: "platform.support@gratehcare.test", fullName: "Platform Support", role: Role.PLATFORM_SUPPORT, supabaseRole: "platform_support", avatarColor: "#f97316" },
-  { email: "org.owner@gratehcare.test", fullName: "Organization Owner", role: Role.ORGANIZATION_OWNER, supabaseRole: "org_owner", avatarColor: "#4f46e5" },
-  { email: "operations.admin@gratehcare.test", fullName: "Operations Admin", role: Role.OPERATIONS_ADMIN, supabaseRole: "operations_admin", avatarColor: "#0ea5e9" },
-  { email: "care.coordinator@gratehcare.test", fullName: "Care Coordinator", role: Role.CARE_COORDINATOR, supabaseRole: "care_coordinator", avatarColor: "#6366f1" },
-  { email: "support.worker@gratehcare.test", fullName: "Support Worker", role: Role.SUPPORT_WORKER, supabaseRole: "support_worker", avatarColor: "#e11d48" },
-  { email: "billing.officer@gratehcare.test", fullName: "Billing Officer", role: Role.BILLING_OFFICER, supabaseRole: "billing_officer", avatarColor: "#10b981" },
-  { email: "compliance.officer@gratehcare.test", fullName: "Compliance Officer", role: Role.COMPLIANCE_OFFICER, supabaseRole: "compliance_officer", avatarColor: "#d97706" },
-  { email: "family@gratehcare.test", fullName: "Family Member", role: Role.FAMILY_USER, supabaseRole: "family", avatarColor: "#d946ef" },
-  { email: "practitioner@gratehcare.test", fullName: "Practitioner", role: Role.PRACTITIONER, supabaseRole: "practitioner", avatarColor: "#14b8a6" },
+  { email: "platform.owner@gratehcare.test", fullName: "Platform Owner", role: Role.PLATFORM_OWNER, avatarColor: "#7c3aed" },
+  { email: "super.admin@gratehcare.test", fullName: "Super Admin", role: Role.SUPER_ADMIN, avatarColor: "#0f172a" },
+  { email: "platform.support@gratehcare.test", fullName: "Platform Support", role: Role.PLATFORM_SUPPORT, avatarColor: "#f97316" },
+  { email: "org.owner@gratehcare.test", fullName: "Organization Owner", role: Role.ORGANIZATION_OWNER, avatarColor: "#4f46e5" },
+  { email: "operations.admin@gratehcare.test", fullName: "Operations Admin", role: Role.OPERATIONS_ADMIN, avatarColor: "#0ea5e9" },
+  { email: "care.coordinator@gratehcare.test", fullName: "Care Coordinator", role: Role.CARE_COORDINATOR, avatarColor: "#6366f1" },
+  { email: "support.worker@gratehcare.test", fullName: "Support Worker", role: Role.SUPPORT_WORKER, avatarColor: "#e11d48" },
+  { email: "billing.officer@gratehcare.test", fullName: "Billing Officer", role: Role.BILLING_OFFICER, avatarColor: "#10b981" },
+  { email: "compliance.officer@gratehcare.test", fullName: "Compliance Officer", role: Role.COMPLIANCE_OFFICER, avatarColor: "#d97706" },
+  { email: "family@gratehcare.test", fullName: "Family Member", role: Role.FAMILY_USER, avatarColor: "#d946ef" },
+  { email: "practitioner@gratehcare.test", fullName: "Practitioner", role: Role.PRACTITIONER, avatarColor: "#14b8a6" },
 ];
 
-async function seedSupabaseAuthUsers() {
-  const url = process.env.SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !serviceKey) {
-    console.warn("[seed] Skipping Supabase Auth user creation — set SUPABASE_SERVICE_ROLE_KEY in backend/.env");
-    return;
-  }
-
-  const admin = createClient(url, serviceKey, {
-    auth: { persistSession: false },
-    realtime: { transport: ws as NonNullable<RealtimeClientOptions["transport"]> },
-  });
-  const { data: existingList } = await admin.auth.admin.listUsers({ perPage: 200 });
-
-  for (const account of TEST_USERS) {
-    const found = existingList.users.find((user) => user.email?.toLowerCase() === account.email);
-
-    if (found) {
-      await admin.auth.admin.updateUserById(found.id, {
-        password: TEST_PASSWORD,
-        email_confirm: true,
-        user_metadata: {
-          full_name: account.fullName,
-          role: account.supabaseRole,
-          organization_name: "GRATEHCARE Demo Organization",
-          avatar_color: account.avatarColor,
-        },
-      });
-      continue;
-    }
-
-    const { error } = await admin.auth.admin.createUser({
-      email: account.email,
-      password: TEST_PASSWORD,
-      email_confirm: true,
-      user_metadata: {
-        full_name: account.fullName,
-        role: account.supabaseRole,
-        organization_name: "GRATEHCARE Demo Organization",
-        avatar_color: account.avatarColor,
-      },
-    });
-
-    if (error) {
-      console.warn(`[seed] Supabase auth user ${account.email}: ${error.message}`);
-    }
-  }
-}
-
-async function syncSupabaseProfiles() {
-  await prisma.$executeRawUnsafe(`
-    with demo_org as (
-      insert into public.organizations(name, region)
-      select 'GRATEHCARE Demo Organization', 'Demo'
-      where not exists (
-        select 1 from public.organizations where name = 'GRATEHCARE Demo Organization'
-      )
-      returning id
-    ),
-    selected_org as (
-      select id from demo_org
-      union all
-      select id from public.organizations
-      where name = 'GRATEHCARE Demo Organization'
-      order by id
-      limit 1
-    ),
-    demo_users(email, full_name, role, avatar_color) as (
-      values
-        ('platform.owner@gratehcare.test', 'Platform Owner', 'platform_owner'::gratehcare_role, '#7c3aed'),
-        ('super.admin@gratehcare.test', 'Super Admin', 'super_admin'::gratehcare_role, '#0f172a'),
-        ('platform.support@gratehcare.test', 'Platform Support', 'platform_support'::gratehcare_role, '#f97316'),
-        ('org.owner@gratehcare.test', 'Organization Owner', 'org_owner'::gratehcare_role, '#4f46e5'),
-        ('operations.admin@gratehcare.test', 'Operations Admin', 'operations_admin'::gratehcare_role, '#0ea5e9'),
-        ('care.coordinator@gratehcare.test', 'Care Coordinator', 'care_coordinator'::gratehcare_role, '#6366f1'),
-        ('support.worker@gratehcare.test', 'Support Worker', 'support_worker'::gratehcare_role, '#e11d48'),
-        ('billing.officer@gratehcare.test', 'Billing Officer', 'billing_officer'::gratehcare_role, '#10b981'),
-        ('compliance.officer@gratehcare.test', 'Compliance Officer', 'compliance_officer'::gratehcare_role, '#d97706'),
-        ('family@gratehcare.test', 'Family Member', 'family'::gratehcare_role, '#d946ef'),
-        ('practitioner@gratehcare.test', 'Practitioner', 'practitioner'::gratehcare_role, '#14b8a6')
-    )
-    insert into public.profiles(id, email, full_name, role, organization_id, avatar_color)
-    select
-      au.id,
-      du.email,
-      du.full_name,
-      du.role,
-      so.id,
-      du.avatar_color
-    from demo_users du
-    join auth.users au on lower(au.email) = du.email
-    cross join selected_org so
-    on conflict (id) do update set
-      email = excluded.email,
-      full_name = excluded.full_name,
-      role = excluded.role,
-      organization_id = excluded.organization_id,
-      avatar_color = excluded.avatar_color,
-      updated_at = now();
-  `);
-}
-
 async function seedPrismaUsers(tenantId: string, passwordHash: string) {
-  const authUsers = await prisma.$queryRaw<Array<{ id: string; email: string }>>`
-    select id::text as id, lower(email) as email
-    from auth.users
-    where lower(email) like '%@gratehcare.test'
-  `;
-
-  const authByEmail = new Map(authUsers.map((row) => [row.email, row.id]));
-
   for (const account of TEST_USERS) {
-    const supabaseId = authByEmail.get(account.email) ?? null;
-
     const user = await prisma.user.upsert({
       where: { email: account.email },
       create: {
         email: account.email,
         fullName: account.fullName,
         avatarColor: account.avatarColor,
-        supabaseId,
         tenantId,
         passwordHash,
         isTestAccount: true,
@@ -159,7 +42,6 @@ async function seedPrismaUsers(tenantId: string, passwordHash: string) {
       update: {
         fullName: account.fullName,
         avatarColor: account.avatarColor,
-        supabaseId,
         tenantId,
         passwordHash,
         isTestAccount: true,
@@ -186,6 +68,11 @@ async function seedDemoData(tenantId: string) {
     { id: "00000000-0000-4000-8000-000000000003", fullName: "Alana Williams", funding: "Private" },
   ];
 
+  const coordinator = await prisma.user.findUnique({ where: { email: "care.coordinator@gratehcare.test" } });
+  const worker = await prisma.user.findUnique({ where: { email: "support.worker@gratehcare.test" } });
+  const familyUserEarly = await prisma.user.findUnique({ where: { email: "family@gratehcare.test" } });
+  const practitioner = await prisma.user.findUnique({ where: { email: "practitioner@gratehcare.test" } });
+
   const clients = await Promise.all(
     clientSpecs.map((client) =>
       prisma.client.upsert({
@@ -196,8 +83,14 @@ async function seedDemoData(tenantId: string) {
           fullName: client.fullName,
           funding: client.funding,
           status: "ACTIVE",
+          coordinatorUserId: coordinator?.id,
         },
-        update: { fullName: client.fullName, funding: client.funding, status: "ACTIVE" },
+        update: {
+          fullName: client.fullName,
+          funding: client.funding,
+          status: "ACTIVE",
+          coordinatorUserId: coordinator?.id,
+        },
       }),
     ),
   );
@@ -227,9 +120,6 @@ async function seedDemoData(tenantId: string) {
     },
   });
 
-  const coordinator = await prisma.user.findUnique({ where: { email: "care.coordinator@gratehcare.test" } });
-  const worker = await prisma.user.findUnique({ where: { email: "support.worker@gratehcare.test" } });
-
   let staffWorker = await prisma.staff.findFirst({ where: { tenantId, userId: worker?.id } });
   if (!staffWorker && worker) {
     staffWorker = await prisma.staff.create({
@@ -248,6 +138,7 @@ async function seedDemoData(tenantId: string) {
         body:
           "Eleanor was in great spirits today. Walk in the garden completed. Lunch eaten in full.",
         status: "ACTIVE",
+        sharedWithFamily: true,
       },
       {
         tenantId,
@@ -256,6 +147,7 @@ async function seedDemoData(tenantId: string) {
         title: "Morning visit",
         body: "Morning visit. Medications administered. No concerns.",
         status: "ACTIVE",
+        sharedWithFamily: true,
       },
     ],
   });
@@ -291,6 +183,70 @@ async function seedDemoData(tenantId: string) {
       },
     ],
   });
+
+  await prisma.complianceEvent.deleteMany({ where: { tenantId } });
+  await prisma.complianceEvent.createMany({
+    data: [
+      {
+        tenantId,
+        title: "WWCC renewal window",
+        category: "risk",
+        severity: "HIGH",
+        status: "PENDING",
+        dueAt: new Date(Date.now() + 12 * 24 * 60 * 60 * 1000),
+        evidence: [{ note: "Support worker WWCC expires within 14 days.", owner: "Compliance Officer" }],
+      },
+      {
+        tenantId,
+        title: "Medication error RCA",
+        category: "investigation",
+        severity: "MEDIUM",
+        status: "REVIEW",
+        dueAt: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
+        evidence: [{ note: "Root cause review of the dosage discrepancy on Eleanor Rivers.", owner: "Compliance Officer" }],
+      },
+      {
+        tenantId,
+        title: "Double-check medication administration",
+        category: "corrective_action",
+        severity: "HIGH",
+        status: "PENDING",
+        dueAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        evidence: [{ note: "Introduce two-person check for high-risk medications.", owner: "Care Coordinator" }],
+      },
+      {
+        tenantId,
+        title: "Restrictive practice policy review",
+        category: "compliance",
+        severity: "MEDIUM",
+        status: "PENDING",
+        dueAt: new Date(Date.now() + 21 * 24 * 60 * 60 * 1000),
+        evidence: [{ note: "Annual policy acknowledgement outstanding for two staff." }],
+      },
+    ],
+  });
+
+  if (staffWorker) {
+    await prisma.staffCredential.deleteMany({ where: { tenantId } });
+    await prisma.staffCredential.createMany({
+      data: [
+        {
+          tenantId,
+          staffId: staffWorker.id,
+          type: "WWCC",
+          status: "ACTIVE",
+          expiresAt: new Date(Date.now() + 12 * 24 * 60 * 60 * 1000),
+        },
+        {
+          tenantId,
+          staffId: staffWorker.id,
+          type: "First aid certificate",
+          status: "ACTIVE",
+          expiresAt: new Date(Date.now() + 40 * 24 * 60 * 60 * 1000),
+        },
+      ],
+    });
+  }
 
   const weekStart = new Date();
   weekStart.setHours(0, 0, 0, 0);
@@ -343,6 +299,16 @@ async function seedDemoData(tenantId: string) {
         status: "PAID",
         issuedAt: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000),
         dueAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
+        paidAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
+      },
+      {
+        tenantId,
+        clientId: clients[2].id,
+        number: "INV-2403",
+        amount: 1640,
+        status: "OVERDUE",
+        issuedAt: new Date(Date.now() - 40 * 24 * 60 * 60 * 1000),
+        dueAt: new Date(Date.now() - 12 * 24 * 60 * 60 * 1000),
       },
     ],
   });
@@ -478,8 +444,35 @@ async function seedDemoData(tenantId: string) {
     ],
   });
 
+  const familyUser = familyUserEarly;
+  if (familyUser) {
+    await prisma.clientFamily.upsert({
+      where: { clientId_userId: { clientId: eleanor.id, userId: familyUser.id } },
+      create: { tenantId, clientId: eleanor.id, userId: familyUser.id },
+      update: {},
+    });
+  }
+  if (practitioner) {
+    await prisma.clientPractitioner.upsert({
+      where: { clientId_userId: { clientId: eleanor.id, userId: practitioner.id } },
+      create: { tenantId, clientId: eleanor.id, userId: practitioner.id },
+      update: {},
+    });
+  }
+  if (staffWorker) {
+    await prisma.timesheet.deleteMany({ where: { tenantId, staffId: staffWorker.id } });
+    await prisma.timesheet.create({
+      data: {
+        tenantId,
+        staffId: staffWorker.id,
+        hours: 32,
+        status: "REVIEW",
+        submittedAt: new Date(),
+      },
+    });
+  }
+
   const orgOwner = await prisma.user.findUnique({ where: { email: "org.owner@gratehcare.test" } });
-  const familyUser = await prisma.user.findUnique({ where: { email: "family@gratehcare.test" } });
   if (coordinator && orgOwner) {
     const threadId = "00000000-0000-4000-8000-000000000901";
     await prisma.message.deleteMany({ where: { threadId } });
@@ -507,23 +500,34 @@ async function seedDemoData(tenantId: string) {
           body: "Could we schedule an extra visit on Thursday?",
           status: "SENT",
         },
+        ...(worker
+          ? [
+              {
+                tenantId,
+                threadId,
+                senderId: worker.id,
+                body: "I can cover Thursday morning.",
+                status: "SENT" as const,
+              },
+            ]
+          : []),
+        ...(practitioner
+          ? [
+              {
+                tenantId,
+                threadId,
+                senderId: practitioner.id,
+                body: "Please share the latest care plan before the review.",
+                status: "SENT" as const,
+              },
+            ]
+          : []),
       ],
     });
   }
 }
 
 async function main() {
-  console.log("[seed] Creating Supabase Auth test users …");
-  await seedSupabaseAuthUsers();
-
-  console.log("[seed] Syncing Supabase profiles …");
-  try {
-    await syncSupabaseProfiles();
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    console.warn("[seed] Profile sync skipped:", message.split("\n")[0]);
-  }
-
   const tenant = await prisma.tenant.upsert({
     where: { slug: "gratehcare-demo" },
     create: {

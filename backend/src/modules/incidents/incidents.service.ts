@@ -11,13 +11,13 @@ export class IncidentsService extends TenantCrudService {
     super(prisma, "incident", {
       createData: (dto, tenantId) => ({
         tenantId,
-        clientId: (dto.metadata?.clientId as string) || undefined,
+        clientId: String(dto.metadata?.clientId || "").trim() || undefined,
         title: dto.title,
         details: dto.description,
         severity: dto.severity || "MEDIUM",
         status: dto.status || "PENDING",
         occurredAt: dto.metadata?.occurredAt
-          ? new Date(String(dto.metadata?.occurredAt))
+          ? new Date(String(dto.metadata.occurredAt))
           : undefined,
       }),
       updateData: (dto) => ({ title: dto.title, details: dto.description, severity: dto.severity, status: dto.status }),
@@ -26,13 +26,18 @@ export class IncidentsService extends TenantCrudService {
 
   override async create(dto: CreateTenantRecordDto, user: AuthUser) {
     const tenantId = user.tenantId || dto.tenantId;
+    const scope = await this.recordScope(user);
     let clientId = dto.metadata?.clientId as string | undefined;
+    if (clientId && scope.mode === "filtered" && !scope.clientIds.includes(clientId)) {
+      clientId = undefined;
+    }
     if (!clientId && tenantId && dto.metadata?.clientName) {
       const byName = await this.prisma.client.findFirst({
-        where: {
-          tenantId,
-          fullName: { contains: String(dto.metadata.clientName), mode: "insensitive" },
-        },
+        where: await this.scopedWhere(
+          user,
+          { fullName: { contains: String(dto.metadata.clientName), mode: "insensitive" } },
+          "client",
+        ),
       });
       clientId = byName?.id;
     }
@@ -47,12 +52,11 @@ export class IncidentsService extends TenantCrudService {
 
   override async list(query: PaginationDto, user: AuthUser) {
     const page = query.page || 1;
-    const limit = query.limit || 25;
+    const limit = query.limit || 100;
     const status = query.status?.trim();
-    const where = {
-      ...(user.tenantId ? { tenantId: user.tenantId } : {}),
+    const where = await this.scopedWhere(user, {
       ...(status ? { status: status.toUpperCase() as any } : {}),
-    };
+    });
     const [items, total] = await Promise.all([
       this.prisma.incident.findMany({
         where,

@@ -22,4 +22,8 @@ export class PaginationDto {
   @IsOptional()
   @IsString()
   status?: string;
+
+  @IsOptional()
+  @IsString()
+  category?: string;
 }

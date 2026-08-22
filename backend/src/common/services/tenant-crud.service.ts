@@ -1,4 +1,5 @@
 import { Injectable, BadRequestException, NotFoundException } from "@nestjs/common";
+import { Role } from "@prisma/client";
 import { PrismaService } from "@/prisma/prisma.service";
 import { CreateTenantRecordDto, UpdateTenantRecordDto } from "../dto/tenant-record.dto";
 import { PaginationDto } from "../dto/pagination.dto";
@@ -10,6 +11,28 @@ export type TenantCrudConfig = {
   archiveData?: Record<string, unknown>;
   defaultOrderBy?: Record<string, "asc" | "desc">;
 };
+
+export type RecordScope = {
+  mode: "unrestricted" | "filtered";
+  clientIds: string[];
+  staffId: string | null;
+  sharedOnly: boolean;
+  ownThreads: boolean;
+};
+
+const UNRESTRICTED_ROLES: Role[] = [
+  Role.PLATFORM_OWNER,
+  Role.SUPER_ADMIN,
+  Role.PLATFORM_SUPPORT,
+  Role.ORGANIZATION_OWNER,
+  Role.OPERATIONS_ADMIN,
+  Role.BILLING_OFFICER,
+  Role.COMPLIANCE_OFFICER,
+];
+
+const NONE_ID = "00000000-0000-0000-0000-000000000000";
+
+const inIds = (ids: string[]) => ({ in: ids.length ? ids : [NONE_ID] });
 
 @Injectable()
 export class TenantCrudService {
@@ -27,10 +50,7 @@ export class TenantCrudService {
     const page = query.page || 1;
     const limit = query.limit || 25;
     const status = query.status?.trim();
-    const where = {
-      ...(user.tenantId ? { tenantId: user.tenantId } : {}),
-      ...(status ? { status: status.toUpperCase() } : {}),
-    };
+    const where = await this.scopedWhere(user, status ? { status: status.toUpperCase() } : {});
     const [items, total] = await Promise.all([
       this.delegate().findMany({
         where,
@@ -44,9 +64,8 @@ export class TenantCrudService {
   }
 
   async get(id: string, user: AuthUser) {
-    const item = await this.delegate().findFirst({
-      where: { id, ...(user.tenantId ? { tenantId: user.tenantId } : {}) },
-    });
+    const where = await this.scopedWhere(user, { id });
+    const item = await this.delegate().findFirst({ where });
     if (!item) throw new NotFoundException(`${this.model} not found`);
     return item;
   }
@@ -106,5 +125,132 @@ export class TenantCrudService {
         metadata: metadata as any,
       },
     });
+  }
+
+  protected async recordScope(user: AuthUser): Promise<RecordScope> {
+    const roles = user.roles || [];
+    if (roles.some((role) => UNRESTRICTED_ROLES.includes(role))) {
+      return { mode: "unrestricted", clientIds: [], staffId: null, sharedOnly: false, ownThreads: false };
+    }
+
+    const tenantId = user.tenantId ?? undefined;
+
+    if (roles.includes(Role.FAMILY_USER)) {
+      const links = await this.prisma.clientFamily.findMany({
+        where: { userId: user.sub, ...(tenantId ? { tenantId } : {}) },
+        select: { clientId: true },
+      });
+      return {
+        mode: "filtered",
+        clientIds: links.map((link) => link.clientId),
+        staffId: null,
+        sharedOnly: true,
+        ownThreads: true,
+      };
+    }
+
+    if (roles.includes(Role.PRACTITIONER)) {
+      const links = await this.prisma.clientPractitioner.findMany({
+        where: { userId: user.sub, ...(tenantId ? { tenantId } : {}) },
+        select: { clientId: true },
+      });
+      return {
+        mode: "filtered",
+        clientIds: links.map((link) => link.clientId),
+        staffId: null,
+        sharedOnly: false,
+        ownThreads: true,
+      };
+    }
+
+    if (roles.includes(Role.CARE_COORDINATOR)) {
+      const clients = await this.prisma.client.findMany({
+        where: { coordinatorUserId: user.sub, ...(tenantId ? { tenantId } : {}) },
+        select: { id: true },
+      });
+      return {
+        mode: "filtered",
+        clientIds: clients.map((client) => client.id),
+        staffId: null,
+        sharedOnly: false,
+        ownThreads: false,
+      };
+    }
+
+    if (roles.includes(Role.SUPPORT_WORKER)) {
+      const staff = await this.prisma.staff.findFirst({
+        where: { userId: user.sub, ...(tenantId ? { tenantId } : {}) },
+        select: { id: true },
+      });
+      const shifts = staff
+        ? await this.prisma.shift.findMany({
+            where: { staffId: staff.id, clientId: { not: null } },
+            select: { clientId: true },
+          })
+        : [];
+      return {
+        mode: "filtered",
+        clientIds: [...new Set(shifts.map((shift) => shift.clientId).filter((id): id is string => Boolean(id)))],
+        staffId: staff?.id ?? null,
+        sharedOnly: false,
+        ownThreads: true,
+      };
+    }
+
+    return { mode: "unrestricted", clientIds: [], staffId: null, sharedOnly: false, ownThreads: false };
+  }
+
+  protected async scopedWhere(
+    user: AuthUser,
+    extra: Record<string, unknown> = {},
+    model = this.model,
+  ) {
+    const base = {
+      ...(user.tenantId ? { tenantId: user.tenantId } : {}),
+      ...extra,
+    };
+    const filter = await this.scopeFilter(user, model);
+    if (!filter) return base;
+    return { AND: [base, filter] };
+  }
+
+  protected async scopeFilter(
+    user: AuthUser,
+    model = this.model,
+  ): Promise<Record<string, unknown> | null> {
+    const scope = await this.recordScope(user);
+    if (scope.mode === "unrestricted") return null;
+
+    switch (model) {
+      case "client":
+        return { id: inIds(scope.clientIds) };
+      case "shift":
+        if (scope.staffId) return { staffId: scope.staffId };
+        return { clientId: inIds(scope.clientIds) };
+      case "timesheet":
+        return { staffId: scope.staffId || NONE_ID };
+      case "staff":
+        return { id: scope.staffId || NONE_ID };
+      case "careNote":
+        return {
+          clientId: inIds(scope.clientIds),
+          ...(scope.sharedOnly ? { sharedWithFamily: true } : {}),
+        };
+      case "document":
+        return {
+          clientId: inIds(scope.clientIds),
+          ...(scope.sharedOnly ? { sharedWithFamily: true } : {}),
+        };
+      case "carePlan":
+      case "medication":
+      case "incident":
+      case "invoice":
+      case "claim":
+        return { clientId: inIds(scope.clientIds) };
+      case "notification":
+        return { OR: [{ userId: user.sub }, { userId: null }] };
+      default:
+        return null;
+    }
   }
 }

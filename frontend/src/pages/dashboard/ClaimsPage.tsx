@@ -23,16 +23,16 @@ type RawClaim = {
 };
 
 const statusTone: Record<string, "indigo" | "amber" | "emerald" | "rose" | "slate"> = {
-  DRAFT: "slate",
-  SUBMITTED: "indigo",
-  REVIEW: "amber",
-  APPROVED: "emerald",
-  PAID: "emerald",
-  REJECTED: "rose",
+  draft: "slate",
+  submitted: "indigo",
+  review: "amber",
+  approved: "emerald",
+  paid: "emerald",
+  rejected: "rose",
 };
 
 const money = (value: number | string) =>
-  new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(
+  new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD", maximumFractionDigits: 0 }).format(
     Number(value),
   );
 
@@ -48,7 +48,7 @@ const ClaimsPage: React.FC = () => {
     try {
       setLoading(true);
       const res = await claimsApi.list({ limit: 50 });
-      setClaims((res.data ?? []) as unknown as RawClaim[]);
+      setClaims(res.data ?? []);
     } catch {
       toast.error("Failed to load claims", "Could not fetch claims from backend.");
     } finally {
@@ -149,7 +149,7 @@ const ClaimsPage: React.FC = () => {
                 <div>
                   <div className="font-mono text-sm font-bold text-slate-900">{claim.number}</div>
                   <div className="text-sm text-slate-600">
-                    {claim.client?.fullName ?? "—"} · {claim.payer ?? "—"} · {claim.service ?? "—"}
+                    {claim.client?.fullName ?? (claim as { clientName?: string }).clientName ?? "—"} · {claim.payer ?? "—"} · {claim.service ?? "—"}
                   </div>
                 </div>
                 <div className="text-right">

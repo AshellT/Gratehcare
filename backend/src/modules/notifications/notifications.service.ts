@@ -52,9 +52,12 @@ export class NotificationsService extends TenantCrudService {
    * Returns an Observable that emits events scoped to the given tenantId.
    * Consumed by the SSE controller endpoint.
    */
-  streamForTenant(tenantId: string): Observable<NotificationEvent> {
-    return this.eventBus
-      .asObservable()
-      .pipe(filter((e) => e.tenantId === tenantId));
+  streamForTenant(tenantId: string, userId?: string): Observable<NotificationEvent> {
+    return this.eventBus.asObservable().pipe(
+      filter(
+        (e) =>
+          e.tenantId === tenantId && (!e.userId || !userId || e.userId === userId),
+      ),
+    );
   }
 }

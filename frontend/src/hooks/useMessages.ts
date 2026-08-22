@@ -9,10 +9,21 @@ import { useCallback } from "react";
 import { useApi } from "./useApi";
 
 export function useConversations(query?: PaginationQuery) {
-  return useApi<PaginatedResponse<Conversation>>(
+  const state = useApi<PaginatedResponse<Conversation>>(
     () => messagesApi.listConversations(query),
     [JSON.stringify(query)],
   );
+
+  const create = useCallback(
+    async (subject: string, content: string) => {
+      const created = await messagesApi.createConversation({ subject, content });
+      state.refetch();
+      return created;
+    },
+    [state],
+  );
+
+  return { ...state, create };
 }
 
 export function useMessages(conversationId: string | null) {

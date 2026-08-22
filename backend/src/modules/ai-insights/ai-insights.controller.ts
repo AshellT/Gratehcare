@@ -1,16 +1,18 @@
 import { CurrentUser } from "@/common/decorators/current-user.decorator";
+import { Permissions } from "@/common/decorators/permissions.decorator";
 import { JwtAuthGuard } from "@/common/guards/jwt-auth.guard";
+import { PermissionsGuard } from "@/common/guards/permissions.guard";
 import type { AuthUser } from "@/common/types/auth-user.type";
 import { Controller, Get, Param, Query, UseGuards } from "@nestjs/common";
 import { AiInsightsService, InsightCategory } from "./ai-insights.service";
 
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller("ai-insights")
 export class AiInsightsController {
   constructor(private readonly aiInsightsService: AiInsightsService) {}
 
-  /** GET /api/v1/ai-insights  — full summary, optional ?categories=burnout,client_risk */
   @Get()
+  @Permissions("view")
   getSummary(
     @CurrentUser() user: AuthUser,
     @Query("categories") categoriesRaw?: string,
@@ -18,21 +20,21 @@ export class AiInsightsController {
     const categories = categoriesRaw
       ? (categoriesRaw.split(",").map((c) => c.trim()) as InsightCategory[])
       : undefined;
-    return this.aiInsightsService.getSummary(user.tenantId ?? "platform", categories);
+    return this.aiInsightsService.getSummary(user, categories);
   }
 
-  /** GET /api/v1/ai-insights/critical */
   @Get("critical")
+  @Permissions("view")
   getCritical(@CurrentUser() user: AuthUser) {
-    return this.aiInsightsService.getCritical(user.tenantId ?? "platform");
+    return this.aiInsightsService.getCritical(user);
   }
 
-  /** GET /api/v1/ai-insights/:category */
   @Get(":category")
+  @Permissions("view")
   getByCategory(
     @CurrentUser() user: AuthUser,
     @Param("category") category: InsightCategory,
   ) {
-    return this.aiInsightsService.getByCategory(user.tenantId ?? "platform", category);
+    return this.aiInsightsService.getByCategory(user, category);
   }
 }

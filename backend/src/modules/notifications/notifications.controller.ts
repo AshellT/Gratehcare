@@ -39,7 +39,7 @@ export class NotificationsController extends TenantCrudController {
 
     const tenantId = user.tenantId ?? "";
     return this.notifService
-      .streamForTenant(tenantId)
+      .streamForTenant(tenantId, user.sub)
       .pipe(map((event) => ({ data: event }) as MessageEvent));
   }
 

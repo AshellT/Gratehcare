@@ -1,43 +1,38 @@
 import React, { useEffect, useState } from "react";
-import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import PageHeader from "@/components/dashboard/PageHeader";
 import Card from "@/components/dashboard/Card";
 import StatCard from "@/components/dashboard/StatCard";
+import Badge from "@/components/dashboard/Badge";
 import { Wallet, TrendingUp, Users, Activity } from "lucide-react";
 import { tenantsApi } from "@/lib/api/tenants";
 
+const money = (value: number) =>
+  new Intl.NumberFormat("en-AU", {
+    style: "currency",
+    currency: "AUD",
+    maximumFractionDigits: 0,
+  }).format(value);
+
 const RevenuePage: React.FC = () => {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
-  const [mrr, setMrr] = useState(0);
-  const [arr, setArr] = useState(0);
-  const [tenantCount, setTenantCount] = useState(0);
-  const [data, setData] = useState<number[]>([0]);
+  const [error, setError] = useState<string | null>(null);
+  const [report, setReport] = useState<Awaited<
+    ReturnType<typeof tenantsApi.platformRevenue>
+  > | null>(null);
 
   useEffect(() => {
     let mounted = true;
     (async () => {
       try {
         setLoading(true);
-        const res = await tenantsApi.list();
-        if (!mounted) return;
-
-        if (res.data && res.data.length > 0) {
-          setTenantCount(res.data.length);
-          // MRR/ARR would come from billing data - for now show 0
-          setMrr(0);
-          setArr(0);
-          // Generate simple trend based on tenant count
-          const trend = Array.from({ length: 12 }, (_, i) => 
-            Math.max(0, res.data.length - (11 - i) * 2)
-          );
-          setData(trend);
-        }
-      } catch (error) {
-        console.error("Failed to load revenue data:", error);
+        const data = await tenantsApi.platformRevenue();
+        if (mounted) setReport(data);
+      } catch (err: any) {
+        if (mounted) setError(err?.message || "Could not load platform revenue.");
       } finally {
-        if (mounted) {
-          setLoading(false);
-        }
+        if (mounted) setLoading(false);
       }
     })();
     return () => {
@@ -45,100 +40,129 @@ const RevenuePage: React.FC = () => {
     };
   }, []);
 
-  const max = Math.max(...data, 1);
-  const chartData = data.length > 1 ? data : [0, 0];
-  const chartPoints = chartData.map((v, i) => {
-    const x = (i / (chartData.length - 1)) * 600;
-    const y = 230 - (v / max) * 210;
-    return `${Number.isFinite(x) ? x : 0} ${Number.isFinite(y) ? y : 230}`;
-  });
+  const mrr = report?.mrr ?? 0;
 
   return (
     <div className="space-y-8">
       <PageHeader
         eyebrow="Platform"
         title="Revenue"
-        description="MRR, ARR, expansion and churn — across the entire GRATEHCARE network."
+        description="Money received from paying GRATEHCARE subscriptions across every organisation."
+        actions={[
+          {
+            label: "Manage plans",
+            onClick: () => navigate("/app/plans"),
+            variant: "secondary",
+          },
+        ]}
       />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard 
-          label="MRR" 
-          value={loading ? "..." : `$${mrr.toLocaleString()}`} 
-          tone="indigo" 
-          icon={<Wallet className="h-5 w-5" />} 
-          index={0} 
+        <StatCard
+          label="MRR received"
+          value={loading ? "..." : money(mrr)}
+          hint={report ? `${report.payingTenants} paying orgs` : undefined}
+          tone="indigo"
+          icon={<Wallet className="h-5 w-5" />}
+          index={0}
         />
-        <StatCard 
-          label="ARR" 
-          value={loading ? "..." : `$${arr.toLocaleString()}`} 
-          tone="emerald" 
-          icon={<TrendingUp className="h-5 w-5" />} 
-          index={1} 
+        <StatCard
+          label="ARR"
+          value={loading ? "..." : money(report?.arr ?? 0)}
+          tone="emerald"
+          icon={<TrendingUp className="h-5 w-5" />}
+          index={1}
         />
-        <StatCard 
-          label="Active tenants" 
-          value={loading ? "..." : tenantCount.toLocaleString()} 
-          tone="sky" 
-          icon={<Users className="h-5 w-5" />} 
-          index={2} 
+        <StatCard
+          label="Paying tenants"
+          value={loading ? "..." : String(report?.payingTenants ?? 0)}
+          hint={report ? `${report.trialTenants} on trial` : undefined}
+          tone="sky"
+          icon={<Users className="h-5 w-5" />}
+          index={2}
         />
-        <StatCard 
-          label="Net retention" 
-          value={loading ? "..." : "0%"} 
-          tone="amber" 
-          icon={<Activity className="h-5 w-5" />} 
-          index={3} 
+        <StatCard
+          label="Paid retention"
+          value={loading ? "..." : `${report?.netRetentionPct ?? 0}%`}
+          hint={report ? `${report.cancelledTenants} cancelled` : undefined}
+          tone="amber"
+          icon={<Activity className="h-5 w-5" />}
+          index={3}
         />
       </div>
 
-      <Card title="Tenant growth · last 12 months" description="Tenant count trend over time.">
-        {loading ? (
-          <div className="h-72 flex items-center justify-center text-sm text-slate-500">
-            Loading chart data...
-          </div>
-        ) : (
-          <div className="h-72 w-full">
-            <svg viewBox="0 0 600 240" className="w-full h-full" preserveAspectRatio="none">
-              <defs>
-                <linearGradient id="revBig" x1="0" x2="0" y1="0" y2="1">
-                  <stop offset="0%" stopColor="#4f46e5" stopOpacity="0.3" />
-                  <stop offset="100%" stopColor="#4f46e5" stopOpacity="0" />
-                </linearGradient>
-              </defs>
-              {[0, 60, 120, 180].map((y) => (
-                <line key={y} x1="0" x2="600" y1={y + 10} y2={y + 10} stroke="#f1f5f9" />
-              ))}
-              <motion.path
-                initial={{ pathLength: 0 }}
-                animate={{ pathLength: 1 }}
-                transition={{ duration: 1.4 }}
-                d={`M ${chartPoints.join(" L ")}`}
-                fill="none"
-                stroke="#4f46e5"
-                strokeWidth="3"
-                strokeLinecap="round"
-              />
-              <path
-                d={`M 0 230 L ${chartPoints.join(" L ")} L 600 230 Z`}
-                fill="url(#revBig)"
-              />
-            </svg>
-          </div>
-        )}
-      </Card>
+      {error && (
+        <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+          {error}
+        </div>
+      )}
 
       <div className="grid lg:grid-cols-2 gap-6">
-        <Card title="Revenue by plan">
-          <div className="text-center py-8 text-sm text-slate-500">
-            Revenue data requires billing integration
-          </div>
+        <Card title="Revenue by plan" description="Monthly amount from paying organisations.">
+          {loading ? (
+            <div className="py-8 text-center text-sm text-slate-500">Loading…</div>
+          ) : (
+            <div className="space-y-4">
+              {(report?.byPlan ?? []).map((plan) => {
+                const pct = mrr > 0 ? Math.round((plan.mrr / mrr) * 100) : 0;
+                return (
+                  <div key={plan.id}>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="font-semibold text-slate-800">{plan.name}</span>
+                      <span className="font-bold text-slate-900">{money(plan.mrr)}</span>
+                    </div>
+                    <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-slate-100">
+                      <div
+                        className="h-full rounded-full bg-indigo-500"
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                    <div className="mt-1 text-xs text-slate-500">
+                      {plan.paying} paying · {plan.trial} trial · {money(plan.monthlyPrice)}/mo
+                    </div>
+                  </div>
+                );
+              })}
+              {mrr === 0 && (
+                <p className="text-sm text-slate-500">
+                  No paid subscriptions yet. Trial pipeline is {money(report?.trialPipelineMrr ?? 0)}/mo
+                  if those organisations convert.
+                </p>
+              )}
+            </div>
+          )}
         </Card>
 
-        <Card title="Cohort retention">
-          <div className="text-center py-8 text-sm text-slate-500">
-            Retention data requires historical tracking
-          </div>
+        <Card
+          title="Organisations"
+          description="Latest tenants and whether they are paying."
+        >
+          {loading ? (
+            <div className="py-8 text-center text-sm text-slate-500">Loading…</div>
+          ) : (report?.recentTenants ?? []).length === 0 ? (
+            <div className="py-8 text-center text-sm text-slate-500">No organisations yet.</div>
+          ) : (
+            <div className="divide-y divide-slate-100">
+              {report?.recentTenants.map((tenant) => (
+                <div key={tenant.id} className="flex items-center justify-between py-3">
+                  <div>
+                    <div className="text-sm font-semibold text-slate-900">{tenant.name}</div>
+                    <div className="text-xs text-slate-500 capitalize">
+                      {tenant.planId} · {tenant.status}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-sm font-bold text-slate-900">
+                      {tenant.paying ? money(tenant.monthlyPrice) : money(0)}
+                    </div>
+                    <Badge tone={tenant.paying ? "emerald" : tenant.status === "trial" ? "amber" : "slate"}>
+                      {tenant.paying ? "Paying" : tenant.status}
+                    </Badge>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </Card>
       </div>
     </div>

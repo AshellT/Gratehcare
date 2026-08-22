@@ -5,7 +5,7 @@ WORKDIR /app
 COPY backend/package.json backend/package-lock.json ./
 COPY backend/prisma ./prisma
 RUN npm ci --include=dev
-COPY backend/tsconfig.json backend/nest-cli.json ./
+COPY backend/tsconfig.json backend/tsconfig.build.json backend/nest-cli.json ./
 COPY backend/src ./src
 
 RUN npx prisma generate && npm run build
@@ -14,18 +14,19 @@ FROM node:20-alpine AS production
 WORKDIR /app
 
 ENV NODE_ENV=production
+ENV PORT=4000
 
 COPY backend/package.json backend/package-lock.json ./
 COPY backend/prisma ./prisma
-# Skip postinstall (prisma CLI is dev-only); rebuild native addons bcrypt needs on Alpine
-RUN apk add --no-cache --virtual .build-deps python3 make g++ \
+# Skip postinstall (prisma CLI is installed as a prod dep); rebuild native addons bcrypt needs on Alpine
+RUN apk add --no-cache openssl wget \
+  && apk add --no-cache --virtual .build-deps python3 make g++ \
   && npm ci --omit=dev --ignore-scripts \
   && npm rebuild bcrypt --build-from-source \
+  && npx prisma generate \
   && apk del .build-deps
 
 COPY --from=build /app/dist ./dist
-COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=build /app/node_modules/@prisma ./node_modules/@prisma
 COPY backend/scripts/docker-start.sh ./scripts/docker-start.sh
 RUN chmod +x ./scripts/docker-start.sh
 

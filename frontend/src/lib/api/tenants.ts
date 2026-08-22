@@ -17,6 +17,7 @@ export type OrganizationCurrent = Tenant & {
   trialEndsAt?: string | null;
   currentPeriodEnd?: string | null;
   stripeCustomerId?: string | null;
+  stripeSubscriptionId?: string | null;
   subscription?: ResolvedSubscription;
 };
 
@@ -30,6 +31,37 @@ export const tenantsApi = {
     apiClient.post<Tenant>("/organizations", data as any),
 
   getCurrent: () => apiClient.get<OrganizationCurrent>("/organizations/current"),
+
+  platformRevenue: () =>
+    apiClient.get<{
+      tenantCount: number;
+      userCount: number;
+      payingTenants: number;
+      trialTenants: number;
+      pastDueTenants: number;
+      cancelledTenants: number;
+      mrr: number;
+      arr: number;
+      trialPipelineMrr: number;
+      netRetentionPct: number;
+      byPlan: {
+        id: string;
+        name: string;
+        monthlyPrice: number;
+        tenants: number;
+        paying: number;
+        trial: number;
+        mrr: number;
+      }[];
+      recentTenants: {
+        id: string;
+        name: string;
+        planId: string;
+        status: string;
+        paying: boolean;
+        monthlyPrice: number;
+      }[];
+    }>("/organizations/platform-revenue"),
 
   requestUpgrade: (message?: string) =>
     apiClient.post<{ id: string; message: string }>(

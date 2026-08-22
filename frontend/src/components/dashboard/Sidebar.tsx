@@ -2,7 +2,7 @@ import { useAuth } from "@/context/AuthContext";
 import { NAV_BY_ROLE } from "@/lib/nav";
 import { canAccessPath } from "@/lib/permissions";
 import { motion } from "framer-motion";
-import { ChevronsLeft, HeartPulse, LogOut } from "lucide-react";
+import { ChevronsLeft, LogOut } from "lucide-react";
 import React, { useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 
@@ -60,9 +60,11 @@ const Sidebar: React.FC<Props> = ({
           {/* Logo */}
           <div className="h-16 flex items-center justify-between px-4 border-b border-slate-100">
             <NavLink to="/app" className="flex items-center gap-2">
-              <span className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-600 to-sky-500 text-white shadow-md shadow-indigo-500/20 flex-shrink-0">
-                <HeartPulse className="h-5 w-5" strokeWidth={2.2} />
-              </span>
+              <img
+                src="/logo-mark.svg"
+                alt=""
+                className="h-9 w-9 rounded-xl shadow-md shadow-indigo-500/20 flex-shrink-0"
+              />
               {!visuallyCollapsed && (
                 <span className="font-display text-lg font-bold tracking-tight text-slate-900">
                   GRATEHCARE

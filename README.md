@@ -1,9 +1,8 @@
-# GratehCare Deployment Guide
+# GratehCare
 
-This repository has two deployable apps:
+Self-hosted on a Hostinger KVM VPS: Postgres + NestJS API + React, no Supabase.
 
-- `frontend` - React app (deploy this to Vercel)
-- `backend` - NestJS + Prisma API (deploy this to Render/Railway/Fly.io or any Node host)
+See [deploy/HOSTINGER.md](./deploy/HOSTINGER.md). Copy [env/hostinger.env.example](./env/hostinger.env.example) to `.env` and run `docker compose up -d --build`.
 
 ## 1) Push code to GitHub
 

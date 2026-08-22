@@ -154,12 +154,27 @@ model User {
   staffProfile    Staff?
   familyLinks     ClientFamily[]
   practitionerLinks ClientPractitioner[]
+  coordinatedClients Client[]     @relation("ClientCoordinator")
   messagesSent    Message[]       @relation("messagesSent")
   notifications   Notification[]
   auditLogs        AuditLog[]
+  passwordResets  PasswordResetToken[]
 
   @@index([tenantId])
   @@map("users")
+}
+
+model PasswordResetToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @map("token_hash")
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("password_reset_tokens")
 }
 
 model RoleAssignment {
@@ -201,6 +216,7 @@ model Staff {
 model Client {
   id            String       @id @default(uuid()) @db.Uuid
   tenantId      String       @map("tenant_id") @db.Uuid
+  coordinatorUserId String?  @map("coordinator_user_id") @db.Uuid
   fullName      String       @map("full_name")
   status        RecordStatus @default(ACTIVE)
   funding       String?
@@ -208,6 +224,7 @@ model Client {
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
   tenant        Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  coordinator   User?        @relation("ClientCoordinator", fields: [coordinatorUserId], references: [id], onDelete: SetNull)
   shifts        Shift[]
   carePlans     CarePlan[]
   careNotes     CareNote[]
@@ -220,6 +237,7 @@ model Client {
   practitionerLinks ClientPractitioner[]
 
   @@index([tenantId])
+  @@index([coordinatorUserId])
   @@map("clients")
 }
 
@@ -352,16 +370,19 @@ model Incident {
 }
 
 model Invoice {
-  id        String        @id @default(uuid()) @db.Uuid
-  tenantId  String        @map("tenant_id") @db.Uuid
-  clientId  String?       @map("client_id") @db.Uuid
-  number    String
-  amount    Decimal       @db.Decimal(12, 2)
-  status    BillingStatus @default(DRAFT)
-  issuedAt  DateTime?     @map("issued_at")
-  dueAt     DateTime?     @map("due_at")
-  tenant    Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  client    Client?       @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  id                      String        @id @default(uuid()) @db.Uuid
+  tenantId                String        @map("tenant_id") @db.Uuid
+  clientId                String?       @map("client_id") @db.Uuid
+  number                  String
+  amount                  Decimal       @db.Decimal(12, 2)
+  currency                String        @default("AUD")
+  status                  BillingStatus @default(DRAFT)
+  issuedAt                DateTime?     @map("issued_at")
+  dueAt                   DateTime?     @map("due_at")
+  paidAt                  DateTime?     @map("paid_at")
+  stripeCheckoutSessionId String?       @map("stripe_checkout_session_id")
+  tenant                  Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  client                  Client?       @relation(fields: [clientId], references: [id], onDelete: SetNull)
 
   @@unique([tenantId, number])
   @@index([tenantId])

@@ -22,7 +22,12 @@ export class CarePlansService extends TenantCrudService {
           ? new Date(String(dto.metadata?.reviewDue))
           : undefined,
       }),
-      updateData: (dto) => ({ title: dto.title, status: dto.status }),
+      updateData: (dto) => ({
+        title: dto.title,
+        status: dto.status,
+        goals: Array.isArray(dto.metadata?.goals) ? (dto.metadata?.goals as string[]) : undefined,
+        reviewDue: dto.metadata?.reviewDue ? new Date(String(dto.metadata.reviewDue)) : undefined,
+      }),
     });
   }
 
@@ -30,18 +35,25 @@ export class CarePlansService extends TenantCrudService {
     const tenantId = user.tenantId || dto.tenantId;
     if (!tenantId) throw new BadRequestException("Tenant required");
 
+    const scope = await this.recordScope(user);
     let clientId = dto.metadata?.clientId as string | undefined;
+    if (clientId && scope.mode === "filtered" && !scope.clientIds.includes(clientId)) {
+      throw new BadRequestException("Client is not in your caseload");
+    }
     if (!clientId && dto.metadata?.clientName) {
       const byName = await this.prisma.client.findFirst({
-        where: {
-          tenantId,
-          fullName: { contains: String(dto.metadata.clientName), mode: "insensitive" },
-        },
+        where: await this.scopedWhere(
+          user,
+          { fullName: { contains: String(dto.metadata.clientName), mode: "insensitive" } },
+          "client",
+        ),
       });
       clientId = byName?.id;
     }
     if (!clientId) {
-      const fallback = await this.prisma.client.findFirst({ where: { tenantId } });
+      const fallback = await this.prisma.client.findFirst({
+        where: await this.scopedWhere(user, {}, "client"),
+      });
       clientId = fallback?.id;
     }
     if (!clientId) throw new BadRequestException("Client required for care plan");
@@ -57,12 +69,11 @@ export class CarePlansService extends TenantCrudService {
 
   override async list(query: PaginationDto, user: AuthUser) {
     const page = query.page || 1;
-    const limit = query.limit || 25;
+    const limit = query.limit || 100;
     const status = query.status?.trim();
-    const where = {
-      ...(user.tenantId ? { tenantId: user.tenantId } : {}),
+    const where = await this.scopedWhere(user, {
       ...(status ? { status: status.toUpperCase() as any } : {}),
-    };
+    });
     const [items, total] = await Promise.all([
       this.prisma.carePlan.findMany({
         where,

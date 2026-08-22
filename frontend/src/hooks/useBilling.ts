@@ -42,7 +42,7 @@ export function useBilling(query?: PaginationQuery & { status?: string }) {
     const invoices = state.data?.data ?? [];
     return {
       outstanding: invoices
-        .filter((i) => i.status === "pending" || i.status === "overdue")
+        .filter((i) => i.status === "pending" || i.status === "sent" || i.status === "overdue")
         .reduce((sum, i) => sum + i.amount, 0),
       paidThisMonth: invoices
         .filter((i) => i.status === "paid")

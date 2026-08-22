@@ -1,16 +1,28 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight, MailCheck } from "lucide-react";
+import { ArrowRight, MailCheck, AlertCircle, Loader2 } from "lucide-react";
 import AuthLayout from "@/components/auth/AuthLayout";
+import { authApi } from "@/lib/api/auth";
 
 const ForgotPasswordPage: React.FC = () => {
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const onSubmit = (e: React.FormEvent) => {
+  const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) return;
-    setSent(true);
+    setError(null);
+    setLoading(true);
+    try {
+      await authApi.forgotPassword(email);
+      setSent(true);
+    } catch (err: any) {
+      setError(err?.message || "Could not send a reset email. Try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -35,13 +47,19 @@ const ForgotPasswordPage: React.FC = () => {
               className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
           </div>
+          {error && (
+            <div className="flex items-start gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+              <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
           <button
             type="submit"
+            disabled={loading}
             data-testid="forgot-submit-button"
-            className="w-full inline-flex items-center justify-center gap-2 rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold text-white hover:bg-slate-800 transition-all"
+            className="w-full inline-flex items-center justify-center gap-2 rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60 transition-all"
           >
-            Send reset link
-            <ArrowRight className="h-4 w-4" />
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Send reset link <ArrowRight className="h-4 w-4" /></>}
           </button>
         </form>
       ) : (

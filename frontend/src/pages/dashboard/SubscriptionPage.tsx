@@ -23,15 +23,17 @@ import {
   ChevronRight,
   CreditCard,
   HardDrive,
+  Loader2,
   RotateCcw,
   Save,
   Star,
   TrendingUp,
   Users,
+  X,
   Zap,
 } from "lucide-react";
 import React, { useEffect, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 
 // ─── Usage bar ────────────────────────────────────────────────────────────────
 
@@ -81,14 +83,24 @@ interface PlanOptionProps {
   plans: Plan[];
   currentPlanId: PlanId;
   cycle: BillingCycle;
+  busy: boolean;
+  disabled: boolean;
   onSelect: (id: PlanId) => void;
 }
+
+const featureCell = (value: string | boolean) => {
+  if (value === true) return <Check className="mx-auto h-4 w-4 text-emerald-500" />;
+  if (value === false) return <X className="mx-auto h-4 w-4 text-slate-300" />;
+  return <span className="text-slate-700">{value}</span>;
+};
 
 const PlanOption: React.FC<PlanOptionProps> = ({
   plan,
   plans,
   currentPlanId,
   cycle,
+  busy,
+  disabled,
   onSelect,
 }) => {
   const isCurrent = plan.id === currentPlanId;
@@ -106,9 +118,8 @@ const PlanOption: React.FC<PlanOptionProps> = ({
       className={`rounded-xl border-2 p-4 transition-all ${
         isCurrent
           ? "border-indigo-400 bg-indigo-50"
-          : "border-slate-200 bg-white hover:border-slate-300 cursor-pointer"
+          : "border-slate-200 bg-white hover:border-slate-300"
       }`}
-      onClick={() => !isCurrent && onSelect(plan.id)}
     >
       <div className="flex items-center justify-between">
         <div>
@@ -128,13 +139,18 @@ const PlanOption: React.FC<PlanOptionProps> = ({
           </span>
         ) : (
           <button
-            className={`flex items-center gap-1 rounded-full px-4 py-1.5 text-xs font-bold transition-colors ${
+            type="button"
+            disabled={disabled}
+            onClick={() => onSelect(plan.id)}
+            className={`inline-flex items-center gap-1 rounded-full px-4 py-1.5 text-xs font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
               direction === "upgrade"
                 ? "bg-indigo-600 text-white hover:bg-indigo-700"
                 : "bg-slate-100 text-slate-700 hover:bg-slate-200"
             }`}
           >
-            {direction === "upgrade" ? (
+            {busy ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : direction === "upgrade" ? (
               <>
                 <TrendingUp className="h-3.5 w-3.5" /> Upgrade
               </>
@@ -357,19 +373,24 @@ const PlanAdminEditor: React.FC<{
 };
 
 const SubscriptionPage: React.FC = () => {
-  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
   const { plans, updatePlan, resetPlans } = usePlanCatalog();
   const sub = useSubscription();
   const [toast, setToast] = useState<string | null>(null);
   const [changePlanOpen, setChangePlanOpen] = useState(false);
+  const [compareOpen, setCompareOpen] = useState(false);
   const [upgradeRequesting, setUpgradeRequesting] = useState(false);
   const [upgradeRequested, setUpgradeRequested] = useState(false);
   const [checkingOut, setCheckingOut] = useState(false);
+  const [changingPlanId, setChangingPlanId] = useState<PlanId | null>(null);
+  const [portalLoading, setPortalLoading] = useState(false);
   const [stripeEnabled, setStripeEnabled] = useState(false);
   const canEditSystemPlans =
     user?.role === "super_admin" || user?.role === "platform_owner";
+  const hasPaidSubscription = Boolean(sub.stripeSubscriptionId);
+  const showPaywall =
+    !hasPaidSubscription || sub.isReadOnly || sub.status === "past_due" || sub.status === "cancelled";
 
   useEffect(() => {
     subscriptionBillingApi
@@ -390,6 +411,10 @@ const SubscriptionPage: React.FC = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
+
+  useEffect(() => {
+    if (sub.isReadOnly) setChangePlanOpen(true);
+  }, [sub.isReadOnly]);
 
   const notify = (msg: string) => {
     setToast(msg);
@@ -422,23 +447,60 @@ const SubscriptionPage: React.FC = () => {
     }
   };
 
-  const handlePlanSelect = (id: PlanId) => {
-    if (sub.isReadOnly) {
-      notify("Upgrade your plan before changing subscription settings.");
+  const handleManageBilling = async () => {
+    setPortalLoading(true);
+    try {
+      if (sub.stripeCustomerId) {
+        const session = await subscriptionBillingApi.createPortal();
+        window.location.href = session.url;
+        return;
+      }
+      if (stripeEnabled) {
+        await handleCheckout(sub.planId);
+        return;
+      }
+      notify("Add a payment method first, then you can manage billing here.");
+    } catch (err: any) {
+      notify(err?.message || "Could not open the billing portal.");
+    } finally {
+      setPortalLoading(false);
+    }
+  };
+
+  const openPlanPicker = () => {
+    setCompareOpen(false);
+    setChangePlanOpen(true);
+    window.setTimeout(() => {
+      document.getElementById("plan-picker")?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }, 50);
+  };
+
+  const handlePlanSelect = async (id: PlanId) => {
+    if (!stripeEnabled) {
+      await handleUpgradeRequest();
       return;
     }
-    const target = plans.find((p) => p.id === id)!;
-    const direction =
-      plans.findIndex((p) => p.id === id) >
-      plans.findIndex((p) => p.id === sub.planId)
-        ? "upgrade"
-        : "downgrade";
-    notify(
-      direction === "upgrade"
-        ? `Upgrading to ${target.name} — prorated charge will be applied immediately.`
-        : `Downgrade to ${target.name} will take effect at end of billing period (${sub.currentPeriodEnd}).`,
-    );
-    setChangePlanOpen(false);
+    setChangingPlanId(id);
+    try {
+      const result = await subscriptionBillingApi.changePlan(id);
+      if (result.mode === "checkout" && result.url) {
+        window.location.href = result.url;
+        return;
+      }
+      notify(
+        result.upgrade
+          ? `Upgraded to ${result.planName}. The prorated difference is charged now.`
+          : `Switched to ${result.planName}. The new rate applies on your next invoice.`,
+      );
+      await sub.refresh?.();
+    } catch (err: any) {
+      notify(err?.message || "Could not change your plan.");
+    } finally {
+      setChangingPlanId(null);
+    }
   };
 
   const saveSystemPlan = (planId: PlanId, draft: PlanDraft[PlanId]) => {
@@ -486,7 +548,7 @@ const SubscriptionPage: React.FC = () => {
         actions={[
           {
             label: "View all plans",
-            onClick: () => navigate("/pricing"),
+            onClick: openPlanPicker,
             variant: "secondary",
           },
         ]}
@@ -503,19 +565,24 @@ const SubscriptionPage: React.FC = () => {
         />
       )}
 
-      <UpgradePanel
-        plan={sub.plan}
-        planId={sub.planId}
-        isReadOnly={sub.isReadOnly}
-        isTrialActive={sub.isTrialActive}
-        daysLeftInTrial={sub.daysLeftInTrial}
-        stripeEnabled={stripeEnabled}
-        onCheckout={handleCheckout}
-        onRequestUpgrade={handleUpgradeRequest}
-        checkingOut={checkingOut}
-        requesting={upgradeRequesting}
-        requested={upgradeRequested}
-      />
+      {showPaywall && (
+        <UpgradePanel
+          plan={sub.plan}
+          planId={sub.planId}
+          isReadOnly={sub.isReadOnly}
+          isTrialActive={sub.isTrialActive}
+          daysLeftInTrial={sub.daysLeftInTrial}
+          stripeEnabled={stripeEnabled}
+          hasStripeSubscription={hasPaidSubscription}
+          onCheckout={handleCheckout}
+          onManageBilling={handleManageBilling}
+          onRequestUpgrade={handleUpgradeRequest}
+          checkingOut={checkingOut}
+          managingBilling={portalLoading}
+          requesting={upgradeRequesting}
+          requested={upgradeRequested}
+        />
+      )}
 
       {sub.status === "past_due" && (
         <div className="flex items-center gap-3 rounded-xl border border-rose-200 bg-rose-50 px-5 py-4">
@@ -635,11 +702,11 @@ const SubscriptionPage: React.FC = () => {
             </div>
 
             {/* Change plan */}
-            <div className="mt-5 flex flex-wrap gap-3">
+            <div id="plan-picker" className="mt-5 flex flex-wrap gap-3">
               <button
-                onClick={() => !sub.isReadOnly && setChangePlanOpen((v) => !v)}
-                disabled={sub.isReadOnly}
-                className="flex items-center gap-2 rounded-full bg-indigo-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+                type="button"
+                onClick={() => setChangePlanOpen((v) => !v)}
+                className="flex items-center gap-2 rounded-full bg-indigo-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-indigo-700"
               >
                 <TrendingUp className="h-4 w-4" />
                 Change plan
@@ -669,12 +736,14 @@ const SubscriptionPage: React.FC = () => {
                         plans={plans}
                         currentPlanId={sub.planId}
                         cycle={sub.cycle}
+                        busy={changingPlanId === p.id || checkingOut}
+                        disabled={Boolean(changingPlanId) || checkingOut || portalLoading}
                         onSelect={handlePlanSelect}
                       />
                     ))}
                     <p className="text-xs text-slate-500 pt-1">
-                      Upgrades take effect immediately. Downgrades apply at the
-                      end of your billing period.
+                      Upgrades are charged immediately (prorated). Downgrades
+                      take the new rate on your next invoice.
                     </p>
                   </div>
                 </motion.div>
@@ -709,13 +778,77 @@ const SubscriptionPage: React.FC = () => {
             </div>
             <div className="mt-4 pt-4 border-t border-slate-100">
               <button
-                onClick={() => navigate("/pricing")}
+                type="button"
+                onClick={() => {
+                  setCompareOpen((open) => !open);
+                  if (!compareOpen) {
+                    window.setTimeout(() => {
+                      document.getElementById("plan-compare")?.scrollIntoView({
+                        behavior: "smooth",
+                        block: "start",
+                      });
+                    }, 50);
+                  }
+                }}
                 className="flex items-center gap-1.5 text-sm font-semibold text-indigo-600 hover:text-indigo-700"
               >
                 Compare all plan features <ArrowRight className="h-4 w-4" />
               </button>
             </div>
           </Card>
+
+          {compareOpen && (
+            <Card
+              title="Compare plans"
+              description="Stay in GRATEHCARE — no extra login required."
+            >
+              <div id="plan-compare" className="overflow-x-auto">
+                <table className="min-w-full text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-200 text-xs font-bold uppercase tracking-widest text-slate-500">
+                      <th className="py-2 pr-4 font-bold">Feature</th>
+                      {plans.map((plan) => (
+                        <th
+                          key={plan.id}
+                          className={`py-2 px-3 font-bold ${
+                            plan.id === sub.planId ? "text-indigo-700" : "text-slate-700"
+                          }`}
+                        >
+                          {plan.name.replace("GRATEHCARE ", "")}
+                          {plan.id === sub.planId && (
+                            <span className="ml-1 text-[10px] font-bold text-indigo-500">
+                              Current
+                            </span>
+                          )}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {PLAN_FEATURES.map((feature) => (
+                      <tr key={feature.key} className="border-b border-slate-100">
+                        <td className="py-2.5 pr-4 font-medium text-slate-800">
+                          {feature.label}
+                        </td>
+                        {plans.map((plan) => (
+                          <td key={plan.id} className="py-2.5 px-3 text-center">
+                            {featureCell(feature[plan.id])}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <button
+                type="button"
+                onClick={openPlanPicker}
+                className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-indigo-600 hover:text-indigo-700"
+              >
+                Change plan <ArrowRight className="h-4 w-4" />
+              </button>
+            </Card>
+          )}
         </div>
 
         {/* Right column */}
@@ -725,14 +858,31 @@ const SubscriptionPage: React.FC = () => {
             title="Payment method"
             description="Billing details on file."
           >
-            <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center">
+            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-5 text-center">
               <CreditCard className="mx-auto h-6 w-6 text-slate-400" />
               <div className="mt-2 text-sm font-semibold text-slate-900">
-                Payment method is managed by Stripe checkout.
+                {sub.stripeCustomerId
+                  ? "Card and invoices are managed securely in Stripe."
+                  : "No payment method on file yet."}
               </div>
               <p className="mt-1 text-xs text-slate-500">
-                Billing details will appear here once the subscription portal is connected.
+                {sub.stripeCustomerId
+                  ? "Update your card without leaving this workspace — Stripe returns you here."
+                  : "Subscribe to add a card. You will come back to this page after checkout."}
               </p>
+              <button
+                type="button"
+                disabled={portalLoading || checkingOut}
+                onClick={() => void handleManageBilling()}
+                className="mt-4 inline-flex items-center justify-center gap-2 rounded-full bg-indigo-600 px-4 py-2 text-sm font-bold text-white hover:bg-indigo-700 disabled:opacity-60"
+              >
+                {portalLoading || checkingOut ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <CreditCard className="h-4 w-4" />
+                )}
+                {sub.stripeCustomerId ? "Manage billing" : "Add payment method"}
+              </button>
             </div>
           </Card>
 
@@ -741,8 +891,18 @@ const SubscriptionPage: React.FC = () => {
             title="Billing history"
             description="Recent subscription invoices."
           >
-            <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
-              Subscription invoice history is not connected yet.
+            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-5 text-center">
+              <p className="text-sm text-slate-600">
+                Invoices live in Stripe so card data never sits in GRATEHCARE.
+              </p>
+              <button
+                type="button"
+                disabled={!sub.stripeCustomerId || portalLoading}
+                onClick={() => void handleManageBilling()}
+                className="mt-3 inline-flex items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-800 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                View invoices
+              </button>
             </div>
           </Card>
 
@@ -750,9 +910,17 @@ const SubscriptionPage: React.FC = () => {
           <Card title="Danger zone">
             <div className="space-y-3">
               <p className="text-xs text-slate-500 leading-relaxed">
-                Cancelling will stop billing at the end of your current period.
+                Cancelling stops billing at the end of your current period.
                 Your data is retained for 90 days.
               </p>
+              <button
+                type="button"
+                disabled={!sub.stripeCustomerId || portalLoading}
+                onClick={() => void handleManageBilling()}
+                className="w-full rounded-full border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-bold text-rose-700 hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Cancel in Stripe
+              </button>
             </div>
           </Card>
         </div>

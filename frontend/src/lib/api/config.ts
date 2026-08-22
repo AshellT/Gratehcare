@@ -27,3 +27,15 @@ export function resolveApiBase(): string {
 }
 
 export const API_BASE = resolveApiBase();
+
+/** Absolute URL for fetch / EventSource. Relative API_BASE needs a document origin. */
+export function buildApiUrl(path: string): URL {
+  const suffix = path.startsWith("/") ? path : `/${path}`;
+  const joined = `${API_BASE.replace(/\/$/, "")}${suffix}`;
+  if (/^https?:\/\//i.test(joined)) {
+    return new URL(joined);
+  }
+  const origin =
+    typeof window !== "undefined" ? window.location.origin : "http://localhost:3000";
+  return new URL(joined, origin);
+}

@@ -1,21 +1,13 @@
-import { CanActivate, ExecutionContext, Injectable } from "@nestjs/common";
+import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 import { Role } from "@prisma/client";
-import { PERMISSIONS_KEY, PermissionAction } from "../decorators/permissions.decorator";
-
-const rolePermissions: Record<Role, PermissionAction[]> = {
-  PLATFORM_OWNER: ["view", "create", "edit", "delete", "archive", "approve", "finalize", "manage", "export"],
-  SUPER_ADMIN: ["view", "create", "edit", "delete", "archive", "approve", "finalize", "manage", "export"],
-  PLATFORM_SUPPORT: ["view", "create", "edit", "export"],
-  ORGANIZATION_OWNER: ["view", "create", "edit", "archive", "approve", "finalize", "manage", "export"],
-  OPERATIONS_ADMIN: ["view", "create", "edit", "archive", "approve", "export"],
-  CARE_COORDINATOR: ["view", "create", "edit", "export"],
-  SUPPORT_WORKER: ["view", "create", "edit"],
-  BILLING_OFFICER: ["view", "create", "edit", "archive", "approve", "finalize", "manage", "export"],
-  COMPLIANCE_OFFICER: ["view", "create", "edit", "archive", "approve", "finalize", "manage", "export"],
-  FAMILY_USER: ["view"],
-  PRACTITIONER: ["view", "create", "edit", "export"],
-};
+import { PERMISSION_RESOURCE_KEY, PERMISSIONS_KEY, PermissionAction } from "../decorators/permissions.decorator";
+import {
+  PermissionResource,
+  resourceFromRequestPath,
+  roleHasPermission,
+  selfUserIdFromPath,
+} from "../permissions/role-permissions";
 
 @Injectable()
 export class PermissionsGuard implements CanActivate {
@@ -27,10 +19,29 @@ export class PermissionsGuard implements CanActivate {
       context.getClass(),
     ]);
     if (!required?.length) return true;
+
     const request = context.switchToHttp().getRequest();
     const roles = (request.user?.roles || []) as Role[];
-    return roles.some((role) =>
-      required.every((permission) => rolePermissions[role]?.includes(permission) || rolePermissions[role]?.includes("manage")),
-    );
+    const path = String(request.originalUrl || request.url || "");
+    const decorated = this.reflector.getAllAndOverride<PermissionResource>(PERMISSION_RESOURCE_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+
+    let resource = decorated || resourceFromRequestPath(path);
+    const selfId = selfUserIdFromPath(path);
+    if (selfId && request.user?.sub && selfId === request.user.sub) {
+      resource = "settings";
+    }
+
+    if (!resource) {
+      throw new ForbiddenException("This action is not allowed for your role");
+    }
+
+    const allowed = required.every((permission) => roleHasPermission(roles, resource!, permission));
+    if (!allowed) {
+      throw new ForbiddenException("This action is not allowed for your role");
+    }
+    return true;
   }
 }

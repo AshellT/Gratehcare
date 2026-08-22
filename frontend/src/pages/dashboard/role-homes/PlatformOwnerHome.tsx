@@ -24,6 +24,10 @@ import { useNavigate } from "react-router-dom";
 const PlatformOwnerHome: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [tenantCount, setTenantCount] = useState(0);
+  const [mrr, setMrr] = useState(0);
+  const [userCount, setUserCount] = useState(0);
+  const [retention, setRetention] = useState(0);
+  const [payingTenants, setPayingTenants] = useState(0);
   const [trendData, setTrendData] = useState<number[]>([0]);
   const [topTenants, setTopTenants] = useState<any[]>([]);
   const [recentActivity, setRecentActivity] = useState<any[]>([]);
@@ -34,27 +38,30 @@ const PlatformOwnerHome: React.FC = () => {
     (async () => {
       try {
         setLoading(true);
-        const [tenantsRes, logsRes] = await Promise.all([
+        const [tenantsRes, logsRes, revenueRes] = await Promise.all([
           tenantsApi.list(),
           auditLogsApi.list({ limit: 4 }).catch(() => ({ data: [] })),
+          tenantsApi.platformRevenue().catch(() => null),
         ]);
 
         if (!mounted) return;
 
-        if (tenantsRes.data && tenantsRes.data.length > 0) {
-          setTenantCount(tenantsRes.data.length);
-          
-          // Generate trend based on tenant count
-          const trend = Array.from({ length: 12 }, (_, i) => 
-            Math.max(0, tenantsRes.data.length - (11 - i) * 2)
-          );
-          setTrendData(trend);
+        if (revenueRes) {
+          setMrr(revenueRes.mrr);
+          setUserCount(revenueRes.userCount);
+          setRetention(revenueRes.netRetentionPct);
+          setPayingTenants(revenueRes.payingTenants);
+          const trend = revenueRes.byPlan.map((plan) => plan.mrr);
+          setTrendData(trend.length ? trend : [revenueRes.mrr]);
+        }
 
-          // Top tenants (first 4)
+        if (tenantsRes.data && tenantsRes.data.length > 0) {
+          setTenantCount(revenueRes?.tenantCount ?? tenantsRes.data.length);
+
           const top = tenantsRes.data.slice(0, 4).map((t: any) => ({
             id: t.id,
             primary: t.name,
-            secondary: `${t.region || 'Unknown'} region`,
+            secondary: `${t.region || "Unknown"} region`,
             meta: "",
             badge: { label: "Active", tone: "indigo" as const },
           }));
@@ -102,20 +109,20 @@ const PlatformOwnerHome: React.FC = () => {
             icon: <Building2 className="h-5 w-5" /> 
           },
           { 
-            label: "MRR", 
-            value: loading ? "..." : "$0", 
+            label: "MRR received", 
+            value: loading ? "..." : `$${mrr.toLocaleString()}`, 
             tone: "emerald", 
             icon: <Wallet className="h-5 w-5" /> 
           },
           { 
             label: "Active users", 
-            value: loading ? "..." : "0", 
+            value: loading ? "..." : String(userCount), 
             tone: "sky", 
             icon: <Users className="h-5 w-5" /> 
           },
           { 
-            label: "Net retention", 
-            value: loading ? "..." : "0%", 
+            label: "Paid retention", 
+            value: loading ? "..." : `${retention}%`, 
             tone: "amber", 
             icon: <TrendingUp className="h-5 w-5" /> 
           },
@@ -125,8 +132,8 @@ const PlatformOwnerHome: React.FC = () => {
       <div className="grid lg:grid-cols-3 gap-6">
         <TrendCard
           className="lg:col-span-2"
-          title="Tenant growth · last 12 months"
-          description={loading ? "Loading..." : `${tenantCount} total tenants`}
+          title="Revenue by plan"
+          description={loading ? "Loading..." : `${payingTenants} paying · ${tenantCount} organisations`}
           data={trendData}
         />
 

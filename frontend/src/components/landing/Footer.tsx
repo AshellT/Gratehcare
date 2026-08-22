@@ -1,5 +1,5 @@
 import React from "react";
-import { HeartPulse, Twitter, Linkedin, Github } from "lucide-react";
+import { Twitter, Linkedin, Github } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const columns = [
@@ -73,9 +73,11 @@ const Footer: React.FC = () => {
         <div className="grid lg:grid-cols-12 gap-10">
           <div className="lg:col-span-4">
             <Link to="/" className="flex items-center gap-2">
-              <span className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-600 to-sky-500 text-white shadow-md shadow-indigo-500/20">
-                <HeartPulse className="h-5 w-5" strokeWidth={2.2} />
-              </span>
+              <img
+                src="/logo-mark.svg"
+                alt=""
+                className="h-9 w-9 rounded-xl shadow-md shadow-indigo-500/20"
+              />
               <span className="font-display text-xl font-bold tracking-tight text-slate-900">
                 GRATEHCARE
               </span>

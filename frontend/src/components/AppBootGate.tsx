@@ -6,7 +6,7 @@ const BOOT_MESSAGE_MAX_MS = 12_000;
 
 /**
  * Shows a splash until auth hydration finishes (or times out) so refresh never
- * leaves users on a blank screen while Supabase / the API warms up.
+ * leaves users on a blank screen while the API session is checked.
  */
 const AppBootGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { loading } = useAuth();

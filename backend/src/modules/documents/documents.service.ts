@@ -1,11 +1,18 @@
 import { TenantCrudService } from "@/common/services/tenant-crud.service";
+import type { AuthUser } from "@/common/types/auth-user.type";
 import { PrismaService } from "@/prisma/prisma.service";
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Injectable, ServiceUnavailableException } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { createReadStream, existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
 import { randomUUID } from "node:crypto";
 
 @Injectable()
 export class DocumentsService extends TenantCrudService {
-  constructor(prisma: PrismaService) {
+  constructor(
+    prisma: PrismaService,
+    private readonly appConfig: ConfigService,
+  ) {
     super(prisma, "document", {
       createData: (dto, tenantId) => ({
         tenantId,
@@ -19,16 +26,21 @@ export class DocumentsService extends TenantCrudService {
     });
   }
 
-  /**
-   * Handle a multipart upload.  In production, replace the stub storage key
-   * with a real object-store (S3, GCS, Supabase Storage, Azure Blob) upload.
-   */
-  async handleUpload(file: Express.Multer.File, tenantId: string) {
-    const storageKey = `tenants/${tenantId}/documents/${randomUUID()}-${file.originalname}`;
+  private uploadRoot() {
+    return resolve(
+      this.appConfig.get<string>("UPLOAD_DIR")?.trim() || join(process.cwd(), "uploads"),
+    );
+  }
 
-    // ── TODO: upload file.buffer to your object store here ──────────────────
-    // e.g. await s3.putObject({ Bucket, Key: storageKey, Body: file.buffer });
-    // ────────────────────────────────────────────────────────────────────────
+  private safeFileName(original: string) {
+    return original.replace(/[^a-zA-Z0-9._-]+/g, "_").slice(0, 180) || "file";
+  }
+
+  async handleUpload(file: Express.Multer.File, tenantId: string) {
+    const storageKey = `tenants/${tenantId}/documents/${randomUUID()}-${this.safeFileName(file.originalname)}`;
+    const absolute = join(this.uploadRoot(), storageKey);
+    mkdirSync(dirname(absolute), { recursive: true });
+    writeFileSync(absolute, file.buffer);
 
     const record = await this.prisma["document"].create({
       data: {
@@ -44,31 +56,31 @@ export class DocumentsService extends TenantCrudService {
 
     return {
       ...record,
-      // Stub presigned URL – replace with real signed URL from your object store
-      previewUrl: `/api/v1/documents/${record.id}/preview`,
+      previewUrl: `/api/v1/documents/${record.id}/file`,
     };
   }
 
-  /**
-   * Return a presigned URL for previewing/downloading the document.
-   * In production, generate a time-limited signed URL from your object store.
-   */
-  async getPreviewUrl(id: string, tenantId: string) {
-    const doc = await this.prisma["document"].findFirst({
-      where: { id, tenantId },
-    });
-    if (!doc) throw new NotFoundException("Document not found");
-
-    // ── TODO: generate real presigned URL ────────────────────────────────────
-    // e.g. return s3.getSignedUrl("getObject", { Bucket, Key: doc.storageKey, Expires: 300 });
-    // ────────────────────────────────────────────────────────────────────────
+  async getPreviewUrl(id: string, user: AuthUser) {
+    const doc = await this.get(id, user);
     return {
       id: doc.id,
       title: doc.title,
       mimeType: doc.mimeType,
-      // Stub – in production return a real signed URL
-      url: `https://storage.example.com/${doc.storageKey}?token=stub`,
-      expiresAt: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+      url: `/api/v1/documents/${doc.id}/file`,
+      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+    };
+  }
+
+  async openFile(id: string, user: AuthUser) {
+    const doc = await this.get(id, user);
+    const absolute = join(this.uploadRoot(), doc.storageKey);
+    if (!existsSync(absolute)) {
+      throw new ServiceUnavailableException("File is missing from storage");
+    }
+    return {
+      stream: createReadStream(absolute),
+      mimeType: doc.mimeType || "application/octet-stream",
+      filename: doc.title,
     };
   }
 

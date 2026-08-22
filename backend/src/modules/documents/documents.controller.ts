@@ -7,8 +7,10 @@ import {
   BadRequestException,
   Controller,
   Get,
+  Header,
   Param,
   Post,
+  StreamableFile,
   UploadedFile,
   UseGuards,
   UseInterceptors,
@@ -16,6 +18,7 @@ import {
 import { FileInterceptor } from "@nestjs/platform-express";
 import { memoryStorage } from "multer";
 import { DocumentsService } from "./documents.service";
+import { Permissions } from "@/common/decorators/permissions.decorator";
 
 const ALLOWED_MIME_TYPES = new Set([
   "application/pdf",
@@ -37,10 +40,9 @@ export class DocumentsController extends TenantCrudController {
 
   /**
    * POST /api/v1/documents/upload
-   * Accepts multipart/form-data with a field named "file".
-   * Returns the persisted document record with a presigned-URL stub.
    */
   @Post("upload")
+  @Permissions("create")
   @UseInterceptors(
     FileInterceptor("file", {
       storage: memoryStorage(),
@@ -70,7 +72,19 @@ export class DocumentsController extends TenantCrudController {
    * Returns a presigned download URL for viewing the document.
    */
   @Get(":id/preview")
+  @Permissions("view")
   getPreviewUrl(@Param("id") id: string, @CurrentUser() user: AuthUser) {
-    return this.docsService.getPreviewUrl(id, user.tenantId ?? "");
+    return this.docsService.getPreviewUrl(id, user);
+  }
+
+  @Get(":id/file")
+  @Permissions("view")
+  @Header("Cache-Control", "private, max-age=60")
+  async getFile(@Param("id") id: string, @CurrentUser() user: AuthUser) {
+    const file = await this.docsService.openFile(id, user);
+    return new StreamableFile(file.stream, {
+      type: file.mimeType,
+      disposition: `inline; filename="${encodeURIComponent(file.filename)}"`,
+    });
   }
 }

@@ -1,4 +1,4 @@
-import { apiClient } from "./client";
+import { apiClient, normalizePage } from "./client";
 
 export interface AuditLog {
   id: string;
@@ -13,7 +13,7 @@ export interface AuditLog {
     id: string;
     name: string;
   };
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   createdAt: string;
 }
 
@@ -36,11 +36,9 @@ export const auditLogsApi = {
 
     const query = queryParams.toString();
     const url = `/audit-logs${query ? `?${query}` : ""}`;
-    
-    return apiClient.get<{ data: AuditLog[] }>(url);
-  },
 
-  async get(id: string) {
-    return apiClient.get<AuditLog>(`/audit-logs/${id}`);
+    return apiClient
+      .get<{ items?: AuditLog[]; data?: AuditLog[]; total?: number }>(url)
+      .then(normalizePage);
   },
 };

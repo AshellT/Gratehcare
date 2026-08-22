@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Building2,
@@ -8,7 +8,10 @@ import {
   Plus,
   KeyRound,
   AlertTriangle,
+  Wallet,
+  Tag,
 } from "lucide-react";
+import { tenantsApi } from "@/lib/api/tenants";
 import RoleGreeting from "./RoleGreeting";
 import KpiGrid from "@/components/dashboard/widgets/KpiGrid";
 import AlertsWidget from "@/components/dashboard/widgets/AlertsWidget";
@@ -22,6 +25,14 @@ const SuperAdminHome: React.FC = () => {
   const navigate = useNavigate();
   const data = useRoleHomeData();
   const loading = data.loading ? "..." : undefined;
+  const [mrr, setMrr] = useState<number | null>(null);
+
+  useEffect(() => {
+    tenantsApi
+      .platformRevenue()
+      .then((report) => setMrr(report.mrr))
+      .catch(() => setMrr(0));
+  }, []);
 
   return (
     <div className="space-y-8">
@@ -56,10 +67,10 @@ const SuperAdminHome: React.FC = () => {
             icon: <Users className="h-5 w-5" />,
           },
           {
-            label: "Clients",
-            value: loading ?? String(data.clients),
+            label: "MRR received",
+            value: mrr === null ? "..." : `$${mrr.toLocaleString()}`,
             tone: "emerald",
-            icon: <Activity className="h-5 w-5" />,
+            icon: <Wallet className="h-5 w-5" />,
           },
           {
             label: "Open compliance",
@@ -110,6 +121,18 @@ const SuperAdminHome: React.FC = () => {
               icon: <KeyRound className="h-4 w-4" />,
               tone: "amber",
               onClick: () => navigate("/app/permissions"),
+            },
+            {
+              label: "Platform revenue",
+              icon: <Wallet className="h-4 w-4" />,
+              tone: "emerald",
+              onClick: () => navigate("/app/revenue"),
+            },
+            {
+              label: "Plans & billing",
+              icon: <Tag className="h-4 w-4" />,
+              tone: "violet",
+              onClick: () => navigate("/app/plans"),
             },
           ]}
         />

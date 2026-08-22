@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post } from "@nestjs/common";
+import { Body, Controller, Get, HttpCode, Post, ServiceUnavailableException } from "@nestjs/common";
 import { CreateLeadDto } from "./dto/create-lead.dto";
 import { PublicService } from "./public.service";
 
@@ -6,10 +6,15 @@ import { PublicService } from "./public.service";
 export class PublicController {
   constructor(private readonly service: PublicService) {}
 
-  /** Unauthenticated liveness probe for Railway / load balancers */
+  /** Unauthenticated liveness probe */
   @Get("health")
-  health() {
-    return this.service.getHealth();
+  @HttpCode(200)
+  async health() {
+    const result = await this.service.getHealth();
+    if (result.db !== "connected") {
+      throw new ServiceUnavailableException(result);
+    }
+    return result;
   }
 
   @Get("marketing")

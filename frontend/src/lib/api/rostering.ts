@@ -8,6 +8,8 @@ type RawShift = Partial<Shift> & {
   status?: string;
   client?: { fullName?: string };
   staff?: { title?: string; user?: { fullName?: string } };
+  staffId?: string;
+  clientId?: string;
 };
 
 const normalizeShiftStatus = (status?: string): Shift["status"] => {
@@ -29,6 +31,8 @@ const normalizeShift = (shift: RawShift): Shift => ({
   ...(shift as Shift),
   clientName: shift.clientName ?? shift.client?.fullName ?? "Client",
   workerName: shift.workerName ?? shift.staff?.user?.fullName ?? shift.staff?.title,
+  staffId: shift.staffId,
+  clientId: shift.clientId,
   startTime: shift.startTime ?? shift.startsAt ?? new Date().toISOString(),
   endTime: shift.endTime ?? shift.endsAt ?? new Date().toISOString(),
   type: shift.type ?? shift.service ?? "Shift",

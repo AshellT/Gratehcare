@@ -22,6 +22,18 @@ export class SubscriptionBillingController {
     return this.service.createCheckoutSession(user, dto.planId);
   }
 
+  @Post("change-plan")
+  @UseGuards(JwtAuthGuard)
+  changePlan(@CurrentUser() user: AuthUser, @Body() dto: CreateCheckoutDto) {
+    return this.service.changePlan(user, dto.planId);
+  }
+
+  @Post("portal")
+  @UseGuards(JwtAuthGuard)
+  createPortal(@CurrentUser() user: AuthUser) {
+    return this.service.createPortalSession(user);
+  }
+
   @Post("stripe/webhook")
   handleWebhook(
     @Req() req: Request & { rawBody?: Buffer },

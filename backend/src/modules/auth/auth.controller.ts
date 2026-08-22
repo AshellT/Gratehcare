@@ -1,10 +1,13 @@
-import { Body, Controller, Post, Req, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Post, UseGuards } from "@nestjs/common";
 import { JwtAuthGuard } from "@/common/guards/jwt-auth.guard";
+import { CurrentUser } from "@/common/decorators/current-user.decorator";
+import { AuthUser } from "@/common/types/auth-user.type";
 import { AuthService } from "./auth.service";
 import { LoginDto } from "./dto/login.dto";
-import { OAuthCompleteDto } from "./dto/oauth-complete.dto";
 import { RegisterDto } from "./dto/register.dto";
-import type { Request } from "express";
+import { RefreshDto } from "./dto/refresh.dto";
+import { ForgotPasswordDto } from "./dto/forgot-password.dto";
+import { ResetPasswordDto } from "./dto/reset-password.dto";
 
 @Controller("auth")
 export class AuthController {
@@ -20,12 +23,29 @@ export class AuthController {
     return this.auth.login(dto);
   }
 
-  /** Sync Supabase OAuth user into Prisma and return session payload. */
-  @Post("oauth/complete")
+  @Post("refresh")
+  refresh(@Body() dto: RefreshDto) {
+    return this.auth.refresh(dto.refreshToken);
+  }
+
+  @Post("forgot-password")
+  forgotPassword(@Body() dto: ForgotPasswordDto) {
+    return this.auth.forgotPassword(dto.email);
+  }
+
+  @Post("reset-password")
+  resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.auth.resetPassword(dto.token, dto.password);
+  }
+
+  @Post("logout")
+  logout() {
+    return { ok: true };
+  }
+
+  @Get("me")
   @UseGuards(JwtAuthGuard)
-  oauthComplete(@Req() req: Request, @Body() dto: OAuthCompleteDto) {
-    const header = req.headers.authorization;
-    const token = header?.startsWith("Bearer ") ? header.slice(7) : "";
-    return this.auth.completeOAuthSession(token, dto);
+  me(@CurrentUser() user: AuthUser) {
+    return this.auth.me(user);
   }
 }

@@ -2,11 +2,11 @@ import React, { useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowRight, Loader2, Eye, EyeOff, Check, AlertCircle, MailCheck } from "lucide-react";
 import AuthLayout from "@/components/auth/AuthLayout";
-import OAuthButtons, { OAuthDivider } from "@/components/auth/OAuthButtons";
 import { useAuth } from "@/context/AuthContext";
 import { getAppHomePath } from "@/lib/appHome";
 import { usePlanCatalog } from "@/hooks/usePlanCatalog";
-import { parseSignupPlan } from "@/lib/signupPlan";
+import { parseSignupPlan, takeCheckoutIntent } from "@/lib/signupPlan";
+import { subscriptionBillingApi } from "@/lib/api/subscriptionBilling";
 
 const RegisterPage: React.FC = () => {
   const { register } = useAuth();
@@ -55,7 +55,22 @@ const RegisterPage: React.FC = () => {
         planId: planId || undefined,
       });
       if (u) {
-        navigate(getAppHomePath(u.role));
+        const checkoutPlan = takeCheckoutIntent();
+        if (checkoutPlan) {
+          try {
+            const session = await subscriptionBillingApi.createCheckout(checkoutPlan);
+            window.location.href = session.url;
+            return;
+          } catch (checkoutErr: any) {
+            setError(
+              checkoutErr?.message ||
+                "Account created. Open Plan & billing to add a card.",
+            );
+            navigate("/app/plans");
+            return;
+          }
+        }
+        navigate(u.role === "org_owner" ? "/app/plans" : getAppHomePath(u.role));
       } else {
         // Email confirmation required
         setEmailSent(true);
@@ -136,15 +151,6 @@ const RegisterPage: React.FC = () => {
             testId="register-org-input"
           />
         </div>
-
-        <OAuthButtons
-          mode="register"
-          organization={organization}
-          planId={planId || undefined}
-          disabled={loading}
-          onError={setError}
-        />
-        <OAuthDivider />
 
         <Field
           label="Work email"

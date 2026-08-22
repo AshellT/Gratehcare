@@ -3,13 +3,37 @@ import { randomUUID } from "node:crypto";
 import { PrismaService } from "@/prisma/prisma.service";
 import { PaginationDto } from "@/common/dto/pagination.dto";
 import { AuthUser } from "@/common/types/auth-user.type";
+import { Role } from "@prisma/client";
 
 @Injectable()
 export class MessagesService {
   constructor(private readonly prisma: PrismaService) {}
 
+  private ownThreadsOnly(user: AuthUser) {
+    return user.roles.some((role) =>
+      role === Role.FAMILY_USER || role === Role.PRACTITIONER || role === Role.SUPPORT_WORKER,
+    );
+  }
+
+  private async allowedThreadIds(user: AuthUser): Promise<string[] | null> {
+    if (!this.ownThreadsOnly(user)) return null;
+    const rows = await this.prisma.message.findMany({
+      where: {
+        senderId: user.sub,
+        ...(user.tenantId ? { tenantId: user.tenantId } : {}),
+      },
+      distinct: ["threadId"],
+      select: { threadId: true },
+    });
+    return rows.map((row) => row.threadId);
+  }
+
   async listConversations(query: PaginationDto, user: AuthUser) {
-    const where = user.tenantId ? { tenantId: user.tenantId } : {};
+    const threadIds = await this.allowedThreadIds(user);
+    const where = {
+      ...(user.tenantId ? { tenantId: user.tenantId } : {}),
+      ...(threadIds ? { threadId: { in: threadIds.length ? threadIds : ["__none__"] } } : {}),
+    };
     const messages = await this.prisma.message.findMany({
       where,
       orderBy: { createdAt: "desc" },
@@ -50,6 +74,10 @@ export class MessagesService {
   }
 
   async getThreadMessages(threadId: string, query: PaginationDto, user: AuthUser) {
+    const threadIds = await this.allowedThreadIds(user);
+    if (threadIds && !threadIds.includes(threadId)) {
+      throw new NotFoundException("Thread not found");
+    }
     const where = {
       threadId,
       ...(user.tenantId ? { tenantId: user.tenantId } : {}),
@@ -85,6 +113,10 @@ export class MessagesService {
   async sendMessage(threadId: string, content: string, user: AuthUser) {
     const tenantId = user.tenantId;
     if (!tenantId) throw new NotFoundException("Tenant required");
+    const threadIds = await this.allowedThreadIds(user);
+    if (threadIds && threadIds.length && !threadIds.includes(threadId)) {
+      throw new NotFoundException("Thread not found");
+    }
 
     const msg = await this.prisma.message.create({
       data: {
@@ -109,6 +141,10 @@ export class MessagesService {
   }
 
   async markThreadRead(threadId: string, user: AuthUser) {
+    const threadIds = await this.allowedThreadIds(user);
+    if (threadIds && !threadIds.includes(threadId)) {
+      throw new NotFoundException("Thread not found");
+    }
     await this.prisma.message.updateMany({
       where: {
         threadId,
@@ -134,6 +170,12 @@ export class MessagesService {
         status: "SENT",
       },
     });
-    return { id: threadId, participantNames: [user.email], lastMessage: content, unreadCount: 0 };
+    return {
+      id: threadId,
+      participantNames: [user.email],
+      lastMessage: content,
+      lastMessageAt: new Date().toISOString(),
+      unreadCount: 0,
+    };
   }
 }

@@ -613,7 +613,7 @@ const SettingsPage: React.FC = () => {
                         ))}
                     </div>
                     <button
-                      onClick={() => navigate("/pricing")}
+                      onClick={() => navigate("/app/plans")}
                       className="mt-4 flex items-center gap-1.5 text-sm font-semibold text-indigo-600 hover:text-indigo-700"
                     >
                       Compare all plans <ArrowRight className="h-4 w-4" />
@@ -666,13 +666,15 @@ const SettingsPage: React.FC = () => {
                 </Card>
                 <div className="grid sm:grid-cols-2 gap-4">
                   <Card title="Payment method">
-                    <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center">
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-6 text-center">
                       <CreditCard className="mx-auto h-5 w-5 text-slate-400" />
                       <div className="mt-2 text-sm font-semibold text-slate-900">
-                        Payment method is managed by Stripe checkout.
+                        {sub.stripeCustomerId
+                          ? "Card and invoices are managed in Stripe."
+                          : "No payment method on file yet."}
                       </div>
                       <p className="mt-1 text-xs text-slate-500">
-                        Billing details will appear here once the subscription portal is connected.
+                        Use Plan & billing to add a card or open the Stripe portal. You stay signed in.
                       </p>
                     </div>
                   </Card>

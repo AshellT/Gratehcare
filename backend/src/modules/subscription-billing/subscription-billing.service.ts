@@ -96,8 +96,8 @@ export class SubscriptionBillingService {
       customer: customerId,
       client_reference_id: tenant.id,
       line_items: [{ price: priceId, quantity: 1 }],
-      success_url: `${frontend}/app/subscription?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${frontend}/app/subscription?checkout=cancel`,
+      success_url: `${frontend}/app/plans?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${frontend}/app/plans?checkout=cancel`,
       metadata: {
         tenantId: tenant.id,
         planId,
@@ -113,6 +113,127 @@ export class SubscriptionBillingService {
     }
 
     return { url: session.url, sessionId: session.id, planId, planName: planMeta.name };
+  }
+
+  async changePlan(user: AuthUser, planIdInput?: string) {
+    if (!user.tenantId) {
+      throw new BadRequestException("No organization linked to this account");
+    }
+
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: user.tenantId },
+    });
+    if (!tenant) throw new NotFoundException("Organization not found");
+
+    const planId = this.stripeConfig.normalizePlanId(planIdInput);
+    if (tenant.planId === planId && tenant.stripeSubscriptionId && tenant.subscriptionStatus === "active") {
+      throw new BadRequestException("You are already on this plan");
+    }
+
+    if (!tenant.stripeSubscriptionId) {
+      return {
+        ...(await this.createCheckoutSession(user, planId)),
+        mode: "checkout" as const,
+      };
+    }
+
+    const stripe = await this.stripeConfig.createClient();
+    const priceId = this.stripeConfig.getPriceId(planId);
+    if (!stripe || !priceId) {
+      throw new ServiceUnavailableException("Stripe is not configured for this plan");
+    }
+
+    let subscription: Stripe.Subscription;
+    try {
+      subscription = await stripe.subscriptions.retrieve(tenant.stripeSubscriptionId);
+    } catch {
+      return {
+        ...(await this.createCheckoutSession(user, planId)),
+        mode: "checkout" as const,
+      };
+    }
+
+    if (["canceled", "incomplete_expired"].includes(subscription.status)) {
+      return {
+        ...(await this.createCheckoutSession(user, planId)),
+        mode: "checkout" as const,
+      };
+    }
+
+    const itemId = subscription.items.data[0]?.id;
+    if (!itemId) {
+      throw new BadRequestException("Stripe subscription has no billable item");
+    }
+
+    const rank = { start: 0, pro: 1, elite: 2 } as const;
+    const currentRank = rank[this.stripeConfig.normalizePlanId(tenant.planId)];
+    const nextRank = rank[planId];
+    const isUpgrade = nextRank >= currentRank;
+
+    const updated = await stripe.subscriptions.update(subscription.id, {
+      items: [{ id: itemId, price: priceId }],
+      proration_behavior: isUpgrade ? "create_prorations" : "none",
+      metadata: { tenantId: tenant.id, planId },
+    });
+
+    const periodEndUnix =
+      (updated as Stripe.Subscription & { current_period_end?: number }).current_period_end ??
+      updated.items.data[0]?.current_period_end;
+    const currentPeriodEnd = periodEndUnix ? new Date(periodEndUnix * 1000) : tenant.currentPeriodEnd;
+
+    await this.applyActiveSubscription(tenant.id, {
+      planId,
+      stripeCustomerId: tenant.stripeCustomerId,
+      stripeSubscriptionId: updated.id,
+      currentPeriodEnd,
+      billingEmail: tenant.billingEmail,
+      subscriptionStatus: updated.status === "trialing" ? "trial" : "active",
+      notifyActivation: false,
+    });
+
+    return {
+      mode: "updated" as const,
+      planId,
+      planName: PLANS[planId].name,
+      upgrade: isUpgrade,
+    };
+  }
+
+  async createPortalSession(user: AuthUser) {
+    if (!user.tenantId) {
+      throw new BadRequestException("No organization linked to this account");
+    }
+
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: user.tenantId },
+      select: { stripeCustomerId: true },
+    });
+    if (!tenant?.stripeCustomerId) {
+      throw new BadRequestException("Add a payment method first to manage billing in Stripe.");
+    }
+
+    const stripe = await this.stripeConfig.createClient();
+    if (!stripe) {
+      throw new ServiceUnavailableException("Stripe is not configured");
+    }
+
+    try {
+      const session = await stripe.billingPortal.sessions.create({
+        customer: tenant.stripeCustomerId,
+        return_url: `${this.stripeConfig.getFrontendUrl()}/app/plans`,
+      });
+      if (!session.url) {
+        throw new ServiceUnavailableException("Could not open the billing portal");
+      }
+      return { url: session.url };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Billing portal is not available";
+      throw new ServiceUnavailableException(
+        /portal|configuration/i.test(message)
+          ? "Activate the Stripe Customer Portal in Stripe Settings → Billing → Customer portal, then try again."
+          : message,
+      );
+    }
   }
 
   async handleWebhook(rawBody: Buffer, signature: string | undefined) {
@@ -153,6 +274,24 @@ export class SubscriptionBillingService {
   }
 
   private async onCheckoutCompleted(stripe: Stripe, session: Stripe.Checkout.Session) {
+    if (session.mode === "payment" && session.metadata?.kind === "care_invoice") {
+      const invoiceId = session.metadata.invoiceId || session.client_reference_id;
+      if (
+        invoiceId &&
+        (session.payment_status === "paid" || session.status === "complete")
+      ) {
+        await this.prisma.invoice.updateMany({
+          where: { id: invoiceId, NOT: { status: "PAID" } },
+          data: {
+            status: "PAID",
+            paidAt: new Date(),
+            stripeCheckoutSessionId: session.id,
+          },
+        });
+      }
+      return;
+    }
+
     const tenantId = session.metadata?.tenantId || session.client_reference_id;
     const planId = this.stripeConfig.normalizePlanId(session.metadata?.planId);
     if (!tenantId) return;
@@ -281,6 +420,7 @@ export class SubscriptionBillingService {
       currentPeriodEnd?: Date | null;
       billingEmail?: string | null;
       subscriptionStatus?: string;
+      notifyActivation?: boolean;
     },
   ) {
     const tenant = await this.prisma.tenant.update({
@@ -297,7 +437,7 @@ export class SubscriptionBillingService {
 
     const planMeta = PLANS[data.planId];
     const email = data.billingEmail || tenant.billingEmail;
-    if (email && data.subscriptionStatus !== "trial") {
+    if (email && data.subscriptionStatus !== "trial" && data.notifyActivation !== false) {
       await this.email.sendSubscriptionActivated({
         to: email,
         organizationName: tenant.name,

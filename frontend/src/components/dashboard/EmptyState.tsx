@@ -2,14 +2,27 @@ import { motion } from "framer-motion";
 import { Inbox } from "lucide-react";
 import React from "react";
 
+type ActionConfig = {
+  label: string;
+  onClick: () => void;
+};
+
 type Props = {
   icon?: React.ReactNode;
   title: string;
   description?: string;
-  action?: React.ReactNode;
+  action?: React.ReactNode | ActionConfig;
   /** compact = smaller padding, used inside tables/cards */
   compact?: boolean;
 };
+
+const isActionConfig = (value: unknown): value is ActionConfig =>
+  typeof value === "object" &&
+  value !== null &&
+  "label" in value &&
+  "onClick" in value &&
+  typeof (value as ActionConfig).onClick === "function" &&
+  typeof (value as ActionConfig).label === "string";
 
 const EmptyState: React.FC<Props> = ({
   icon,
@@ -35,7 +48,21 @@ const EmptyState: React.FC<Props> = ({
         {description}
       </p>
     )}
-    {action && <div className="mt-5">{action}</div>}
+    {action && (
+      <div className="mt-5">
+        {isActionConfig(action) ? (
+          <button
+            type="button"
+            onClick={action.onClick}
+            className="inline-flex items-center justify-center rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+          >
+            {action.label}
+          </button>
+        ) : (
+          action
+        )}
+      </div>
+    )}
   </motion.div>
 );
 

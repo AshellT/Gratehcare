@@ -6,6 +6,13 @@ import { AuthUser } from "@/common/types/auth-user.type";
 import { SubscriptionsService } from "@/modules/subscriptions/subscriptions.service";
 import { CreateTenantDto } from "./dto/create-tenant.dto";
 import { UpgradeRequestDto } from "./dto/upgrade-request.dto";
+import { PLANS } from "@/modules/subscription-billing/plan-catalog";
+
+const PLAN_IDS = ["start", "pro", "elite"] as const;
+type CatalogPlanId = (typeof PLAN_IDS)[number];
+
+const normalizePlanId = (planId?: string | null): CatalogPlanId =>
+  PLAN_IDS.includes(planId as CatalogPlanId) ? (planId as CatalogPlanId) : "pro";
 
 @Injectable()
 export class OrganizationsService {
@@ -28,6 +35,86 @@ export class OrganizationsService {
     const item = await this.prisma.tenant.findUnique({ where: { id } });
     if (!item) throw new NotFoundException("Organization not found");
     return item;
+  }
+
+  async platformRevenue() {
+    const [tenants, userCount] = await Promise.all([
+      this.prisma.tenant.findMany({
+        select: {
+          id: true,
+          name: true,
+          planId: true,
+          subscriptionStatus: true,
+          stripeSubscriptionId: true,
+          currentPeriodEnd: true,
+        },
+        orderBy: { createdAt: "desc" },
+      }),
+      this.prisma.user.count({ where: { isActive: true } }),
+    ]);
+
+    const byPlan = Object.fromEntries(
+      PLAN_IDS.map((id) => [id, { id, name: PLANS[id].name, monthlyPrice: PLANS[id].monthlyPrice, tenants: 0, paying: 0, trial: 0, mrr: 0 }]),
+    ) as Record<
+      CatalogPlanId,
+      { id: CatalogPlanId; name: string; monthlyPrice: number; tenants: number; paying: number; trial: number; mrr: number }
+    >;
+
+    let payingTenants = 0;
+    let trialTenants = 0;
+    let pastDueTenants = 0;
+    let cancelledTenants = 0;
+    let mrr = 0;
+    let trialPipelineMrr = 0;
+
+    for (const tenant of tenants) {
+      const planId = normalizePlanId(tenant.planId);
+      const price = PLANS[planId].monthlyPrice;
+      byPlan[planId].tenants += 1;
+      const status = tenant.subscriptionStatus || "trial";
+      const paying = status === "active" && Boolean(tenant.stripeSubscriptionId);
+
+      if (paying) {
+        payingTenants += 1;
+        mrr += price;
+        byPlan[planId].paying += 1;
+        byPlan[planId].mrr += price;
+      } else if (status === "trial") {
+        trialTenants += 1;
+        trialPipelineMrr += price;
+        byPlan[planId].trial += 1;
+      } else if (status === "past_due") {
+        pastDueTenants += 1;
+      } else if (status === "cancelled") {
+        cancelledTenants += 1;
+      }
+    }
+
+    return {
+      tenantCount: tenants.length,
+      userCount,
+      payingTenants,
+      trialTenants,
+      pastDueTenants,
+      cancelledTenants,
+      mrr,
+      arr: mrr * 12,
+      trialPipelineMrr,
+      netRetentionPct: payingTenants + cancelledTenants > 0
+        ? Math.round((payingTenants / (payingTenants + cancelledTenants)) * 100)
+        : payingTenants > 0
+          ? 100
+          : 0,
+      byPlan: PLAN_IDS.map((id) => byPlan[id]),
+      recentTenants: tenants.slice(0, 8).map((tenant) => ({
+        id: tenant.id,
+        name: tenant.name,
+        planId: normalizePlanId(tenant.planId),
+        status: tenant.subscriptionStatus || "trial",
+        paying: tenant.subscriptionStatus === "active" && Boolean(tenant.stripeSubscriptionId),
+        monthlyPrice: PLANS[normalizePlanId(tenant.planId)].monthlyPrice,
+      })),
+    };
   }
 
   async getCurrent(user: AuthUser) {

@@ -2,9 +2,12 @@ import React from "react";
 import { motion } from "framer-motion";
 import { ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useAuth } from "@/context/AuthContext";
+import { getAppHomePath } from "@/lib/appHome";
 import { buildDemoPath } from "@/lib/signupPlan";
 
 const FinalCTA: React.FC = () => {
+  const { user } = useAuth();
   return (
     <section
       data-testid="final-cta-section"
@@ -51,11 +54,11 @@ const FinalCTA: React.FC = () => {
 
             <div className="lg:col-span-4 flex flex-col gap-3">
               <Link
-                to="/register"
+                to={user ? getAppHomePath(user.role) : "/register"}
                 data-testid="final-cta-primary"
                 className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-6 py-4 text-sm font-bold text-slate-900 hover:bg-slate-100 transition-all hover:-translate-y-0.5 shadow-xl"
               >
-                Start your free trial
+                {user ? "Open workspace" : "Start your free trial"}
                 <ArrowRight className="h-4 w-4" />
               </Link>
               <Link

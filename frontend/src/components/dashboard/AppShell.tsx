@@ -26,8 +26,8 @@ const AppShellInner: React.FC = () => {
         "Trial ended",
         detail?.message || "Upgrade your plan to continue making changes.",
       );
-      if (location.pathname !== "/app/subscription") {
-        navigate(detail?.upgradeUrl || "/app/subscription");
+      if (location.pathname !== "/app/plans" && location.pathname !== "/app/subscription") {
+        navigate(detail?.upgradeUrl || "/app/plans");
       }
     };
 
